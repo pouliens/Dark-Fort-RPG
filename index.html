@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Fort - Solo RPG</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #d4af37;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            padding: 20px;
+            border: 2px solid #d4af37;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #ff6b35;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 30px;
+        }
+        
+        .character-sheet {
+            background: #333;
+            padding: 15px;
+            border: 1px solid #555;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .stat {
+            background: #444;
+            padding: 8px;
+            border-radius: 3px;
+        }
+        
+        .game-area {
+            background: #222;
+            padding: 20px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            margin: 20px 0;
+            min-height: 300px;
+        }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #8b4513;
+            color: #d4af37;
+            border: 2px solid #d4af37;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #d4af37;
+            color: #8b4513;
+        }
+        
+        button:disabled {
+            background: #666;
+            color: #999;
+            border-color: #999;
+            cursor: not-allowed;
+        }
+        
+        .inventory {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .log {
+            background: #111;
+            color: #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+            border: 1px solid #444;
+        }
+        
+        .combat {
+            background: #4a1a1a;
+            border: 2px solid #ff6b35;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .room-info {
+            background: #1a3a1a;
+            border: 2px solid #32cd32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .warning {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #32cd32;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏰 DARK FORT 🏰</h1>
+        <p style="text-align: center; font-style: italic;">A solo dungeon crawler based on the precursor to MÖRK BORG</p>
+        
+        <div class="character-sheet">
+            <h3>📜 KARGUNT THE CATACOMB ROGUE</h3>
+            <div class="stats">
+                <div class="stat">❤️ HP: <span id="hp">15</span>/<span id="maxHp">15</span></div>
+                <div class="stat">🪙 Silver: <span id="silver">0</span></div>
+                <div class="stat">⭐ Points: <span id="points">0</span>/15</div>
+                <div class="stat">🏠 Rooms: <span id="rooms">0</span>/12</div>
+                <div class="stat">🏆 Level: <span id="level">1</span></div>
+            </div>
+            
+            <div class="inventory">
+                <h4>🎒 Inventory:</h4>
+                <div id="inventory"></div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <div id="gameText">
+                <p>Welcome to the Dark Fort, brave Kargunt!</p>
+                <p>You stand before the entrance to a cursed catacomb. Ancient evil lurks within, but so does treasure and glory.</p>
+                <p>Click "Start Adventure" to begin your perilous journey...</p>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button id="startBtn" onclick="startGame()">🚪 Start Adventure</button>
+            <button id="exploreBtn" onclick="exploreRoom()" disabled>🔍 Explore Room</button>
+            <button id="attackBtn" onclick="attack()" disabled>⚔️ Attack</button>
+            <button id="fleeBtn" onclick="flee()" disabled>🏃 Flee</button>
+            <button id="usePotionBtn" onclick="usePotion()" disabled>🧪 Use Potion</button>
+            <button id="shopBtn" onclick="toggleShop()" disabled>🛒 Shop</button>
+        </div>
+        
+        <div id="shopArea" style="display: none;">
+            <div class="inventory">
+                <h4>🛒 Peddler from Beyond the Void</h4>
+                <p>"Blood-soaked coins for trinkets and steel, traveler..."</p>
+                <div id="shopItems"></div>
+            </div>
+        </div>
+        
+        <div class="log">
+            <h4>📋 Adventure Log:</h4>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let gameState = {
+            hp: 15,
+            maxHp: 15,
+            silver: 0,
+            points: 0,
+            rooms: 0,
+            level: 1,
+            inventory: [],
+            currentMonster: null,
+            inCombat: false,
+            gameStarted: false,
+            levelUpBonuses: [1, 2, 3, 4, 5, 6],
+            shopOpen: false,
+            currentRoom: 'entrance'
+        };
+
+        // Game data
+        const weapons = {
+            'Warhammer': { damage: 'd6', bonus: 0, value: 9 },
+            'Dagger': { damage: 'd4', bonus: 1, value: 6 },
+            'Sword': { damage: 'd6', bonus: 1, value: 12 },
+            'Flail': { damage: 'd6+1', bonus: 0, value: 15 },
+            'Mighty Zweihänder': { damage: 'd6+2', bonus: 0, value: 25 }
+        };
+
+        const weakMonsters = [
+            { name: 'Blood-drenched Skeleton', points: 3, damage: 'd4', hp: 6, difficulty: 3, loot: { chance: 2, item: 'Dagger' } },
+            { name: 'Catacomb Cultist', points: 3, damage: 'd4', hp: 6, difficulty: 3, loot: { chance: 2, item: 'Random Scroll' } },
+            { name: 'Goblin', points: 3, damage: 'd4', hp: 5, difficulty: 3, loot: { chance: 2, item: 'Rope' } },
+            { name: 'Undead Hound', points: 4, damage: 'd4', hp: 6, difficulty: 4, loot: null }
+        ];
+
+        const toughMonsters = [
+            { name: 'Necro-Sorcerer', points: 4, damage: 'd4/d6', hp: 8, difficulty: 4, special: 'maggot', loot: { silver: '3d6' } },
+            { name: 'Small Stone Troll', points: 5, damage: 'd6+1', hp: 9, difficulty: 5, killPoints: 7 },
+            { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 4, special: 'petrify', loot: { silver: 'd4*d6' } },
+            { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 4, special: 'levelup' }
+        ];
+
+        const scrolls = [
+            'Summon weak daemon',
+            'Palms Open the Southern Gate',
+            'Aegis of Sorrow',
+            'False Omen'
+        ];
+
+        const shopItems = [
+            { name: 'Potion', price: 4, type: 'consumable' },
+            { name: 'Random Scroll', price: 7, type: 'scroll' },
+            { name: 'Dagger', price: 6, type: 'weapon' },
+            { name: 'Warhammer', price: 9, type: 'weapon' },
+            { name: 'Rope', price: 5, type: 'item' },
+            { name: 'Sword', price: 12, type: 'weapon' },
+            { name: 'Flail', price: 15, type: 'weapon' },
+            { name: 'Mighty Zweihänder', price: 25, type: 'weapon' },
+            { name: 'Armor', price: 10, type: 'armor' },
+            { name: 'Cloak of Invisibility', price: 15, type: 'special' }
+        ];
+
+        // Utility functions
+        function rollDie(sides) {
+            return Math.floor(Math.random() * sides) + 1;
+        }
+
+        function rollDamage(diceString) {
+            if (diceString.includes('d6+2')) return rollDie(6) + 2;
+            if (diceString.includes('d6+1')) return rollDie(6) + 1;
+            if (diceString.includes('d6')) return rollDie(6);
+            if (diceString.includes('d4')) return rollDie(4);
+            return 1;
+        }
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.innerHTML += '<p>' + message + '</p>';
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateDisplay() {
+            document.getElementById('hp').textContent = gameState.hp;
+            document.getElementById('maxHp').textContent = gameState.maxHp;
+            document.getElementById('silver').textContent = gameState.silver;
+            document.getElementById('points').textContent = gameState.points;
+            document.getElementById('rooms').textContent = gameState.rooms;
+            document.getElementById('level').textContent = gameState.level;
+            
+            const inventoryElement = document.getElementById('inventory');
+            inventoryElement.innerHTML = gameState.inventory.length > 0 ? 
+                gameState.inventory.join(', ') : 'Empty';
+        }
+
+        function setGameText(text) {
+            document.getElementById('gameText').innerHTML = text;
+        }
+
+        function updateButtons() {
+            document.getElementById('startBtn').disabled = gameState.gameStarted;
+            document.getElementById('exploreBtn').disabled = !gameState.gameStarted || gameState.inCombat || gameState.shopOpen;
+            document.getElementById('attackBtn').disabled = !gameState.inCombat;
+            document.getElementById('fleeBtn').disabled = !gameState.inCombat;
+            document.getElementById('usePotionBtn').disabled = !gameState.inventory.includes('Potion') || gameState.hp >= gameState.maxHp;
+            document.getElementById('shopBtn').disabled = gameState.currentRoom !== 'shop' || gameState.inCombat;
+        }
+
+        // Game functions
+        function startGame() {
+            gameState.gameStarted = true;
+            gameState.silver = 15 + rollDie(6);
+            
+            // Starting equipment
+            const weaponRoll = rollDie(4);
+            const gearRoll = rollDie(4);
+            
+            const weaponNames = ['Warhammer', 'Dagger', 'Sword', 'Flail'];
+            const gearNames = ['Armor', 'Potion', 'Scroll: Summon weak daemon', 'Cloak of Invisibility'];
+            
+            gameState.inventory.push(weaponNames[weaponRoll - 1]);
+            gameState.inventory.push(gearNames[gearRoll - 1]);
+            
+            log("🎯 Adventure begins! You start with " + gameState.silver + " silver pieces.");
+            log("🗡️ Starting gear: " + weaponNames[weaponRoll - 1] + ", " + gearNames[gearRoll - 1]);
+            
+            enterEntranceRoom();
+            updateDisplay();
+            updateButtons();
+        }
+
+        function enterEntranceRoom() {
+            const doorRoll = rollDie(4);
+            const eventRoll = rollDie(4);
+            
+            gameState.rooms++;
+            
+            let roomText = `<div class="room-info"><h3>🚪 ENTRANCE ROOM</h3>`;
+            roomText += `<p>You enter a dimly lit chamber with ${doorRoll} door${doorRoll > 1 ? 's' : ''} leading deeper into the catacomb.</p>`;
+            
+            switch(eventRoll) {
+                case 1:
+                    const item = getRandomItem();
+                    gameState.inventory.push(item);
+                    roomText += `<p class="success">✨ You find a ${item}!</p>`;
+                    log("🎁 Found item: " + item);
+                    break;
+                case 2:
+                    roomText += `<p class="warning">⚠️ A weak monster guards this chamber!</p>`;
+                    startCombat(getRandomWeakMonster());
+                    break;
+                case 3:
+                    const scroll = scrolls[rollDie(4) - 1];
+                    gameState.inventory.push("Scroll: " + scroll);
+                    roomText += `<p class="success">🧙 A dying mystic gives you a scroll: "${scroll}"</p>`;
+                    log("📜 Received scroll: " + scroll);
+                    break;
+                case 4:
+                    roomText += `<p>😶 The entrance is eerily quiet and desolate...</p>`;
+                    break;
+            }
+            
+            roomText += `</div>`;
+            setGameText(roomText);
+        }
+
+        function exploreRoom() {
+            if (gameState.rooms >= 12 && gameState.points >= 15) {
+                checkLevelUp();
+                return;
+            }
+            
+            const roomRoll = rollDie(6);
+            gameState.rooms++;
+            
+            let roomText = `<div class="room-info"><h3>🏛️ ROOM ${gameState.rooms}</h3>`;
+            
+            switch(roomRoll) {
+                case 1:
+                    roomText += `<p>🕳️ Nothing. The room is empty and explored.</p>`;
+                    gameState.currentRoom = 'empty';
+                    break;
+                case 2:
+                    const trapRoll = rollDie(6) + (gameState.inventory.includes('Rope') ? 1 : 0);
+                    if (trapRoll <= 3) {
+                        const damage = rollDie(6);
+                        gameState.hp -= damage;
+                        roomText += `<p class="warning">🕳️ Pit trap! You take ${damage} damage!</p>`;
+                        log("💀 Took " + damage + " damage from pit trap");
+                        if (gameState.hp <= 0) {
+                            gameOver("You died in a pit trap!");
+                            return;
+                        }
+                    } else {
+                        roomText += `<p class="success">🕳️ You notice a pit trap and avoid it!</p>`;
+                    }
+                    gameState.currentRoom = 'empty';
+                    break;
+                case 3:
+                    const riddleRoll = rollDie(6);
+                    if (riddleRoll % 2 === 1) {
+                        roomText += `<p class="success">🧙 You solve the soothsayer's riddle! Choose your reward:</p>`;
+                        roomText += `<button onclick="chooseReward('silver')">10 Silver</button> `;
+                        roomText += `<button onclick="chooseReward('points')">3 Points</button>`;
+                    } else {
+                        const damage = rollDie(4);
+                        gameState.hp -= damage;
+                        roomText += `<p class="warning">🧙 Mind-shattering shockwave! You take ${damage} damage!</p>`;
+                        log("💀 Took " + damage + " damage from failed riddle");
+                        if (gameState.hp <= 0) {
+                            gameOver("Your mind was shattered by the soothsayer!");
+                            return;
+                        }
+                    }
+                    gameState.currentRoom = 'empty';
+                    break;
+                case 4:
+                    roomText += `<p class="warning">👹 A weak monster lurks here!</p>`;
+                    startCombat(getRandomWeakMonster());
+                    break;
+                case 5:
+                    roomText += `<p class="warning">🐉 A tough monster blocks your path!</p>`;
+                    startCombat(getRandomToughMonster());
+                    break;
+                case 6:
+                    roomText += `<p class="success">🛒 A peddler from beyond the void offers his wares...</p>`;
+                    gameState.currentRoom = 'shop';
+                    createShop();
+                    break;
+            }
+            
+            roomText += `</div>`;
+            setGameText(roomText);
+            updateDisplay();
+            updateButtons();
+        }
+
+        function chooseReward(type) {
+            if (type === 'silver') {
+                gameState.silver += 10;
+                log("🪙 Gained 10 silver from riddle");
+            } else {
+                gameState.points += 3;
+                log("⭐ Gained 3 points from riddle");
+            }
+            
+            setGameText(`<div class="room-info"><h3>🏛️ ROOM ${gameState.rooms}</h3><p class="success">✅ Room explored! You may continue your journey.</p></div>`);
+            gameState.currentRoom = 'empty';
+            updateDisplay();
+            updateButtons();
+        }
+
+        function getRandomItem() {
+            const itemRoll = rollDie(6);
+            const items = ['Warhammer', 'Potion', 'Rope', 'Random Scroll', 'Armor', 'Cloak of Invisibility'];
+            return items[itemRoll - 1];
+        }
+
+        function getRandomWeakMonster() {
+            return weakMonsters[rollDie(4) - 1];
+        }
+
+        function getRandomToughMonster() {
+            return toughMonsters[rollDie(4) - 1];
+        }
+
+        function startCombat(monster) {
+            gameState.currentMonster = { ...monster, currentHp: monster.hp };
+            gameState.inCombat = true;
+            
+            let combatText = `<div class="combat">`;
+            combatText += `<h3>⚔️ COMBAT!</h3>`;
+            combatText += `<p><strong>${monster.name}</strong></p>`;
+            combatText += `<p>HP: ${monster.hp} | Damage: ${monster.damage} | Difficulty: ${monster.difficulty}</p>`;
+            combatText += `<p class="warning">Prepare for battle!</p>`;
+            combatText += `</div>`;
+            
+            setGameText(combatText);
+            log("⚔️ Combat started with " + monster.name);
+            updateButtons();
+        }
+
+        function attack() {
+            const monster = gameState.currentMonster;
+            const attackRoll = rollDie(6);
+            
+            // Get weapon bonus
+            let attackBonus = 0;
+            let weaponDamage = 'd4';
+            
+            for (let item of gameState.inventory) {
+                if (weapons[item]) {
+                    attackBonus = weapons[item].bonus;
+                    weaponDamage = weapons[item].damage;
+                    break;
+                }
+            }
+            
+            // Check for level up bonus
+            if (!gameState.levelUpBonuses.includes(2)) {
+                attackBonus += 1;
+            }
+            
+            const finalAttack = attackRoll + attackBonus;
+            
+            let combatText = `<div class="combat">`;
+            combatText += `<h3>⚔️ COMBAT: ${monster.name}</h3>`;
+            combatText += `<p>Monster HP: ${monster.currentHp}/${monster.hp}</p>`;
+            
+            if (finalAttack >= monster.difficulty) {
+                const damage = rollDamage(weaponDamage);
+                monster.currentHp -= damage;
+                combatText += `<p class="success">🎯 Hit! You deal ${damage} damage!</p>`;
+                log("🎯 Hit " + monster.name + " for " + damage + " damage");
+                
+                if (monster.currentHp <= 0) {
+                    // Monster defeated
+                    let points = monster.points;
+                    if (monster.killPoints && monster.currentHp <= 0) {
+                        points = monster.killPoints;
+                    }
+                    
+                    gameState.points += points;
+                    gameState.inCombat = false;
+                    gameState.currentMonster = null;
+                    
+                    combatText += `<p class="success">💀 ${monster.name} defeated! Gained ${points} points!</p>`;
+                    log("🏆 Defeated " + monster.name + " for " + points + " points");
+                    
+                    // Handle loot
+                    if (monster.loot) {
+                        if (monster.loot.chance && rollDie(6) <= monster.loot.chance) {
+                            gameState.inventory.push(monster.loot.item);
+                            combatText += `<p class="success">🎁 Looted: ${monster.loot.item}</p>`;
+                            log("🎁 Looted: " + monster.loot.item);
+                        }
+                        if (monster.loot.silver) {
+                            let silverGained = 0;
+                            if (monster.loot.silver === '3d6') {
+                                silverGained = rollDie(6) + rollDie(6) + rollDie(6);
+                            } else if (monster.loot.silver === 'd4*d6') {
+                                silverGained = rollDie(4) * rollDie(6);
+                            }
+                            gameState.silver += silverGained;
+                            combatText += `<p class="success">🪙 Found ${silverGained} silver!</p>`;
+                            log("🪙 Found " + silverGained + " silver");
+                        }
+                    }
+                    
+                    // Handle special effects
+                    if (monster.special) {
+                        const specialRoll = rollDie(6);
+                        if (monster.special === 'maggot' && specialRoll === 1) {
+                            gameOver("You were transformed into a maggot by the Necro-Sorcerer!");
+                            return;
+                        } else if (monster.special === 'petrify' && specialRoll === 1) {
+                            gameOver("You were petrified by the Medusa's gaze!");
+                            return;
+                        } else if (monster.special === 'levelup' && specialRoll <= 2) {
+                            combatText += `<p class="success">✨ The Ruin Basilisk's death energy empowers you! LEVEL UP!</p>`;
+                            checkLevelUp();
+                            setGameText(combatText + `</div>`);
+                            return;
+                        }
+                    }
+                    
+                    gameState.currentRoom = 'empty';
+                    combatText += `<p>✅ Room explored! You may continue your journey.</p>`;
+                } else {
+                    // Monster still alive, it attacks back
+                    monsterAttack();
+                    return;
+                }
+            } else {
+                combatText += `<p class="warning">❌ Miss! (Rolled ${finalAttack}, needed ${monster.difficulty})</p>`;
+                log("❌ Missed attack on " + monster.name);
+                // Monster attacks
+                monsterAttack();
+                return;
+            }
+            
+            combatText += `</div>`;
+            setGameText(combatText);
+            updateDisplay();
+            updateButtons();
+        }
+
+        function monsterAttack() {
+            const monster = gameState.currentMonster;
+            let damage = rollDamage(monster.damage);
+            
+            // Check for armor
+            if (gameState.inventory.includes('Armor')) {
+                const armorReduction = rollDie(4);
+                damage = Math.max(0, damage - armorReduction);
+            }
+            
+            gameState.hp -= damage;
+            
+            let combatText = `<div class="combat">`;
+            combatText += `<h3>⚔️ COMBAT: ${monster.name}</h3>`;
+            combatText += `<p>Monster HP: ${monster.currentHp}/${monster.hp}</p>`;
+            combatText += `<p class="warning">💥 ${monster.name} attacks! You take ${damage} damage!</p>`;
+            
+            if (gameState.hp <= 0) {
+                gameOver("You were slain by " + monster.name + "!");
+                return;
+            }
+            
+            combatText += `<p>Your HP: ${gameState.hp}/${gameState.maxHp}</p>`;
+            combatText += `</div>`;
+            
+            setGameText(combatText);
+            log("💀 Took " + damage + " damage from " + monster.name);
+            updateDisplay();
+        }
+
+        function flee() {
+            const damage = rollDie(4);
+            gameState.hp -= damage;
+            gameState.inCombat = false;
+            gameState.currentMonster = null;
+            gameState.rooms--; // Don't count this room as explored
+            
+            let fleeText = `<div class="room-info">`;
+            fleeText += `<h3>🏃 FLED FROM COMBAT</h3>`;
+            fleeText += `<p class="warning">You flee from the monster, taking ${damage} damage in your haste!</p>`;
+            fleeText += `<p>The room remains unexplored...</p>`;
+            fleeText += `</div>`;
+            
+            if (gameState.hp <= 0) {
+                gameOver("You died while fleeing!");
+                return;
+            }
+            
+            setGameText(fleeText);
+            log("🏃 Fled from combat, took " + damage + " damage");
+            updateDisplay();
+            updateButtons();
+        }
+
+        function usePotion() {
+            if (!gameState.inventory.includes('Potion')) return;
+            
+            const healing = rollDie(6);
+            gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
+            
+            // Remove one potion
+            const potionIndex = gameState.inventory.indexOf('Potion');
+            gameState.inventory.splice(potionIndex, 1);
+            
+            log("🧪 Used potion, healed " + healing + " HP");
+            updateDisplay();
+            updateButtons();
+        }
+
+        function createShop() {
+            let shopHTML = '<div class="inventory"><h4>🛒 Peddler\'s Wares</h4>';
+            shopHTML += '<div id="shopItems">';
+            
+            for (let item of shopItems) {
+                shopHTML += `<div style="margin: 5px 0;">`;
+                shopHTML += `${item.name} - ${item.price}s `;
+                shopHTML += `<button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button>`;
+                shopHTML += `</div>`;
+            }
+            
+            shopHTML += '</div></div>';
+            document.getElementById('shopArea').innerHTML = shopHTML;
+            document.getElementById('shopArea').style.display = 'block';
+        }
+
+        function toggleShop() {
+            const shopArea = document.getElementById('shopArea');
+            gameState.shopOpen = !gameState.shopOpen;
+            shopArea.style.display = gameState.shopOpen ? 'block' : 'none';
+            updateButtons();
+        }
+
+        function buyItem(itemName, price) {
+            if (gameState.silver >= price) {
+                gameState.silver -= price;
+                
+                if (itemName === 'Random Scroll') {
+                    const scroll = scrolls[rollDie(4) - 1];
+                    gameState.inventory.push('Scroll: ' + scroll);
+                    log("🛒 Bought scroll: " + scroll);
+                } else {
+                    gameState.inventory.push(itemName);
+                    log("🛒 Bought: " + itemName);
+                }
+                
+                updateDisplay();
+                createShop(); // Refresh shop
+            }
+        }
+
+        function checkLevelUp() {
+            if ((gameState.rooms >= 12 && gameState.points >= 15) || gameState.silver >= 40) {
+                levelUp();
+            }
+        }
+
+        function levelUp() {
+            const bonus = rollDie(6);
+            const bonusIndex = gameState.levelUpBonuses.indexOf(bonus);
+            if (bonusIndex !== -1) {
+                gameState.levelUpBonuses.splice(bonusIndex, 1);
+            }
+            
+            gameState.level++;
+            gameState.points = 0;
+            gameState.rooms = 0;
+            
+            let levelText = `<div class="success">`;
+            levelText += `<h3>🏆 LEVEL UP! You are now level ${gameState.level}!</h3>`;
+            
+            switch(bonus) {
+                case 1:
+                    levelText += `<p>🎖️ You are knighted! You may call yourself Sir or Lady Kargunt!</p>`;
+                    break;
+                case 2:
+                    levelText += `<p>⚔️ You gain +1 attack bonus against all monsters!</p>`;
+                    break;
+                case 3:
+                    gameState.maxHp += 5;
+                    gameState.hp += 5;
+                    levelText += `<p>❤️ Your maximum hit points increase by +5 to ${gameState.maxHp}!</p>`;
+                    break;
+                case 4:
+                    for (let i = 0; i < 5; i++) {
+                        gameState.inventory.push('Potion');
+                    }
+                    levelText += `<p>🧪 A herbmaster gives you 5 potions!</p>`;
+                    break;
+                case 5:
+                    gameState.inventory.push('Mighty Zweihänder');
+                    levelText += `<p>🗡️ You find a MIGHTY ZWEIHÄNDER (d6+2 damage)!</p>`;
+                    break;
+                case 6:
+                    levelText += `<p>🛡️ Choose one weak and one tough monster - their damage against you is halved forever!</p>`;
+                    break;
+            }
+            
+            levelText += `<p>Continue exploring or start a new catacomb!</p>`;
+            levelText += `</div>`;
+            
+            setGameText(levelText);
+            log("🏆 LEVEL UP! Gained bonus: " + bonus);
+            
+            if (gameState.levelUpBonuses.length === 0) {
+                gameWin();
+            }
+            
+            updateDisplay();
+            updateButtons();
+        }
+
+        function gameOver(reason) {
+            let gameOverText = `<div class="warning">`;
+            gameOverText += `<h3>💀 GAME OVER</h3>`;
+            gameOverText += `<p>${reason}</p>`;
+            gameOverText += `<p>Your adventure ends here, brave Kargunt.</p>`;
+            gameOverText += `<p>Final Stats:</p>`;
+            gameOverText += `<p>Level: ${gameState.level} | Points: ${gameState.points} | Silver: ${gameState.silver} | Rooms: ${gameState.rooms}</p>`;
+            gameOverText += `<button onclick="resetGame()">Start New Adventure</button>`;
+            gameOverText += `</div>`;
+            
+            setGameText(gameOverText);
+            log("💀 GAME OVER: " + reason);
+            
+            // Disable all action buttons
+            gameState.gameStarted = false;
+            gameState.inCombat = false;
+            updateButtons();
+        }
+
+        function gameWin() {
+            let winText = `<div class="success">`;
+            winText += `<h3>🏆 VICTORY!</h3>`;
+            winText += `<p>Congratulations! You have completed all level-up bonuses!</p>`;
+            winText += `<p>You retire to your cottage or castle until the 7th Misery occurs and everything you know blackens and burns.</p>`;
+            winText += `<p>You have mastered the Dark Fort!</p>`;
+            winText += `<button onclick="resetGame()">Start New Adventure</button>`;
+            winText += `</div>`;
+            
+            setGameText(winText);
+            log("🏆 VICTORY! Adventure completed!");
+            
+            gameState.gameStarted = false;
+            gameState.inCombat = false;
+            updateButtons();
+        }
+
+        function resetGame() {
+            gameState = {
+                hp: 15,
+                maxHp: 15,
+                silver: 0,
+                points: 0,
+                rooms: 0,
+                level: 1,
+                inventory: [],
+                currentMonster: null,
+                inCombat: false,
+                gameStarted: false,
+                levelUpBonuses: [1, 2, 3, 4, 5, 6],
+                shopOpen: false,
+                currentRoom: 'entrance'
+            };
+            
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('shopArea').style.display = 'none';
+            
+            setGameText(`
+                <p>Welcome to the Dark Fort, brave Kargunt!</p>
+                <p>You stand before the entrance to a cursed catacomb. Ancient evil lurks within, but so does treasure and glory.</p>
+                <p>Click "Start Adventure" to begin your perilous journey...</p>
+            `);
+            
+            updateDisplay();
+            updateButtons();
+        }
+
+        // Initialize the game
+        updateDisplay();
+        updateButtons();
+    </script>
+</body>
+</html>
