@@ -64,6 +64,15 @@ const scrolls = [
     'False Omen'
 ];
 
+const levelUpBonusDescriptions = {
+    1: '🎖️ You are knighted! You may call yourself Sir or Lady Kargunt!',
+    2: '⚔️ You gain +1 attack bonus against all monsters!',
+    3: '❤️ Your maximum hit points increase by +5!',
+    4: '🧪 A herbmaster gives you 5 potions!',
+    5: '🗡️ You find a MIGHTY ZWEIHÄNDER (d6+2 damage)!',
+    6: '🛡️ Choose one weak and one tough monster - their damage against you is halved forever!'
+};
+
 const shopItems = [
     { name: 'Potion', price: 4, type: 'consumable' },
     { name: 'Random Scroll', price: 7, type: 'scroll' },
@@ -345,6 +354,19 @@ function updateAchievements() {
     }
 }
 
+function updateLevelUpBonuses() {
+    const levelUpBonusesElement = document.getElementById('levelUpBonuses');
+    if (levelUpBonusesElement) {
+        let bonusesHTML = '<ul class="level-bonuses-list">';
+        for (const [level, description] of Object.entries(levelUpBonusDescriptions)) {
+            const isAchieved = !gameState.levelUpBonuses.includes(parseInt(level));
+            bonusesHTML += `<li class="${isAchieved ? 'achieved' : ''}">${description}</li>`;
+        }
+        bonusesHTML += '</ul>';
+        levelUpBonusesElement.innerHTML = bonusesHTML;
+    }
+}
+
 // Tab system
 function switchTab(tabName) {
     // Hide all tabs
@@ -448,6 +470,7 @@ function updateDisplay() {
     
     updatePosition();
     updateAchievements();
+    updateLevelUpBonuses();
 }
 
 function updateStatWithHighlight(statName, newValue, changeType = null) {

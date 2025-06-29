@@ -858,6 +858,43 @@ body.combat-mode {
     color: #ffc107; /* Highlights the item name */
 }
 
+.levels {
+    margin-top: 20px;
+}
+
+.level-bonuses-list {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.level-bonuses-list li {
+    background: #444;
+    padding: 8px 8px 8px 30px; /* Add padding for the checkmark */
+    margin-bottom: 5px;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+    opacity: 0.5; /* Grayed out by default */
+    position: relative; /* Needed for checkmark positioning */
+}
+
+.level-bonuses-list li::before {
+    content: '☐'; /* Default empty box */
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ffc107;
+}
+
+.level-bonuses-list li.achieved {
+    opacity: 1; /* Fully visible when achieved */
+    color: #fff; /* Brighter text color */
+}
+
+.level-bonuses-list li.achieved::before {
+    content: '☑'; /* Checkmark when achieved */
+}
+
 /* Game Over Screen Styles */
 .game-over-screen {
     text-align: center;
