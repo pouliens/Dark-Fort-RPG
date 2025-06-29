@@ -115,9 +115,9 @@ button:disabled {
 .combat {
     background: #4a1a1a;
     border: 2px solid #ff6b35;
-    padding: 15px;
+    /* padding: 15px; */
     border-radius: 5px;
-    margin: 10px 0;
+    /* margin: 10px 0; */
 }
 
 /* Enhanced Combat Interface */
@@ -623,26 +623,18 @@ body.combat-mode {
     position: relative;
     min-height: 0;
     min-width: 0;
+    /* Ensure consistent padding, margin, and border-radius */
+    padding: 4px;
+    margin: 0;
+    border-radius: 6px;
 }
 
-/* Ensure consistent emoji rendering */
-.map-cell {
-    font-style: normal;
-    font-weight: normal;
-    font-variant: normal;
-}
-
-/* Combat icon alignment fix - manually adjust vertical position */
-.map-cell.combat {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: translateY(-1px);
-}
-
-/* Alternative approach using line-height adjustment */
-.map-cell.combat {
-    line-height: 0.8;
+.map-cell.unexplored,
+.map-cell.explored {
+    /* Inherit padding, margin, border-radius from .map-cell */
+    padding: 4px;
+    margin: 0;
+    border-radius: 6px;
 }
 
 .map-cell.unexplored {
