@@ -77,6 +77,22 @@ const shopItems = [
     { name: 'Cloak of Invisibility', price: 15, type: 'special' }
 ];
 
+const itemDescriptions = {
+    'Warhammer': 'A heavy, one-handed hammer. (d6 damage)',
+    'Dagger': 'A small, sharp blade. (+1 to hit, d4 damage)',
+    'Sword': 'A standard longsword. (+1 to hit, d6 damage)',
+    'Flail': 'A spiked ball on a chain. (d6+1 damage)',
+    'Mighty Zweihänder': 'A massive, two-handed sword. (d6+2 damage)',
+    'Armor': 'Reduces incoming damage. (Roll d4 to reduce damage)',
+    'Potion': 'Heals d6 HP when consumed.',
+    'Rope': 'Helps you avoid pit traps.',
+    'Cloak of Invisibility': 'Provides an advantage in certain situations.',
+    'Scroll: Summon weak daemon': 'Summons a weak daemon to fight for you.',
+    'Palms Open the Southern Gate': 'A mysterious incantation.',
+    'Aegis of Sorrow': 'A protective ward against sorrow.',
+    'False Omen': 'A scroll that creates a deceptive illusion.'
+};
+
 // Utility functions
 function rollDie(sides) {
     return Math.floor(Math.random() * sides) + 1;
@@ -415,12 +431,19 @@ function updateDisplay() {
     });
     
     // Update inventory displays
-    const inventoryText = gameState.inventory.length > 0 ? 
-        gameState.inventory.join(', ') : 'Empty';
-    
     const inventoryElement = document.getElementById('inventory2');
     if (inventoryElement) {
-        inventoryElement.innerHTML = inventoryText;
+        if (gameState.inventory.length > 0) {
+            let inventoryHTML = '<ul class="inventory-list">';
+            gameState.inventory.forEach(item => {
+                const description = itemDescriptions[item] || 'An unknown item.';
+                inventoryHTML += `<li><strong>${item}</strong>: ${description}</li>`;
+            });
+            inventoryHTML += '</ul>';
+            inventoryElement.innerHTML = inventoryHTML;
+        } else {
+            inventoryElement.innerHTML = 'Empty';
+        }
     }
     
     updatePosition();

@@ -841,6 +841,23 @@ body.combat-mode {
     }
 }
 
+.inventory-list {
+    list-style-type: none; /* Removes default bullet points */
+    padding-left: 0; /* Removes default padding */
+}
+
+.inventory-list li {
+    background: #444;
+    padding: 8px;
+    margin-bottom: 5px; /* Adds space between items */
+    border-radius: 3px;
+    border-left: 3px solid #d4af37; /* Adds a colored accent */
+}
+
+.inventory-list strong {
+    color: #ffc107; /* Highlights the item name */
+}
+
 /* Game Over Screen Styles */
 .game-over-screen {
     text-align: center;
