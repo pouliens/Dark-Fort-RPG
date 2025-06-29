@@ -195,12 +195,24 @@ function addCombatLog(message, type = 'neutral') {
     gameState.combatLog.push({
         message: message,
         type: type,
-        round: gameState.combatRound
+        round: gameState.combatRound,
+        timestamp: Date.now()
     });
     
-    // Keep only last 10 combat log entries
-    if (gameState.combatLog.length > 10) {
+    // Keep only last 12 combat log entries for better visibility
+    if (gameState.combatLog.length > 12) {
         gameState.combatLog.shift();
+    }
+    
+    // Add visual effect based on message type
+    const effectMap = {
+        'player': 'hit',
+        'monster': 'damage',
+        'neutral': 'magic'
+    };
+    
+    if (effectMap[type]) {
+        setTimeout(() => showBattleEffect(effectMap[type]), 100);
     }
 }
 
@@ -212,6 +224,57 @@ function renderHealthBar(current, max, className = '') {
             <div class="health-text">${current}/${max}</div>
         </div>
     `;
+}
+
+function renderAdvancedHealthBar(current, max, type = 'player') {
+    const percentage = Math.max(0, (current / max) * 100);
+    const barColor = getHealthBarColor(percentage);
+    const isDamaged = current < max;
+    
+    return `
+        <div class="advanced-health-bar ${type}">
+            <div class="health-label">${type === 'player' ? '❤️ HP' : '💀 HP'}</div>
+            <div class="health-bar-container">
+                <div class="health-bar-bg">
+                    <div class="health-bar-fill ${barColor} ${isDamaged ? 'damaged' : ''}" 
+                         style="width: ${percentage}%">
+                        <div class="health-bar-shine"></div>
+                    </div>
+                    <div class="health-bar-text">${current}/${max}</div>
+                </div>
+                ${isDamaged ? '<div class="damage-indicator"></div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function getHealthBarColor(percentage) {
+    if (percentage > 75) return 'health-high';
+    if (percentage > 50) return 'health-medium';
+    if (percentage > 25) return 'health-low';
+    return 'health-critical';
+}
+
+function getTurnIndicatorClass() {
+    return gameState.currentTurn === 'player' ? 'player-turn' : 'monster-turn';
+}
+
+function getCurrentTurnText() {
+    return gameState.currentTurn === 'player' ? '🤺 Your Turn' : '💀 Enemy Turn';
+}
+
+function getMonsterSprite(monsterName) {
+    const sprites = {
+        'Blood-drenched Skeleton': '💀',
+        'Catacomb Cultist': '🧙‍♂️',
+        'Goblin': '👺',
+        'Undead Hound': '🐕‍🦺',
+        'Necro-Sorcerer': '🧙‍♂️',
+        'Small Stone Troll': '🧌',
+        'Medusa': '🐍',
+        'Ruin Basilisk': '🐉'
+    };
+    return sprites[monsterName] || '👹';
 }
 
 function formatDamage(damage, type = 'damage') {
@@ -242,42 +305,106 @@ function renderCombatInterface() {
     let combatHTML = `
         <div class="combat">
             <div class="combat-header">
-                <h3>⚔️ COMBAT - Round ${gameState.combatRound}</h3>
-                <div class="round-indicator">Turn: <span id="currentTurn">Your Turn</span></div>
-            </div>
-            
-            <div class="combat-participants">
-                <div class="participant player">
-                    <h4>🤺 Kargunt</h4>
-                    ${renderHealthBar(gameState.hp, gameState.maxHp, 'player-health')}
-                    ${renderStatusEffects(playerStatusEffects)}
+                <div class="battle-title">
+                    <h3>⚔️ BATTLE</h3>
+                    <div class="battle-subtitle">Round ${gameState.combatRound}</div>
                 </div>
-                
-                <div class="vs-indicator">⚔️<br>VS</div>
-                
-                <div class="participant monster">
-                    <h4>${monster.name}</h4>
-                    ${renderHealthBar(monster.currentHp, monster.hp, 'monster-health')}
-                    <div class="monster-stats">
-                        <small>Damage: ${monster.damage} | Difficulty: ${monster.difficulty}</small>
+                <div class="turn-indicator-container">
+                    <div class="turn-indicator ${getTurnIndicatorClass()}">
+                        <div class="turn-text">${getCurrentTurnText()}</div>
+                        <div class="turn-timer"></div>
                     </div>
                 </div>
             </div>
             
-            <div class="combat-log">
-                <div class="round-header">Combat Log</div>
-                <div id="combatLogContent">
-                    ${renderCombatLog()}
+            <div class="battle-arena">
+                <div class="combat-participants">
+                    <div class="participant player">
+                        <div class="character-portrait">
+                            <div class="portrait-frame">
+                                <div class="character-sprite">🤺</div>
+                                <div class="character-name">Kargunt</div>
+                            </div>
+                        </div>
+                        <div class="character-stats">
+                            ${renderAdvancedHealthBar(gameState.hp, gameState.maxHp, 'player')}
+                            ${renderStatusEffects(playerStatusEffects)}
+                            <div class="character-level">Level ${gameState.level}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="battle-center">
+                        <div class="vs-indicator">⚔️</div>
+                        <div class="battle-effects" id="battleEffects"></div>
+                    </div>
+                    
+                    <div class="participant monster">
+                        <div class="character-portrait">
+                            <div class="portrait-frame monster-frame">
+                                <div class="character-sprite">${getMonsterSprite(monster.name)}</div>
+                                <div class="character-name">${monster.name}</div>
+                            </div>
+                        </div>
+                        <div class="character-stats">
+                            ${renderAdvancedHealthBar(monster.currentHp, monster.hp, 'monster')}
+                            <div class="monster-info">
+                                <div class="monster-stat">⚔️ ${monster.damage}</div>
+                                <div class="monster-stat">🎯 Diff: ${monster.difficulty}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="actions" id="gameActions">
-                <!-- Combat buttons will be added here -->
+            <div class="combat-interface">
+                <div class="combat-log">
+                    <div class="log-header">
+                        <span class="log-title">⚡ Battle Log</span>
+                        <span class="log-round">Round ${gameState.combatRound}</span>
+                    </div>
+                    <div id="combatLogContent" class="log-content">
+                        ${renderCombatLog()}
+                    </div>
+                </div>
+                
+                <div class="action-panel">
+                    <div class="actions" id="gameActions">
+                        <!-- Combat buttons will be added here -->
+                    </div>
+                </div>
             </div>
         </div>
     `;
     
     return combatHTML;
+}
+
+function showBattleEffect(effectType, target = 'center') {
+    const effectsContainer = document.getElementById('battleEffects');
+    if (!effectsContainer) return;
+    
+    const effect = document.createElement('div');
+    effect.className = `battle-effect ${effectType}`;
+    
+    const effects = {
+        'hit': '✨💥',
+        'miss': '❌',
+        'critical': '✨🔥✨',
+        'heal': '✨💚✨',
+        'magic': '✨🔮✨',
+        'damage': '💥',
+        'block': '🛡️'
+    };
+    
+    effect.innerHTML = effects[effectType] || '✨';
+    effectsContainer.appendChild(effect);
+    
+    // Animate and remove
+    setTimeout(() => {
+        if (effect.parentNode) {
+            effect.parentNode.removeChild(effect);
+        }
+    }, 1500);
 }
 
 function renderCombatLog() {
@@ -891,9 +1018,10 @@ function chooseAttack() {
     gameState.inEncounter = false; // No longer in encounter phase
     gameState.combatLog = [];
     gameState.combatRound = 1;
+    gameState.currentTurn = 'player'; // Start with player turn
     
-    addCombatLog(`💀 A wild ${gameState.currentMonster.name} appears!`, 'neutral');
-    addCombatLog(`🎯 Monster Stats: ${gameState.currentMonster.hp} HP, ${gameState.currentMonster.damage} damage, ${gameState.currentMonster.difficulty} difficulty`, 'neutral');
+    addCombatLog(`⚔️ Battle begins against ${gameState.currentMonster.name}!`, 'neutral');
+    addCombatLog(`💀 Enemy: ${gameState.currentMonster.hp} HP | ⚔️ ${gameState.currentMonster.damage} DMG | 🎯 ${gameState.currentMonster.difficulty} DEF`, 'neutral');
     
     updateCombatDisplay();
     log("⚔️ Combat started with " + gameState.currentMonster.name);
@@ -949,41 +1077,107 @@ function addCombatButtons() {
     // Clear existing buttons
     actionsContainer.innerHTML = '';
     
+    // Create button layout with categories
+    const buttonLayout = `
+        <div class="combat-actions-grid">
+            <div class="basic-actions">
+                <h4 class="action-category">⚔️ Combat Actions</h4>
+                <div class="basic-buttons" id="basicButtons"></div>
+            </div>
+            <div class="special-actions">
+                <h4 class="action-category">✨ Special Abilities</h4>
+                <div class="ability-buttons" id="abilityButtons"></div>
+            </div>
+        </div>
+    `;
+    
+    actionsContainer.innerHTML = buttonLayout;
+    
     // Add basic combat buttons
+    const basicContainer = document.getElementById('basicButtons');
     const basicButtons = [
-        { name: 'Attack', id: 'attackBtn', onclick: "attack()", icon: '⚔️' },
-        { name: 'Flee', id: 'fleeBtn', onclick: "flee()", icon: '🏃' }
+        { name: 'Attack', id: 'attackBtn', onclick: "attack()", icon: '⚔️', desc: 'Standard melee attack' },
+        { name: 'Flee', id: 'fleeBtn', onclick: "flee()", icon: '🏃', desc: 'Escape from battle' }
     ];
     
     // Add potion button if available
     if (gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp) {
-        basicButtons.splice(1, 0, { name: 'Use Potion', id: 'usePotionBtn', onclick: "usePotion()", icon: '🧪' });
+        basicButtons.splice(1, 0, { 
+            name: 'Use Potion', 
+            id: 'usePotionBtn', 
+            onclick: "usePotion()", 
+            icon: '🧪', 
+            desc: 'Restore health' 
+        });
     }
     
     basicButtons.forEach(btn => {
         const button = document.createElement('button');
         button.id = btn.id;
-        button.innerHTML = `${btn.icon} ${btn.name}`;
+        button.innerHTML = `
+            <div class="btn-icon">${btn.icon}</div>
+            <div class="btn-text">
+                <div class="btn-name">${btn.name}</div>
+                <div class="btn-desc">${btn.desc}</div>
+            </div>
+        `;
         button.setAttribute('onclick', btn.onclick);
-        button.className = 'combat-basic-btn';
-        actionsContainer.appendChild(button);
+        button.className = 'combat-action-btn basic-btn';
+        basicContainer.appendChild(button);
     });
     
     // Add special ability buttons
+    const abilityContainer = document.getElementById('abilityButtons');
     const abilities = [
-        { name: 'Charge Attack', id: 'chargeBtn', onclick: "useAbility('charge')", cooldown: gameState.specialAbilities.charge.cooldown },
-        { name: 'Parry', id: 'parryBtn', onclick: "useAbility('parry')", cooldown: gameState.specialAbilities.parry.cooldown },
-        { name: 'Magic Burst', id: 'magicBtn', onclick: "useAbility('magicBurst')", cooldown: gameState.specialAbilities.magicBurst.cooldown }
+        { 
+            name: 'Charge', 
+            id: 'chargeBtn', 
+            onclick: "useAbility('charge')", 
+            cooldown: gameState.specialAbilities.charge.cooldown,
+            maxCooldown: gameState.specialAbilities.charge.maxCooldown,
+            icon: '💨',
+            desc: '+3 damage attack'
+        },
+        { 
+            name: 'Parry', 
+            id: 'parryBtn', 
+            onclick: "useAbility('parry')", 
+            cooldown: gameState.specialAbilities.parry.cooldown,
+            maxCooldown: gameState.specialAbilities.parry.maxCooldown,
+            icon: '🛡️',
+            desc: 'Reduce next damage'
+        },
+        { 
+            name: 'Magic Burst', 
+            id: 'magicBtn', 
+            onclick: "useAbility('magicBurst')", 
+            cooldown: gameState.specialAbilities.magicBurst.cooldown,
+            maxCooldown: gameState.specialAbilities.magicBurst.maxCooldown,
+            icon: '🔮',
+            desc: 'Random magic damage'
+        }
     ];
     
     abilities.forEach(ability => {
         const button = document.createElement('button');
         button.id = ability.id;
-        button.innerHTML = ability.cooldown > 0 ? `${ability.name} (${ability.cooldown})` : `✨ ${ability.name}`;
+        
+        const isOnCooldown = ability.cooldown > 0;
+        const cooldownProgress = isOnCooldown ? ((ability.maxCooldown - ability.cooldown) / ability.maxCooldown) * 100 : 100;
+        
+        button.innerHTML = `
+            <div class="btn-icon ${isOnCooldown ? 'disabled' : ''}">${ability.icon}</div>
+            <div class="btn-text">
+                <div class="btn-name">${ability.name}</div>
+                <div class="btn-desc">${isOnCooldown ? `Cooldown: ${ability.cooldown}` : ability.desc}</div>
+                ${isOnCooldown ? `<div class="cooldown-bar"><div class="cooldown-fill" style="width: ${cooldownProgress}%"></div></div>` : ''}
+            </div>
+        `;
+        
         button.setAttribute('onclick', ability.onclick);
-        button.className = 'ability-btn';
-        button.disabled = ability.cooldown > 0;
-        actionsContainer.appendChild(button);
+        button.className = `combat-action-btn ability-btn ${isOnCooldown ? 'on-cooldown' : ''}`;
+        button.disabled = isOnCooldown;
+        abilityContainer.appendChild(button);
     });
 }
 
@@ -1031,6 +1225,9 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
     const monster = gameState.currentMonster;
     const attackRoll = rollDie(6);
     
+    // Set current turn for UI
+    gameState.currentTurn = 'player';
+    
     // Get weapon bonus
     let attackBonus = 0;
     let weaponDamage = 'd4';
@@ -1057,23 +1254,28 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         addCombatLog(`✨ Kargunt uses ${abilityName}!`, 'player');
     }
     
-    // Add attack roll to log
-    addCombatLog(`🎲 Kargunt attacks with ${weaponName}: rolled ${attackRoll} + ${attackBonus} = ${finalAttack} (need ${monster.difficulty})`, 'player');
+    // Add attack roll to log with more detail
+    addCombatLog(`🎲 Attack Roll: ${attackRoll} + ${attackBonus} (${weaponName}) = ${finalAttack} vs ${monster.difficulty}`, 'player');
     
     if (finalAttack >= monster.difficulty) {
-        const damage = rollDamage(weaponDamage) + bonusDamage;
-        monster.currentHp = Math.max(0, monster.currentHp - damage);
+        const baseDamage = rollDamage(weaponDamage);
+        const totalDamage = baseDamage + bonusDamage;
+        monster.currentHp = Math.max(0, monster.currentHp - totalDamage);
         
-        let damageText = `🎯 HIT! Dealt ${formatDamage(damage)} damage`;
+        // Show hit effect
+        showBattleEffect('hit');
+        
+        let damageText = `⚔️ 🎯 HIT! Dealt ${formatDamage(totalDamage)} damage`;
         if (bonusDamage > 0) {
-            damageText += ` (${rollDamage(weaponDamage)} base + ${bonusDamage} bonus)`;
+            damageText += ` (${baseDamage} + ${bonusDamage} bonus)`;
         }
         addCombatLog(damageText, 'player');
         
-        log("🎯 Hit " + monster.name + " for " + damage + " damage");
+        log("🎯 Hit " + monster.name + " for " + totalDamage + " damage");
         
         if (monster.currentHp <= 0) {
             addCombatLog(`💀 ${monster.name} defeated!`, 'player');
+            showBattleEffect('critical');
             // Monster defeated
             updateStatWithHighlight('monstersKilled', gameState.monstersKilled + 1, 'increase');
             handleMonsterDefeat();
@@ -1084,12 +1286,14 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
             
             // Small delay before monster attacks for better flow
             setTimeout(() => {
+                gameState.currentTurn = 'monster';
                 monsterAttack();
-            }, 1000);
+            }, 1500);
             return;
         }
     } else {
-        addCombatLog(`❌ MISS! ${formatDamage('MISS', 'miss')}`, 'player');
+        showBattleEffect('miss');
+        addCombatLog(`❌ MISS! Attack failed!`, 'player');
         log("❌ Missed attack on " + monster.name);
         
         // Update display and continue to monster turn
@@ -1097,8 +1301,9 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         
         // Small delay before monster attacks
         setTimeout(() => {
+            gameState.currentTurn = 'monster';
             monsterAttack();
-        }, 1000);
+        }, 1500);
         return;
     }
 }
