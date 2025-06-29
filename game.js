@@ -11,6 +11,7 @@ let gameState = {
     inventory: [],
     currentMonster: null,
     inCombat: false,
+    inEncounter: false,
     gameStarted: false,
     levelUpBonuses: [1, 2, 3, 4, 5, 6],
     shopOpen: false,
@@ -154,12 +155,12 @@ function getRoomIcon(type) {
     const icons = {
         'entrance': '🚪',
         'empty': '⚪',
-        'combat': '⚔️',
+        'combat': '🔍',
         'shop': '🛒',
         'treasure': '💰',
         'boss': '👹',
         'secret': '🔍',
-        'trap': '🕳️'
+        'trap': '🕳'
     };
     return icons[type] || '❓';
 }
@@ -358,8 +359,41 @@ function setGameText(text) {
     document.getElementById('gameText').innerHTML = text;
 }
 
+// Store previous values to detect changes
+let previousStats = {
+    hp: 15,
+    maxHp: 15,
+    silver: 0,
+    points: 0,
+    level: 1,
+    monstersKilled: 0
+};
+
+function highlightStatChange(elementId, changeType = 'neutral') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    // Find the parent stat container
+    let statContainer = element.closest('.stat');
+    if (!statContainer) {
+        // If not in a .stat container, highlight the element itself
+        statContainer = element;
+    }
+    
+    // Remove any existing highlight classes
+    statContainer.classList.remove('stat-highlight-increase', 'stat-highlight-decrease', 'stat-highlight-neutral');
+    
+    // Add the appropriate highlight class
+    statContainer.classList.add(`stat-highlight-${changeType}`);
+    
+    // Remove the class after animation completes
+    setTimeout(() => {
+        statContainer.classList.remove(`stat-highlight-${changeType}`);
+    }, 600);
+}
+
 function updateDisplay() {
-    // Update all stat displays
+    // Update all stat displays and check for changes
     const statElements = {
         'hp': gameState.hp,
         'hp2': gameState.hp,
@@ -393,7 +427,48 @@ function updateDisplay() {
     updateAchievements();
 }
 
+function updateStatWithHighlight(statName, newValue, changeType = null) {
+    const oldValue = gameState[statName];
+    gameState[statName] = newValue;
+    
+    // Determine change type if not specified
+    if (!changeType) {
+        if (newValue > oldValue) {
+            changeType = 'increase';
+        } else if (newValue < oldValue) {
+            changeType = 'decrease';
+        } else {
+            changeType = 'neutral';
+        }
+    }
+    
+    // Update display
+    updateDisplay();
+    
+    // Highlight both main and secondary stat displays
+    const statIds = {
+        'hp': ['hp', 'hp2'],
+        'maxHp': ['maxHp', 'maxHp2'],
+        'silver': ['silver', 'silver2'],
+        'points': ['points', 'points2'],
+        'level': ['level', 'level2'],
+        'monstersKilled': ['monstersKilled']
+    };
+    
+    if (statIds[statName] && oldValue !== newValue) {
+        statIds[statName].forEach(id => {
+            highlightStatChange(id, changeType);
+        });
+    }
+}
+
 function updateButtons() {
+    // Don't update buttons if we're in an encounter - let the encounter screen handle its own buttons
+    if (gameState.inEncounter) {
+        removeMovementButtons();
+        return;
+    }
+    
     // Context-sensitive button display
     const buttons = {
         'startBtn': !gameState.gameStarted,
@@ -412,8 +487,8 @@ function updateButtons() {
         }
     });
     
-    // Add movement buttons when exploring
-    if (gameState.gameStarted && !gameState.inCombat && !gameState.shopOpen) {
+    // Add movement buttons when exploring (but not during encounters)
+    if (gameState.gameStarted && !gameState.inCombat && !gameState.shopOpen && !gameState.inEncounter) {
         addMovementButtons();
     } else {
         removeMovementButtons();
@@ -421,30 +496,43 @@ function updateButtons() {
 }
 
 function addMovementButtons() {
-    const actionsContainer = document.getElementById('gameActions');
-    
-    // Remove existing movement buttons
+    // Remove existing movement buttons first
     removeMovementButtons();
     
-    // Add new movement buttons
-    const directions = [
-        { name: 'North', id: 'northBtn', onclick: "moveAndExplore('north')" },
-        { name: 'South', id: 'southBtn', onclick: "moveAndExplore('south')" },
-        { name: 'East', id: 'eastBtn', onclick: "moveAndExplore('east')" },
-        { name: 'West', id: 'westBtn', onclick: "moveAndExplore('west')" }
-    ];
+    // Add movement buttons under the mini-map instead of in actions
+    const mapContainer = document.querySelector('.map-container');
+    if (!mapContainer) return;
     
-    directions.forEach(dir => {
-        const button = document.createElement('button');
-        button.id = dir.id;
-        button.innerHTML = `🧭 ${dir.name}`;
-        button.setAttribute('onclick', dir.onclick);
-        button.className = 'movement-btn';
-        actionsContainer.appendChild(button);
-    });
+    // Create movement controls container
+    const movementContainer = document.createElement('div');
+    movementContainer.className = 'movement-controls';
+    movementContainer.id = 'movementControls';
+    
+    // Create directional button layout
+    movementContainer.innerHTML = `
+        <div class="movement-grid">
+            <div></div>
+            <button id="northBtn" onclick="moveAndExplore('north')" class="movement-btn north">↑</button>
+            <div></div>
+            <button id="westBtn" onclick="moveAndExplore('west')" class="movement-btn west">←</button>
+            <div class="movement-center">🤺</div>
+            <button id="eastBtn" onclick="moveAndExplore('east')" class="movement-btn east">→</button>
+            <div></div>
+            <button id="southBtn" onclick="moveAndExplore('south')" class="movement-btn south">↓</button>
+            <div></div>
+        </div>
+        <div class="movement-label">Move Explorer</div>
+    `;
+    
+    mapContainer.appendChild(movementContainer);
 }
 
 function removeMovementButtons() {
+    const movementControls = document.getElementById('movementControls');
+    if (movementControls) {
+        movementControls.remove();
+    }
+    // Fallback: remove any stray movement buttons
     document.querySelectorAll('.movement-btn').forEach(btn => btn.remove());
 }
 
@@ -459,7 +547,8 @@ function moveAndExplore(direction) {
 // Game functions
 function startGame() {
     gameState.gameStarted = true;
-    gameState.silver = 15 + rollDie(6);
+    const startingSilver = 15 + rollDie(6);
+    updateStatWithHighlight('silver', startingSilver, 'neutral');
     
     // Starting equipment
     const weaponRoll = rollDie(4);
@@ -471,7 +560,7 @@ function startGame() {
     gameState.inventory.push(weaponNames[weaponRoll - 1]);
     gameState.inventory.push(gearNames[gearRoll - 1]);
     
-    log("🎯 Adventure begins! You start with " + gameState.silver + " silver pieces.");
+    log("🎯 Adventure begins! You start with " + startingSilver + " silver pieces.");
     log("🗡️ Starting gear: " + weaponNames[weaponRoll - 1] + ", " + gearNames[gearRoll - 1]);
     
     // Initialize map system
@@ -503,7 +592,7 @@ function enterEntranceRoom() {
         case 2:
             roomText += `<p class="warning">⚠️ A weak monster guards this chamber!</p>`;
             startCombat(getRandomWeakMonster());
-            break;
+            return; // Exit early - don't continue with room setup
         case 3:
             const scroll = scrolls[rollDie(4) - 1];
             gameState.inventory.push("Scroll: " + scroll);
@@ -551,7 +640,7 @@ function exploreCurrentRoom() {
             const trapRoll = rollDie(6) + (gameState.inventory.includes('Rope') ? 1 : 0);
             if (trapRoll <= 3) {
                 const damage = rollDie(6);
-                gameState.hp -= damage;
+                updateStatWithHighlight('hp', gameState.hp - damage, 'decrease');
                 roomText += `<p class="warning">🕳️ Pit trap! You take ${damage} damage!</p>`;
                 log("💀 Took " + damage + " damage from pit trap");
                 roomType = 'trap';
@@ -577,7 +666,7 @@ function exploreCurrentRoom() {
                 roomDescription = 'A mystical chamber with a riddle-solving soothsayer';
             } else {
                 const damage = rollDie(4);
-                gameState.hp -= damage;
+                updateStatWithHighlight('hp', gameState.hp - damage, 'decrease');
                 roomText += `<p class="warning">🧙 Mind-shattering shockwave! You take ${damage} damage!</p>`;
                 log("💀 Took " + damage + " damage from failed riddle");
                 roomType = 'trap';
@@ -592,14 +681,26 @@ function exploreCurrentRoom() {
             roomText += `<p class="warning">👹 A weak monster lurks here!</p>`;
             roomType = 'combat';
             roomDescription = 'A chamber with a lurking monster';
+            // Mark room as explored before combat
+            gameState.map[key] = {
+                explored: true,
+                type: roomType,
+                description: roomDescription
+            };
             startCombat(getRandomWeakMonster());
-            break;
+            return; // Exit early - don't continue with room setup
         case 5:
             roomText += `<p class="warning">🐉 A tough monster blocks your path!</p>`;
             roomType = 'combat';
             roomDescription = 'A chamber with a formidable monster';
+            // Mark room as explored before combat
+            gameState.map[key] = {
+                explored: true,
+                type: roomType,
+                description: roomDescription
+            };
             startCombat(getRandomToughMonster());
-            break;
+            return; // Exit early - don't continue with room setup
         case 6:
             roomText += `<p class="success">🛒 A peddler from beyond the void offers his wares...</p>`;
             roomType = 'shop';
@@ -629,16 +730,15 @@ function exploreRoom() {
 
 function chooseReward(type) {
     if (type === 'silver') {
-        gameState.silver += 10;
+        updateStatWithHighlight('silver', gameState.silver + 10, 'increase');
         log("🪙 Gained 10 silver from riddle");
     } else {
-        gameState.points += 3;
+        updateStatWithHighlight('points', gameState.points + 3, 'increase');
         log("⭐ Gained 3 points from riddle");
     }
     
     setGameText(`<div class="room-info"><h3>🏛️ ROOM ${gameState.rooms}</h3><p class="success">✅ Room explored! You may continue your journey.</p></div>`);
     gameState.currentRoom = 'empty';
-    updateDisplay();
     updateButtons();
 }
 
@@ -658,19 +758,137 @@ function getRandomToughMonster() {
 
 function startCombat(monster) {
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
+    gameState.inCombat = false; // Not in combat yet - still choosing
+    gameState.inEncounter = true; // New state for pre-combat choice
+    
+    showPreCombatChoice(monster);
+}
+
+function showPreCombatChoice(monster) {
+    let encounterText = `
+        <div class="combat-encounter">
+            <h3>⚠️ MONSTER ENCOUNTER!</h3>
+            <div class="monster-preview">
+                <h4>${monster.name}</h4>
+                <div class="monster-details">
+                    <div class="monster-stat">❤️ HP: ${monster.hp}</div>
+                    <div class="monster-stat">⚔️ Damage: ${monster.damage}</div>
+                    <div class="monster-stat">🎯 Difficulty: ${monster.difficulty}</div>
+                </div>
+                ${monster.special ? `<div class="monster-special">⚡ Special: ${getSpecialDescription(monster.special)}</div>` : ''}
+            </div>
+            
+            <div class="encounter-description">
+                <p>${getMonsterDescription(monster.name)}</p>
+            </div>
+            
+            <div class="encounter-choices">
+                <h4>What do you do?</h4>
+                <div class="choice-buttons">
+                    <button onclick="chooseAttack()" class="choice-btn attack-choice">
+                        ⚔️ Attack<br>
+                        <small>Enter combat</small>
+                    </button>
+                    <button onclick="chooseFlee()" class="choice-btn flee-choice">
+                        🏃 Flee<br>
+                        <small>Take damage and escape</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    setGameText(encounterText);
+    log("⚠️ Encountered " + monster.name);
+    
+    // Hide main action buttons and movement controls during encounter
+    hideMainActionButtons();
+    removeMovementButtons();
+}
+
+function hideMainActionButtons() {
+    const mainButtons = ['startBtn', 'exploreBtn', 'attackBtn', 'fleeBtn', 'usePotionBtn', 'shopBtn'];
+    mainButtons.forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.style.display = 'none';
+        }
+    });
+}
+
+function getSpecialDescription(special) {
+    const descriptions = {
+        'maggot': 'Transformation curse',
+        'petrify': 'Petrifying gaze',
+        'levelup': 'Death energy boost'
+    };
+    return descriptions[special] || 'Unknown ability';
+}
+
+function getMonsterDescription(name) {
+    const descriptions = {
+        'Blood-drenched Skeleton': 'A skeletal warrior rises from ancient bones, its eye sockets glowing with malevolent fire.',
+        'Catacomb Cultist': 'A hooded figure emerges from the shadows, chanting dark incantations.',
+        'Goblin': 'A small but vicious creature blocks your path, baring its yellowed fangs.',
+        'Undead Hound': 'A spectral wolf materializes, its ghostly form radiating cold dread.',
+        'Necro-Sorcerer': 'A powerful dark mage surrounded by writhing shadows and the stench of decay.',
+        'Small Stone Troll': 'A hulking creature of living rock lumbers forward, each step shaking the ground.',
+        'Medusa': 'A serpentine horror with snake hair hisses menacingly, her deadly gaze seeking victims.',
+        'Ruin Basilisk': 'An ancient reptilian beast emerges, its very presence warping reality around it.'
+    };
+    return descriptions[name] || 'A dangerous creature blocks your path.';
+}
+
+function chooseAttack() {
+    // Now actually start combat
     gameState.inCombat = true;
+    gameState.inEncounter = false; // No longer in encounter phase
     gameState.combatLog = [];
     gameState.combatRound = 1;
     
-    addCombatLog(`💀 A wild ${monster.name} appears!`, 'neutral');
-    addCombatLog(`🎯 Monster Stats: ${monster.hp} HP, ${monster.damage} damage, ${monster.difficulty} difficulty`, 'neutral');
+    addCombatLog(`💀 A wild ${gameState.currentMonster.name} appears!`, 'neutral');
+    addCombatLog(`🎯 Monster Stats: ${gameState.currentMonster.hp} HP, ${gameState.currentMonster.damage} damage, ${gameState.currentMonster.difficulty} difficulty`, 'neutral');
     
     updateCombatDisplay();
-    log("⚔️ Combat started with " + monster.name);
+    log("⚔️ Combat started with " + gameState.currentMonster.name);
     updateButtons();
     
     // Add special combat buttons
     addCombatButtons();
+}
+
+function chooseFlee() {
+    // Use existing flee logic but without being in combat
+    const monster = gameState.currentMonster;
+    const damage = rollDie(4);
+    updateStatWithHighlight('hp', gameState.hp - damage, 'decrease');
+    gameState.currentMonster = null;
+    gameState.inEncounter = false; // No longer in encounter
+    gameState.rooms--; // Don't count this room as explored
+    
+    // Remove the room from map since we fled
+    const key = `${gameState.playerX},${gameState.playerY}`;
+    if (gameState.map[key]) {
+        delete gameState.map[key];
+    }
+    
+    let fleeText = `<div class="room-info">`;
+    fleeText += `<h3>🏃 FLED FROM ENCOUNTER</h3>`;
+    fleeText += `<p class="warning">You flee from the ${monster.name}, taking ${damage} damage in your haste!</p>`;
+    fleeText += `<p>The room remains unexplored...</p>`;
+    fleeText += `</div>`;
+    
+    if (gameState.hp <= 0) {
+        gameOver("You died while fleeing!");
+        return;
+    }
+    
+    setGameText(fleeText);
+    log("🏃 Fled from encounter with " + monster.name + ", took " + damage + " damage");
+    
+    renderMaps();
+    updateDisplay();
+    updateButtons();
 }
 
 function addCombatButtons() {
@@ -811,7 +1029,7 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         if (monster.currentHp <= 0) {
             addCombatLog(`💀 ${monster.name} defeated!`, 'player');
             // Monster defeated
-            gameState.monstersKilled++;
+            updateStatWithHighlight('monstersKilled', gameState.monstersKilled + 1, 'increase');
             handleMonsterDefeat();
             return;
         } else {
@@ -846,7 +1064,7 @@ function handleMonsterDefeat() {
         points = monster.killPoints;
     }
     
-    gameState.points += points;
+    updateStatWithHighlight('points', gameState.points + points, 'increase');
     addCombatLog(`🏆 Victory! Gained ${points} points!`, 'neutral');
     log("🏆 Defeated " + monster.name + " for " + points + " points");
     
@@ -872,7 +1090,7 @@ function handleMonsterDefeat() {
             } else if (monster.loot.silver === 'd4*d6') {
                 silverGained = rollDie(4) * rollDie(6);
             }
-            gameState.silver += silverGained;
+            updateStatWithHighlight('silver', gameState.silver + silverGained, 'increase');
             addCombatLog(`🪙 Found ${silverGained} silver!`, 'neutral');
             log("🪙 Found " + silverGained + " silver");
         }
@@ -1003,7 +1221,7 @@ function monsterAttack() {
         gameState.statusEffects = gameState.statusEffects.filter(effect => effect.type !== 'parry');
     }
     
-    gameState.hp = Math.max(0, gameState.hp - damage);
+    updateStatWithHighlight('hp', Math.max(0, gameState.hp - damage), 'decrease');
     
     // Add detailed damage log
     let damageLogText = `💀 Dealt ${formatDamage(damage)} damage`;
@@ -1041,7 +1259,7 @@ function monsterAttack() {
 
 function flee() {
     const damage = rollDie(4);
-    gameState.hp -= damage;
+    updateStatWithHighlight('hp', gameState.hp - damage, 'decrease');
     gameState.inCombat = false;
     gameState.currentMonster = null;
     gameState.rooms--; // Don't count this room as explored
@@ -1085,14 +1303,13 @@ function usePotion() {
     if (!gameState.inventory.includes('Potion')) return;
     
     const healing = rollDie(6);
-    gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
+    updateStatWithHighlight('hp', Math.min(gameState.maxHp, gameState.hp + healing), 'increase');
     
     // Remove one potion
     const potionIndex = gameState.inventory.indexOf('Potion');
     gameState.inventory.splice(potionIndex, 1);
     
     log("🧪 Used potion, healed " + healing + " HP");
-    updateDisplay();
     updateButtons();
 }
 
@@ -1121,7 +1338,7 @@ function toggleShop() {
 
 function buyItem(itemName, price) {
     if (gameState.silver >= price) {
-        gameState.silver -= price;
+        updateStatWithHighlight('silver', gameState.silver - price, 'decrease');
         
         if (itemName === 'Random Scroll') {
             const scroll = scrolls[rollDie(4) - 1];
@@ -1150,7 +1367,7 @@ function levelUp() {
         gameState.levelUpBonuses.splice(bonusIndex, 1);
     }
     
-    gameState.level++;
+    updateStatWithHighlight('level', gameState.level + 1, 'increase');
     gameState.points = 0;
     gameState.rooms = 0;
     
@@ -1165,8 +1382,8 @@ function levelUp() {
             levelText += `<p>⚔️ You gain +1 attack bonus against all monsters!</p>`;
             break;
         case 3:
-            gameState.maxHp += 5;
-            gameState.hp += 5;
+            updateStatWithHighlight('maxHp', gameState.maxHp + 5, 'increase');
+            updateStatWithHighlight('hp', gameState.hp + 5, 'increase');
             levelText += `<p>❤️ Your maximum hit points increase by +5 to ${gameState.maxHp}!</p>`;
             break;
         case 4:
@@ -1199,42 +1416,120 @@ function levelUp() {
 }
 
 function gameOver(reason) {
-    let gameOverText = `<div class="warning">`;
+    // Make sure combat overlay is removed if present
+    const combatOverlay = document.getElementById('combatOverlay');
+    if (combatOverlay) {
+        combatOverlay.remove();
+    }
+    document.body.classList.remove('combat-mode');
+    
+    let gameOverText = `<div class="warning game-over-screen">`;
     gameOverText += `<h3>💀 GAME OVER</h3>`;
-    gameOverText += `<p>${reason}</p>`;
+    gameOverText += `<p class="death-reason">${reason}</p>`;
     gameOverText += `<p>Your adventure ends here, brave Kargunt.</p>`;
-    gameOverText += `<p>Final Stats:</p>`;
-    gameOverText += `<p>Level: ${gameState.level} | Points: ${gameState.points} | Silver: ${gameState.silver} | Rooms: ${gameState.rooms}</p>`;
-    gameOverText += `<button onclick="resetGame()">Start New Adventure</button>`;
+    gameOverText += `<div class="final-stats">`;
+    gameOverText += `<h4>📊 Final Stats:</h4>`;
+    gameOverText += `<p>🏆 Level: ${gameState.level}</p>`;
+    gameOverText += `<p>⭐ Points: ${gameState.points}</p>`;
+    gameOverText += `<p>🪙 Silver: ${gameState.silver}</p>`;
+    gameOverText += `<p>🏛️ Rooms Explored: ${gameState.rooms}</p>`;
+    gameOverText += `<p>💀 Monsters Defeated: ${gameState.monstersKilled}</p>`;
+    gameOverText += `</div>`;
+    gameOverText += `<div class="game-over-options">`;
+    gameOverText += `<button onclick="resetGame()" class="restart-btn">🔄 Start New Adventure</button>`;
+    gameOverText += `<button onclick="returnToMainMenu()" class="menu-btn">🏠 Return to Main Menu</button>`;
+    gameOverText += `</div>`;
     gameOverText += `</div>`;
     
     setGameText(gameOverText);
     log("💀 GAME OVER: " + reason);
     
-    // Disable all action buttons
+    // Clean up game state
     gameState.gameStarted = false;
     gameState.inCombat = false;
-    updateButtons();
+    gameState.inEncounter = false;
+    gameState.currentMonster = null;
+    
+    // Remove any combat buttons or movement controls
+    removeCombatButtons();
+    removeMovementButtons();
+    
+    // Hide all main action buttons except for the game over options
+    hideMainActionButtons();
 }
 
 function gameWin() {
-    let winText = `<div class="success">`;
+    let winText = `<div class="success game-win-screen">`;
     winText += `<h3>🏆 VICTORY!</h3>`;
     winText += `<p>Congratulations! You have completed all level-up bonuses!</p>`;
     winText += `<p>You retire to your cottage or castle until the 7th Misery occurs and everything you know blackens and burns.</p>`;
     winText += `<p>You have mastered the Dark Fort!</p>`;
-    winText += `<button onclick="resetGame()">Start New Adventure</button>`;
+    winText += `<div class="game-over-options">`;
+    winText += `<button onclick="resetGame()" class="restart-btn">🔄 Start New Adventure</button>`;
+    winText += `<button onclick="returnToMainMenu()" class="menu-btn">🏠 Return to Main Menu</button>`;
+    winText += `</div>`;
     winText += `</div>`;
     
     setGameText(winText);
     log("🏆 VICTORY! Adventure completed!");
     
+    // Clean up game state
     gameState.gameStarted = false;
     gameState.inCombat = false;
+    gameState.inEncounter = false;
+    gameState.currentMonster = null;
+    
+    // Remove any combat buttons or movement controls
+    removeCombatButtons();
+    removeMovementButtons();
+    
+    // Hide all main action buttons
+    hideMainActionButtons();
+}
+
+function returnToMainMenu() {
+    // Reset everything to initial state
+    resetGameState();
+    
+    // Show main menu screen
+    setGameText(`
+        <div class="main-menu">
+            <h2>🏰 Welcome to Dark Fort 🏰</h2>
+            <p>A solo dungeon crawler based on the precursor to MÖRK BORG</p>
+            <p>You are Kargunt, a catacomb rogue seeking treasure and glory in the cursed depths.</p>
+            <br>
+            <p>🎯 <strong>How to Play:</strong></p>
+            <ul>
+                <li>🚪 Start your adventure and explore the cursed catacomb</li>
+                <li>⚔️ Fight monsters using dice rolls and special abilities</li>
+                <li>🛒 Visit shops to buy equipment and supplies</li>
+                <li>🏆 Level up by gaining points and exploring rooms</li>
+                <li>🗺️ Use the map to track your exploration</li>
+            </ul>
+            <br>
+            <p>Ready to begin your perilous journey?</p>
+        </div>
+    `);
+    
+    updateDisplay();
     updateButtons();
 }
 
 function resetGame() {
+    // Reset everything to initial state
+    resetGameState();
+    
+    setGameText(`
+        <p>Welcome to the Dark Fort, brave Kargunt!</p>
+        <p>You stand before the entrance to a cursed catacomb. Ancient evil lurks within, but so does treasure and glory.</p>
+        <p>Click "Start Adventure" to begin your perilous journey...</p>
+    `);
+    
+    updateDisplay();
+    updateButtons();
+}
+
+function resetGameState() {
     gameState = {
         hp: 15,
         maxHp: 15,
@@ -1245,6 +1540,7 @@ function resetGame() {
         inventory: [],
         currentMonster: null,
         inCombat: false,
+        inEncounter: false,
         gameStarted: false,
         levelUpBonuses: [1, 2, 3, 4, 5, 6],
         shopOpen: false,
@@ -1276,18 +1572,16 @@ function resetGame() {
     removeMovementButtons();
     removeCombatButtons();
     
-    setGameText(`
-        <p>Welcome to the Dark Fort, brave Kargunt!</p>
-        <p>You stand before the entrance to a cursed catacomb. Ancient evil lurks within, but so does treasure and glory.</p>
-        <p>Click "Start Adventure" to begin your perilous journey...</p>
-    `);
+    // Remove combat overlay if present
+    const combatOverlay = document.getElementById('combatOverlay');
+    if (combatOverlay) {
+        combatOverlay.remove();
+    }
+    document.body.classList.remove('combat-mode');
     
     // Reset maps
     document.getElementById('miniMap').innerHTML = '';
     document.getElementById('fullMap').innerHTML = '';
-    
-    updateDisplay();
-    updateButtons();
 }
 
 // Initialize the game when DOM loads
