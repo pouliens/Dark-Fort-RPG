@@ -204,16 +204,7 @@ function addCombatLog(message, type = 'neutral') {
         gameState.combatLog.shift();
     }
     
-    // Add visual effect based on message type
-    const effectMap = {
-        'player': 'hit',
-        'monster': 'damage',
-        'neutral': 'magic'
-    };
-    
-    if (effectMap[type]) {
-        setTimeout(() => showBattleEffect(effectMap[type]), 100);
-    }
+    // Visual effects now handled by dice system only
 }
 
 function renderHealthBar(current, max, className = '') {
@@ -255,13 +246,6 @@ function getHealthBarColor(percentage) {
     return 'health-critical';
 }
 
-function getTurnIndicatorClass() {
-    return gameState.currentTurn === 'player' ? 'player-turn' : 'monster-turn';
-}
-
-function getCurrentTurnText() {
-    return gameState.currentTurn === 'player' ? '🤺 Your Turn' : '💀 Enemy Turn';
-}
 
 function getMonsterSprite(monsterName) {
     const sprites = {
@@ -309,20 +293,14 @@ function renderCombatInterface() {
                     <h3>⚔️ BATTLE</h3>
                     <div class="battle-subtitle">Round ${gameState.combatRound}</div>
                 </div>
-                <div class="turn-indicator-container">
-                    <div class="turn-indicator ${getTurnIndicatorClass()}">
-                        <div class="turn-text">${getCurrentTurnText()}</div>
-                        <div class="turn-timer"></div>
-                    </div>
-                </div>
             </div>
             
             <div class="battle-arena">
                 <div class="combat-participants">
-                    <div class="participant player">
+                    <div class="participant player" id="playerCard">
                         <div class="character-portrait">
-                            <div class="portrait-frame">
-                                <div class="character-sprite">🤺</div>
+                            <div class="portrait-frame" id="playerFrame">
+                                <div class="character-sprite" id="playerSprite">🤺</div>
                                 <div class="character-name">Kargunt</div>
                             </div>
                         </div>
@@ -335,13 +313,15 @@ function renderCombatInterface() {
                     
                     <div class="battle-center">
                         <div class="vs-indicator">⚔️</div>
-                        <div class="battle-effects" id="battleEffects"></div>
+                        <div class="dice-area" id="diceArea">
+                            <div class="dice-roll-display" id="diceDisplay"></div>
+                        </div>
                     </div>
                     
-                    <div class="participant monster">
+                    <div class="participant monster" id="monsterCard">
                         <div class="character-portrait">
-                            <div class="portrait-frame monster-frame">
-                                <div class="character-sprite">${getMonsterSprite(monster.name)}</div>
+                            <div class="portrait-frame monster-frame" id="monsterFrame">
+                                <div class="character-sprite" id="monsterSprite">${getMonsterSprite(monster.name)}</div>
                                 <div class="character-name">${monster.name}</div>
                             </div>
                         </div>
@@ -357,6 +337,12 @@ function renderCombatInterface() {
             </div>
             
             <div class="combat-interface">
+                <div class="action-panel">
+                    <div class="actions" id="gameActions">
+                        <!-- Combat buttons will be added here -->
+                    </div>
+                </div>
+                
                 <div class="combat-log">
                     <div class="log-header">
                         <span class="log-title">⚡ Battle Log</span>
@@ -366,17 +352,83 @@ function renderCombatInterface() {
                         ${renderCombatLog()}
                     </div>
                 </div>
-                
-                <div class="action-panel">
-                    <div class="actions" id="gameActions">
-                        <!-- Combat buttons will be added here -->
-                    </div>
-                </div>
             </div>
         </div>
     `;
     
     return combatHTML;
+}
+
+function showDiceRoll(roll, bonus, total, target, success, attacker = 'player') {
+    const diceDisplay = document.getElementById('diceDisplay');
+    if (!diceDisplay) {
+        return;
+    }
+    
+    const attackerName = attacker === 'player' ? 'Kargunt' : gameState.currentMonster.name;
+    const resultText = success ? 'HIT!' : 'MISS!';
+    const resultClass = success ? 'hit' : 'miss';
+    
+    // Create simple roll display
+    const rollHTML = `
+        <div class="simple-roll ${resultClass}">
+            <div class="roll-header">${attackerName} rolls:</div>
+            <div class="roll-numbers">
+                ${roll}${bonus !== 0 ? (bonus >= 0 ? '+' + bonus : bonus) : ''} = ${total}
+            </div>
+            <div class="roll-target">vs ${target}</div>
+            <div class="roll-result">${resultText}</div>
+        </div>
+    `;
+    
+    diceDisplay.innerHTML = rollHTML;
+    
+    // Clear after delay
+    setTimeout(() => {
+        diceDisplay.innerHTML = '';
+    }, 2500);
+}
+
+function showMonsterDamageRoll(damage, diceType) {
+    const diceDisplay = document.getElementById('diceDisplay');
+    if (!diceDisplay) return;
+    
+    // Create simple damage display
+    const rollHTML = `
+        <div class="simple-roll damage">
+            <div class="roll-header">${gameState.currentMonster.name} deals:</div>
+            <div class="roll-numbers">${damage} damage</div>
+            <div class="roll-target">(${diceType})</div>
+        </div>
+    `;
+    
+    diceDisplay.innerHTML = rollHTML;
+    
+    // Clear after delay
+    setTimeout(() => {
+        diceDisplay.innerHTML = '';
+    }, 2500);
+}
+
+function showHealingRoll(healing) {
+    const diceDisplay = document.getElementById('diceDisplay');
+    if (!diceDisplay) return;
+    
+    // Create simple healing display
+    const rollHTML = `
+        <div class="simple-roll healing">
+            <div class="roll-header">Kargunt heals:</div>
+            <div class="roll-numbers">+${healing} HP</div>
+            <div class="roll-target">(d6)</div>
+        </div>
+    `;
+    
+    diceDisplay.innerHTML = rollHTML;
+    
+    // Clear after delay
+    setTimeout(() => {
+        diceDisplay.innerHTML = '';
+    }, 2500);
 }
 
 function showBattleEffect(effectType, target = 'center') {
@@ -406,6 +458,8 @@ function showBattleEffect(effectType, target = 'center') {
         }
     }, 1500);
 }
+
+// Animation functions removed - using dice system instead
 
 function renderCombatLog() {
     if (gameState.combatLog.length === 0) {
@@ -642,10 +696,14 @@ function updateButtons() {
         return;
     }
     
+    // Check if player can level up
+    const playerCanLevelUp = canLevelUp();
+    
     // Context-sensitive button display
     const buttons = {
         'startBtn': !gameState.gameStarted,
-        'exploreBtn': gameState.gameStarted && !gameState.inCombat && !gameState.shopOpen,
+        'exploreBtn': gameState.gameStarted && !gameState.inCombat && !gameState.shopOpen && !playerCanLevelUp,
+        'levelUpBtn': gameState.gameStarted && !gameState.inCombat && !gameState.shopOpen && playerCanLevelUp,
         'attackBtn': gameState.inCombat,
         'fleeBtn': gameState.inCombat,
         'usePotionBtn': gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp,
@@ -1018,10 +1076,8 @@ function chooseAttack() {
     gameState.inEncounter = false; // No longer in encounter phase
     gameState.combatLog = [];
     gameState.combatRound = 1;
-    gameState.currentTurn = 'player'; // Start with player turn
     
-    addCombatLog(`⚔️ Battle begins against ${gameState.currentMonster.name}!`, 'neutral');
-    addCombatLog(`💀 Enemy: ${gameState.currentMonster.hp} HP | ⚔️ ${gameState.currentMonster.damage} DMG | 🎯 ${gameState.currentMonster.difficulty} DEF`, 'neutral');
+    addCombatLog(`⚔️ Battle vs ${gameState.currentMonster.name}`, 'neutral');
     
     updateCombatDisplay();
     log("⚔️ Combat started with " + gameState.currentMonster.name);
@@ -1185,6 +1241,8 @@ function removeCombatButtons() {
     document.querySelectorAll('.ability-btn, .combat-basic-btn').forEach(btn => btn.remove());
 }
 
+// Update functions removed - using standard refresh approach
+
 function useAbility(abilityName) {
     const ability = gameState.specialAbilities[abilityName];
     if (ability.cooldown > 0) return;
@@ -1202,7 +1260,7 @@ function useAbility(abilityName) {
             abilityDisplayName = 'Parry (defensive stance)';
             ability.cooldown = ability.maxCooldown;
             gameState.statusEffects.push({ type: 'parry', duration: 1 });
-            addCombatLog(`🛡️ Kargunt prepares a defensive parry!`, 'player');
+            addCombatLog(`🛡️ Parry ready`, 'player');
             updateCombatDisplay();
             
             // For parry, we don't attack, just wait for monster
@@ -1225,8 +1283,6 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
     const monster = gameState.currentMonster;
     const attackRoll = rollDie(6);
     
-    // Set current turn for UI
-    gameState.currentTurn = 'player';
     
     // Get weapon bonus
     let attackBonus = 0;
@@ -1254,16 +1310,19 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         addCombatLog(`✨ Kargunt uses ${abilityName}!`, 'player');
     }
     
+    // Show dice roll visualization
+    const attackSuccess = finalAttack >= monster.difficulty;
+    showDiceRoll(attackRoll, attackBonus, finalAttack, monster.difficulty, attackSuccess, 'player');
+    
     // Add attack roll to log with more detail
     addCombatLog(`🎲 Attack Roll: ${attackRoll} + ${attackBonus} (${weaponName}) = ${finalAttack} vs ${monster.difficulty}`, 'player');
     
-    if (finalAttack >= monster.difficulty) {
+    if (attackSuccess) {
         const baseDamage = rollDamage(weaponDamage);
         const totalDamage = baseDamage + bonusDamage;
         monster.currentHp = Math.max(0, monster.currentHp - totalDamage);
         
-        // Show hit effect
-        showBattleEffect('hit');
+        // Show hit effect after dice roll
         
         let damageText = `⚔️ 🎯 HIT! Dealt ${formatDamage(totalDamage)} damage`;
         if (bonusDamage > 0) {
@@ -1275,7 +1334,7 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         
         if (monster.currentHp <= 0) {
             addCombatLog(`💀 ${monster.name} defeated!`, 'player');
-            showBattleEffect('critical');
+            // Critical effect shown by dice system
             // Monster defeated
             updateStatWithHighlight('monstersKilled', gameState.monstersKilled + 1, 'increase');
             handleMonsterDefeat();
@@ -1286,13 +1345,16 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
             
             // Small delay before monster attacks for better flow
             setTimeout(() => {
-                gameState.currentTurn = 'monster';
                 monsterAttack();
-            }, 1500);
+            }, 3500);
             return;
         }
     } else {
-        showBattleEffect('miss');
+        // Show miss effect after dice roll
+        setTimeout(() => {
+            // Miss effect shown by dice system
+        }, 1200);
+        
         addCombatLog(`❌ MISS! Attack failed!`, 'player');
         log("❌ Missed attack on " + monster.name);
         
@@ -1301,9 +1363,8 @@ function attackWithBonus(bonusDamage = 0, abilityName = '') {
         
         // Small delay before monster attacks
         setTimeout(() => {
-            gameState.currentTurn = 'monster';
             monsterAttack();
-        }, 1500);
+        }, 3500);
         return;
     }
 }
@@ -1315,15 +1376,25 @@ function handleMonsterDefeat() {
         points = monster.killPoints;
     }
     
+    // Collect all rewards
+    const rewards = {
+        points: points,
+        silver: 0,
+        items: [],
+        achievements: []
+    };
+    
     updateStatWithHighlight('points', gameState.points + points, 'increase');
-    addCombatLog(`🏆 Victory! Gained ${points} points!`, 'neutral');
+    addCombatLog(`💀 ${monster.name} defeated!`, 'player');
     log("🏆 Defeated " + monster.name + " for " + points + " points");
     
     // Handle achievements
     if (gameState.monstersKilled === 1) {
+        rewards.achievements.push('First Blood: Defeat your first monster');
         addAchievement('First Blood: Defeat your first monster');
     }
     if (gameState.monstersKilled === 10) {
+        rewards.achievements.push('Monster Slayer: Defeat 10 monsters');
         addAchievement('Monster Slayer: Defeat 10 monsters');
     }
     
@@ -1331,7 +1402,7 @@ function handleMonsterDefeat() {
     if (monster.loot) {
         if (monster.loot.chance && rollDie(6) <= monster.loot.chance) {
             gameState.inventory.push(monster.loot.item);
-            addCombatLog(`🎁 Looted: ${monster.loot.item}`, 'neutral');
+            rewards.items.push(monster.loot.item);
             log("🎁 Looted: " + monster.loot.item);
         }
         if (monster.loot.silver) {
@@ -1341,8 +1412,8 @@ function handleMonsterDefeat() {
             } else if (monster.loot.silver === 'd4*d6') {
                 silverGained = rollDie(4) * rollDie(6);
             }
+            rewards.silver = silverGained;
             updateStatWithHighlight('silver', gameState.silver + silverGained, 'increase');
-            addCombatLog(`🪙 Found ${silverGained} silver!`, 'neutral');
             log("🪙 Found " + silverGained + " silver");
         }
     }
@@ -1366,20 +1437,93 @@ function handleMonsterDefeat() {
             return;
         } else if (monster.special === 'levelup' && specialRoll <= 2) {
             addCombatLog(`✨ The Ruin Basilisk's death energy empowers you! LEVEL UP!`, 'neutral');
-            showCombatResults(false, true);
+            showBattleRewards(rewards, true);
             return;
         }
     }
     
-    // Show combat results with continue button
-    showCombatResults();
+    // Show rewards in action panel instead of overlay
+    showBattleRewards(rewards);
+}
+
+function showBattleRewards(rewards, levelUp = false) {
+    // Add victory message to combat log
+    addCombatLog(`🏆 VICTORY! +${rewards.points} points`, 'neutral');
+    
+    if (rewards.silver > 0) {
+        addCombatLog(`🪙 +${rewards.silver} silver`, 'neutral');
+    }
+    
+    if (rewards.items.length > 0) {
+        rewards.items.forEach(item => {
+            addCombatLog(`🎁 Found: ${item}`, 'neutral');
+        });
+    }
+    
+    if (rewards.achievements.length > 0) {
+        rewards.achievements.forEach(achievement => {
+            addCombatLog(`🏆 ${achievement.split(':')[0]}`, 'neutral');
+        });
+    }
+    
+    // Replace action panel with rewards interface
+    const actionsContainer = document.querySelector('#combatOverlay #gameActions');
+    if (!actionsContainer) return;
+    
+    const rewardsHTML = `
+        <div class="battle-rewards">
+            <div class="rewards-header">
+                <h3>🏆 Battle Won!</h3>
+            </div>
+            
+            <div class="rewards-summary">
+                <div class="reward-line">🎯 +${rewards.points} Points</div>
+                ${rewards.silver > 0 ? `<div class="reward-line">🪙 +${rewards.silver} Silver</div>` : ''}
+                ${rewards.items.length > 0 ? rewards.items.map(item => 
+                    `<div class="reward-line">🎁 ${item}</div>`
+                ).join('') : ''}
+                ${rewards.achievements.length > 0 ? rewards.achievements.map(achievement => 
+                    `<div class="reward-line">🏆 ${achievement.split(':')[0]}</div>`
+                ).join('') : ''}
+            </div>
+            
+            <div class="reward-actions">
+                ${levelUp ? 
+                    '<button onclick="continueToLevelUp()" class="reward-btn level-up-btn">🎆 Continue to Level Up</button>' :
+                    '<button onclick="continueFromVictory()" class="reward-btn continue-btn">⚔️ Continue Adventure</button>'
+                }
+            </div>
+        </div>
+    `;
+    
+    actionsContainer.innerHTML = rewardsHTML;
+    
+    // Update display but keep combat overlay visible
+    updateDisplay();
+}
+
+function continueFromVictory() {
+    endCombat();
+}
+
+function continueToLevelUp() {
+    endCombat();
+    checkLevelUp();
+}
+
+function showVictoryScreen(rewards, levelUp = false) {
+    // Legacy function - now redirects to battle rewards
+    showBattleRewards(rewards, levelUp);
 }
 
 function showCombatResults(autoClose = false, levelUp = false) {
-    // Update the combat display one final time
-    updateCombatDisplay();
+    // Simplified version for death scenarios only
+    if (autoClose) {
+        return;
+    }
     
-    // Add a continue button to the combat interface
+    // For normal victory, use the new victory screen instead
+    // This function is now mainly for edge cases
     const combatOverlay = document.getElementById('combatOverlay');
     if (combatOverlay) {
         const combatDiv = combatOverlay.querySelector('.combat');
@@ -1390,8 +1534,8 @@ function showCombatResults(autoClose = false, levelUp = false) {
                 <div class="round-header" style="margin-top: 20px;">Combat Complete!</div>
                 <div style="text-align: center; margin: 15px 0;">
                     ${levelUp ? 
-                        '<button onclick="continueCombat(true)" class="continue-btn">Continue to Level Up</button>' :
-                        '<button onclick="continueCombat()" class="continue-btn">Continue Adventure</button>'
+                        '<button onclick="continueToLevelUp()" class="continue-btn">Continue to Level Up</button>' :
+                        '<button onclick="continueFromVictory()" class="continue-btn">Continue Adventure</button>'
                     }
                 </div>
             `;
@@ -1399,27 +1543,10 @@ function showCombatResults(autoClose = false, levelUp = false) {
         }
     }
     
-    // Remove combat action buttons
     removeCombatButtons();
     updateDisplay();
-    
-    // Auto-close if specified (for death scenarios)
-    if (autoClose) {
-        // Don't add continue button for death scenarios
-        const resultsSection = document.querySelector('.combat-results');
-        if (resultsSection) {
-            resultsSection.remove();
-        }
-    }
 }
 
-function continueCombat(levelUp = false) {
-    endCombat();
-    
-    if (levelUp) {
-        checkLevelUp();
-    }
-}
 
 function endCombat() {
     gameState.inCombat = false;
@@ -1454,6 +1581,10 @@ function monsterAttack() {
     let damage = baseDamage;
     let damageReductions = [];
     
+    // Monster attacks always hit in this game (no attack roll for monsters)
+    // But we can show the damage roll
+    showMonsterDamageRoll(baseDamage, monster.damage);
+    
     addCombatLog(`💥 ${monster.name} attacks!`, 'monster');
     
     // Check for armor
@@ -1474,10 +1605,12 @@ function monsterAttack() {
     
     updateStatWithHighlight('hp', Math.max(0, gameState.hp - damage), 'decrease');
     
-    // Add detailed damage log
-    let damageLogText = `💀 Dealt ${formatDamage(damage)} damage`;
+    // Damage effect shown by dice system
+    
+    // Add simplified damage log
+    let damageLogText = `💥 ${damage} damage`;
     if (damageReductions.length > 0) {
-        damageLogText += ` (${baseDamage} base damage, reduced by: ${damageReductions.join(', ')})`;
+        damageLogText += ` (reduced)`;
     }
     addCombatLog(damageLogText, 'monster');
     
@@ -1489,7 +1622,7 @@ function monsterAttack() {
     log("💀 Took " + damage + " damage from " + monster.name);
     
     if (gameState.hp <= 0) {
-        addCombatLog(`💀 Kargunt has been defeated!`, 'monster');
+        addCombatLog(`💀 Kargunt defeated!`, 'monster');
         updateCombatDisplay();
         setTimeout(() => {
             gameOver("You were slain by " + monster.name + "!");
@@ -1554,14 +1687,41 @@ function usePotion() {
     if (!gameState.inventory.includes('Potion')) return;
     
     const healing = rollDie(6);
-    updateStatWithHighlight('hp', Math.min(gameState.maxHp, gameState.hp + healing), 'increase');
+    const oldHp = gameState.hp;
+    const newHp = Math.min(gameState.maxHp, gameState.hp + healing);
+    const actualHealing = newHp - oldHp;
+    
+    updateStatWithHighlight('hp', newHp, 'increase');
     
     // Remove one potion
     const potionIndex = gameState.inventory.indexOf('Potion');
     gameState.inventory.splice(potionIndex, 1);
     
-    log("🧪 Used potion, healed " + healing + " HP");
-    updateButtons();
+    // Add combat feedback if in battle
+    if (gameState.inCombat) {
+        addCombatLog(`🧪 Potion: +${actualHealing} HP`, 'player');
+        showHealingRoll(healing);
+        
+        // Show healing effect after dice roll
+        setTimeout(() => {
+            // Healing effect shown by dice system
+        }, 1200);
+        
+        // Update combat display and continue to monster turn after delay
+        updateCombatDisplay();
+        
+        // Update combat display and refresh buttons
+        removeCombatButtons();
+        addCombatButtons();
+        
+        // Monster attacks after potion use
+        setTimeout(() => {
+            monsterAttack();
+        }, 3500);
+    } else {
+        log("🧪 Used potion, healed " + actualHealing + " HP");
+        updateButtons();
+    }
 }
 
 function openShop() {
@@ -1627,6 +1787,15 @@ function checkLevelUp() {
     }
 }
 
+function canLevelUp() {
+    // Check if player has completed all level bonuses (max level reached)
+    if (gameState.levelUpBonuses.length === 0) {
+        return false;
+    }
+    
+    return (gameState.rooms >= 12 && gameState.points >= 15) || gameState.silver >= 40;
+}
+
 function levelUp() {
     const bonus = rollDie(6);
     const bonusIndex = gameState.levelUpBonuses.indexOf(bonus);
@@ -1637,6 +1806,11 @@ function levelUp() {
     updateStatWithHighlight('level', gameState.level + 1, 'increase');
     gameState.points = 0;
     gameState.rooms = 0;
+    
+    // Reset silver if they leveled up via silver (40+ silver path)
+    if (gameState.silver >= 40) {
+        updateStatWithHighlight('silver', Math.max(0, gameState.silver - 40), 'decrease');
+    }
     
     let levelText = `<div class="success">`;
     levelText += `<h3>🏆 LEVEL UP! You are now level ${gameState.level}!</h3>`;
