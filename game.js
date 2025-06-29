@@ -476,7 +476,7 @@ function updateButtons() {
         'attackBtn': gameState.inCombat,
         'fleeBtn': gameState.inCombat,
         'usePotionBtn': gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp,
-        'shopBtn': gameState.currentRoom === 'shop' && !gameState.inCombat
+        'shopBtn': gameState.currentRoom === 'shop' && !gameState.inCombat && !gameState.shopOpen
     };
     
     Object.entries(buttons).forEach(([id, show]) => {
@@ -706,7 +706,7 @@ function exploreCurrentRoom() {
             roomType = 'shop';
             roomDescription = 'A chamber with a mysterious peddler';
             gameState.currentRoom = 'shop';
-            createShop();
+            openShop();
             break;
     }
     
@@ -1313,26 +1313,42 @@ function usePotion() {
     updateButtons();
 }
 
-function createShop() {
-    let shopHTML = '<div class="inventory"><h4>🛒 Peddler\'s Wares</h4>';
-    shopHTML += '<div id="shopItems">';
-    
+function openShop() {
+    gameState.shopOpen = true;
+
+    document.getElementById('mapView').style.display = 'none';
+    const shopView = document.getElementById('shopView');
+
+    let shopHTML = `
+        <div class="shop-container">
+            <h4>🛒 Peddler's Wares</h4>
+            <p>"Blood-soaked coins for trinkets and steel..."</p>
+            <div id="shopItems">
+    `;
+
     for (let item of shopItems) {
-        shopHTML += `<div style="margin: 5px 0;">`;
-        shopHTML += `${item.name} - ${item.price}s `;
-        shopHTML += `<button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button>`;
-        shopHTML += `</div>`;
+        shopHTML += `
+            <div class="shop-item">
+                <span>${item.name} - ${item.price}s</span>
+                <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button>
+            </div>
+        `;
     }
-    
-    shopHTML += '</div></div>';
-    document.getElementById('shopArea').innerHTML = shopHTML;
-    document.getElementById('shopArea').style.display = 'block';
+
+    shopHTML += '</div><button onclick="closeShop()" class="close-shop-btn">Return to Map</button></div>';
+    shopView.innerHTML = shopHTML;
+    shopView.style.display = 'block';
+
+    updateButtons();
 }
 
-function toggleShop() {
-    const shopArea = document.getElementById('shopArea');
-    gameState.shopOpen = !gameState.shopOpen;
-    shopArea.style.display = gameState.shopOpen ? 'block' : 'none';
+function closeShop() {
+    gameState.shopOpen = false;
+    document.getElementById('shopView').style.display = 'none';
+    document.getElementById('mapView').style.display = 'block';
+    if(gameState.currentRoom === 'shop') {
+        setGameText(`<div class="room-info"><h3>🛒 SHOP</h3><p class="success">You are in a room with a mysterious peddler. You can open the shop again or move on.</p></div>`);
+    }
     updateButtons();
 }
 
@@ -1350,7 +1366,7 @@ function buyItem(itemName, price) {
         }
         
         updateDisplay();
-        createShop(); // Refresh shop
+        openShop(); // Refresh shop
     }
 }
 
@@ -1566,7 +1582,8 @@ function resetGameState() {
     const logElement = document.getElementById('log2');
     if (logElement) logElement.innerHTML = '';
     
-    document.getElementById('shopArea').style.display = 'none';
+    // Hide shop, show map
+    closeShop();
     
     // Clear any extra buttons
     removeMovementButtons();
