@@ -110,7 +110,7 @@ function updateUI() {
 function startGame() {
     gameState.gameStarted = true;
     gameState.silver = 15 + rollDie(6);
-    gameState.inventory = ['Sword', 'Potion'];
+    gameState.inventory = ['Sword', 'Potion', 'Potion'];
     
     log(`Adventure begins! Found ${gameState.silver} silver.`);
     log("Your gear: Sword, Potion.");
@@ -249,6 +249,7 @@ function winCombat() {
 }
 
 function flee() {
+    if (gameState.hp <= 0) return; // Prevent fleeing if already dead
     const damage = rollDie(4);
     gameState.hp -= damage;
     triggerDamageEffect();
