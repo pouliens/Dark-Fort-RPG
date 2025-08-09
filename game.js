@@ -99,7 +99,7 @@ function updateUI() {
     document.getElementById('exploreBtn').style.display = gameState.gameStarted && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('attackBtn').style.display = gameState.inCombat ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = gameState.inCombat ? 'block' : 'none';
-    document.getElementById('usePotionBtn').style.display = gameState.gameStarted && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp ? 'block' : 'none';
+    document.getElementById('usePotionBtn').style.display = gameState.gameStarted && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop ? 'block' : 'none';
     
     // Level up button
     const canLevelUp = gameState.points >= 15;
@@ -109,11 +109,20 @@ function updateUI() {
 // --- GAME ACTIONS ---
 function startGame() {
     gameState.gameStarted = true;
-    gameState.silver = 15 + rollDie(6);
-    gameState.inventory = ['Sword', 'Potion', 'Potion'];
+  
+    gameState.silver = 25 + rollDie(6);
+
+    let startingInventory = ['Sword', 'Potion'];
+    if (Math.random() < 0.5) {
+        startingInventory.push('Potion');
+    }
+    if (Math.random() < 0.3) {
+        startingInventory.push('Rope');
+    }
+    gameState.inventory = startingInventory;
     
     log(`Adventure begins! Found ${gameState.silver} silver.`);
-    log("Your gear: Sword, Potion.");
+    log(`Your gear: ${gameState.inventory.join(', ')}.`);
     
     setGameText("<p>You enter a dimly lit chamber. The air is thick with the smell of dust and decay. A single door leads deeper into the catacomb.</p><p>What do you do?</p>");
     
@@ -331,7 +340,8 @@ function levelUp() {
         gameState.inventory.push('Potion', 'Potion');
         bonusText = "You receive 2 free potions!";
     } else {
-        bonusText = "You feel stronger!";
+        gameState.maxHp += 1;
+        bonusText = "Your max HP increases by 1!";
     }
     
     log(`LEVEL UP! You are now level ${gameState.level}!`);
