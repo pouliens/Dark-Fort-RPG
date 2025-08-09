@@ -9,134 +9,48 @@
 <body>
     <div class="container">
         <h1>🏰 DARK FORT 🏰</h1>
-        <p style="text-align: center; font-style: italic;">A solo dungeon crawler based on the precursor to MÖRK BORG</p>
         
-        <!-- Tabbed Interface -->
-        <div class="tab-container">
-            <button class="tab-button active" onclick="switchTab('game')">🎮 Game</button>
-            <button class="tab-button" onclick="switchTab('character')">📜 Character</button>
-            <button class="tab-button" onclick="switchTab('map')">🗺️ Map</button>
-            <button class="tab-button" onclick="switchTab('journal')">📚 Journal</button>
-        </div>
-        
-        <!-- Game Tab -->
-        <div id="gameTab" class="tab-content active">
-            <div class="character-sheet">
-                <h3>📜 KARGUNT THE CATACOMB ROGUE</h3>
-                <div class="stats">
-                    <div class="stat">❤️ HP: <span id="hp">15</span>/<span id="maxHp">15</span></div>
-                    <div class="stat">🪙 Silver: <span id="silver">0</span></div>
-                    <div class="stat">⭐ Points: <span id="points">0</span>/15</div>
-                    <!-- <div class="stat">📍 Pos: <span id="position">Entrance</span></div> -->
-                    <div class="stat">🏆 Level: <span id="level">1</span></div>
-                </div>
-            </div>
-            
-            <div class="game-hud">
-                <div class="main-content">
-                    <div class="game-area">
-                        <div id="gameText">
-                            <p>Welcome to the Dark Fort, brave Kargunt!</p>
-                            <p>You stand before the entrance to a cursed catacomb. Ancient evil lurks within, but so does treasure and glory.</p>
-                            <p>Click "Start Adventure" to begin your perilous journey...</p>
-                        </div>
-                    </div>
-                    
-                    <div class="actions" id="gameActions">
-                        <button id="startBtn" onclick="startGame()">🚪 Start Adventure</button>
-                        <button id="exploreBtn" onclick="exploreRoom()" disabled>🔍 Explore Room</button>
-                        <button id="levelUpBtn" onclick="levelUp()" disabled>🌟 Level Up!</button>
-                        <button id="attackBtn" onclick="attack()" disabled>⚔️ Attack</button>
-                        <button id="fleeBtn" onclick="flee()" disabled>🏃 Flee</button>
-                        <button id="usePotionBtn" onclick="usePotion()" disabled>🧪 Use Potion</button>
-                        <button id="shopBtn" onclick="openShop()" disabled>🛒 Open Shop</button>
-                    </div>
-                </div>
-                
-                <div class="sidebar">
-                    <div id="mapView">
-                        <div class="map-container">
-                            <h4 style="text-align: center; margin-top: 0;">🗺️ Mini-Map</h4>
-                            <div class="map-grid" id="miniMap"></div>
-                        </div>
-                    </div>
-                    <div id="shopView" style="display: none;">
-                        <!-- Shop will be rendered here by game.js -->
-                    </div>
-                </div>
+        <!-- Character Stats -->
+        <div class="character-sheet">
+            <h3>📜 KARGUNT</h3>
+            <div class="stats">
+                <div class="stat">❤️ HP: <span id="hp">15</span>/<span id="maxHp">15</span></div>
+                <div class="stat">🪙 Silver: <span id="silver">0</span></div>
+                <div class="stat">⭐ Points: <span id="points">0</span>/15</div>
+                <div class="stat">🏆 Level: <span id="level">1</span></div>
             </div>
         </div>
-        
-        <!-- Character Tab -->
-        <div id="characterTab" class="tab-content">
-            <div class="character-sheet">
-                <h3>📜 CHARACTER DETAILS</h3>
-                <div class="stats">
-                    <div class="stat">❤️ HP: <span id="hp2">15</span>/<span id="maxHp2">15</span></div>
-                    <div class="stat">🪙 Silver: <span id="silver2">0</span></div>
-                    <div class="stat">⭐ Points: <span id="points2">0</span>/15</div>
-                    <div class="stat">🏠 Rooms Explored: <span id="rooms2">0</span></div>
-                    <div class="stat">🏆 Level: <span id="level2">1</span></div>
-                    <div class="stat">💀 Monsters Defeated: <span id="monstersKilled">0</span></div>
-                </div>
-                
-                <div class="inventory">
-                    <h4>🎒 Inventory:</h4>
-                    <div id="inventory2"></div>
-                </div>
-                
-                <div class="inventory">
-                    <h4>🏆 Achievements:</h4>
-                    <div id="achievements">None yet - start your adventure!</div>
-                </div>
 
-                <div class="levels">
-                    <h4>🌟 Level-Up Bonuses:</h4>
-                    <div id="levelUpBonuses"></div>
+        <!-- Game Content -->
+        <div class="main-content">
+            <div class="game-area">
+                <div id="gameText">
+                    <p>Welcome to the Dark Fort, brave Kargunt!</p>
+                    <p>Click "Start Adventure" to begin your perilous journey...</p>
                 </div>
+            </div>
+
+            <div class="actions" id="gameActions">
+                <button id="startBtn" onclick="startGame()">🚪 Start Adventure</button>
+                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;">🔍 Explore</button>
+                <button id="attackBtn" onclick="attack()" style="display: none;">⚔️ Attack</button>
+                <button id="fleeBtn" onclick="flee()" style="display: none;">🏃 Flee</button>
+                <button id="usePotionBtn" onclick="usePotion()" style="display: none;">🧪 Use Potion</button>
+                <button id="levelUpBtn" onclick="levelUp()" style="display: none;">🌟 Level Up!</button>
+                <!-- Simplified buttons. Shop button removed, will be contextual. -->
             </div>
         </div>
         
-        <!-- Map Tab -->
-        <div id="mapTab" class="tab-content">
-            <div class="map-container">
-                <h3 style="text-align: center;">🗺️ DUNGEON MAP</h3>
-                <div class="map-grid" id="fullMap"></div>
-                <div class="map-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #ff6b35;"></div>
-                        <span>Current</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #6b1a1a;"></div>
-                        <span>Combat</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #1a3a6b;"></div>
-                        <span>Shop</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #6b6b1a;"></div>
-                        <span>Treasure</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #2a2a2a;"></div>
-                        <span>Empty</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #111;"></div>
-                        <span>Unknown</span>
-                    </div>
-                </div>
-            </div>
+        <!-- Inventory -->
+        <div class="inventory">
+            <h4>🎒 Inventory:</h4>
+            <div id="inventory">Empty</div>
         </div>
-        
-        <!-- Journal Tab -->
-        <div id="journalTab" class="tab-content">
-            <div class="log">
-                <h4>📋 Adventure Log:</h4>
-                <div id="log2"></div>
-            </div>
+
+        <!-- Log -->
+        <div class="log">
+            <h4>📋 Log:</h4>
+            <div id="log"></div>
         </div>
         
     </div>
