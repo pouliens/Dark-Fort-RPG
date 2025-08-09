@@ -109,6 +109,7 @@ function updateUI() {
 // --- GAME ACTIONS ---
 function startGame() {
     gameState.gameStarted = true;
+  
     gameState.silver = 25 + rollDie(6);
 
     let startingInventory = ['Sword', 'Potion'];
