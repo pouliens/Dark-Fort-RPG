@@ -2,14 +2,15 @@
 
 // --- GAME STATE ---
 let gameState = {
-    hp: 15,
-    maxHp: 15,
+    hp: 20,
+    maxHp: 20,
     silver: 0,
     points: 0,
     level: 1,
     inventory: [],
     currentMonster: null,
     inCombat: false,
+    inShop: false,
     gameStarted: false,
     roomsExplored: 0,
     bossEncountered: false
@@ -17,20 +18,20 @@ let gameState = {
 
 // --- GAME DATA ---
 const weakMonsters = [
-    { name: 'Blood-drenched Skeleton', points: 3, damage: 'd4', hp: 6, difficulty: 3 },
-    { name: 'Catacomb Cultist', points: 3, damage: 'd4', hp: 6, difficulty: 3 },
-    { name: 'Goblin', points: 3, damage: 'd4', hp: 5, difficulty: 3 },
-    { name: 'Undead Hound', points: 4, damage: 'd4', hp: 6, difficulty: 4 }
+    { name: 'Blood-drenched Skeleton', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
+    { name: 'Catacomb Cultist', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
+    { name: 'Goblin', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
+    { name: 'Undead Hound', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
 ];
 
 const toughMonsters = [
-    { name: 'Necro-Sorcerer', points: 4, damage: 'd6', hp: 8, difficulty: 4 },
-    { name: 'Small Stone Troll', points: 5, damage: 'd6', hp: 9, difficulty: 5 },
-    { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 4 },
-    { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 4 }
+    { name: 'Necro-Sorcerer', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
+    { name: 'Small Stone Troll', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
+    { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
+    { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
 ];
 
-const fortressLord = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 5 };
+const fortressLord = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
 
 const shopItems = [
     { name: 'Potion', price: 5, description: 'Heals d6 HP.' },
@@ -65,6 +66,16 @@ function setGameText(html) {
     }
 }
 
+function triggerDamageEffect() {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.classList.add('damage-flash');
+        setTimeout(() => {
+            container.classList.remove('damage-flash');
+        }, 400); // Duration should match the animation
+    }
+}
+
 function updateUI() {
     // Stats
     document.getElementById('hp').textContent = gameState.hp;
@@ -85,7 +96,7 @@ function updateUI() {
 
     // Buttons
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
-    document.getElementById('exploreBtn').style.display = gameState.gameStarted && !gameState.inCombat ? 'block' : 'none';
+    document.getElementById('exploreBtn').style.display = gameState.gameStarted && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('attackBtn').style.display = gameState.inCombat ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = gameState.inCombat ? 'block' : 'none';
     document.getElementById('usePotionBtn').style.display = gameState.gameStarted && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp ? 'block' : 'none';
@@ -99,7 +110,7 @@ function updateUI() {
 function startGame() {
     gameState.gameStarted = true;
     gameState.silver = 15 + rollDie(6);
-    gameState.inventory = ['Sword', 'Potion'];
+    gameState.inventory = ['Sword', 'Potion', 'Potion'];
     
     log(`Adventure begins! Found ${gameState.silver} silver.`);
     log("Your gear: Sword, Potion.");
@@ -137,6 +148,7 @@ function exploreRoom() {
         } else {
             const damage = rollDie(4);
             gameState.hp -= damage;
+            triggerDamageEffect();
             text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
             log(`Took ${damage} damage from a trap.`);
         }
@@ -151,9 +163,9 @@ function exploreRoom() {
         log(`Encountered a ${monster.name}.`);
         startCombat(monster);
     } else { // Shop
-        text += "<p class='success'>A mysterious peddler appears, offering their wares.</p>";
         log("Found a shop.");
-        openShop();
+        openShop(true); // Open shop for the first time
+        return; // Return to prevent overwriting the shop UI
     }
     
     setGameText(text);
@@ -201,6 +213,7 @@ function monsterAttack() {
     const monster = gameState.currentMonster;
     const damage = rollDamage(monster.damage);
     gameState.hp -= damage;
+    triggerDamageEffect();
     log(`The ${monster.name} hits you for ${damage} damage.`);
     
     if (gameTextEl) {
@@ -236,8 +249,10 @@ function winCombat() {
 }
 
 function flee() {
+    if (gameState.hp <= 0) return; // Prevent fleeing if already dead
     const damage = rollDie(4);
     gameState.hp -= damage;
+    triggerDamageEffect();
     log(`You fled from combat, taking ${damage} damage.`);
     
     gameState.inCombat = false;
@@ -272,13 +287,19 @@ function usePotion() {
     }
 }
 
-function openShop() {
-    let shopText = "<h4>🛒 Peddler's Wares</h4>";
+function openShop(isFirstTime = false) {
+    gameState.inShop = true;
+    let shopText = "";
+    if (isFirstTime) {
+        shopText += "<p class='success'>A mysterious peddler appears, offering their wares.</p>";
+    }
+    shopText += "<h4>🛒 Peddler's Wares</h4>";
     shopItems.forEach(item => {
         shopText += `<p>${item.name} (${item.price}s): ${item.description} <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button></p>`;
     });
     shopText += `<button onclick="closeShop()">Leave Shop</button>`;
     setGameText(shopText);
+    updateUI();
 }
 
 function buyItem(itemName, price) {
@@ -286,12 +307,12 @@ function buyItem(itemName, price) {
         gameState.silver -= price;
         gameState.inventory.push(itemName);
         log(`You bought a ${itemName}.`);
-        openShop(); // Refresh shop view
+        openShop(); // Refresh shop view without intro
     }
-    updateUI();
 }
 
 function closeShop() {
+    gameState.inShop = false;
     setGameText("<p>You leave the peddler behind and continue into the darkness.</p>");
     updateUI();
 }
@@ -339,14 +360,15 @@ function gameOver(reason) {
 
 function resetGame() {
     gameState = {
-        hp: 15,
-        maxHp: 15,
+        hp: 20,
+        maxHp: 20,
         silver: 0,
         points: 0,
         level: 1,
         inventory: [],
         currentMonster: null,
         inCombat: false,
+        inShop: false,
         gameStarted: false,
         roomsExplored: 0,
         bossEncountered: false
