@@ -11,7 +11,8 @@ let gameState = {
     currentMonster: null,
     inCombat: false,
     gameStarted: false,
-    roomsExplored: 0
+    roomsExplored: 0,
+    bossEncountered: false
 };
 
 // --- GAME DATA ---
@@ -28,6 +29,8 @@ const toughMonsters = [
     { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 4 },
     { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 4 }
 ];
+
+const fortressLord = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 5 };
 
 const shopItems = [
     { name: 'Potion', price: 5, description: 'Heals d6 HP.' },
@@ -88,7 +91,7 @@ function updateUI() {
     document.getElementById('usePotionBtn').style.display = gameState.gameStarted && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp ? 'block' : 'none';
     
     // Level up button
-    const canLevelUp = (gameState.roomsExplored >= 12 && gameState.points >= 15) || gameState.silver >= 40;
+    const canLevelUp = gameState.points >= 15;
     document.getElementById('levelUpBtn').style.display = canLevelUp && !gameState.inCombat ? 'block' : 'none';
 }
 
@@ -107,6 +110,18 @@ function startGame() {
 }
 
 function exploreRoom() {
+    // Boss encounter at level 2
+    if (gameState.level >= 2 && !gameState.bossEncountered) {
+        gameState.bossEncountered = true;
+        let text = `<p><strong>Final Chamber:</strong></p>`;
+        text += `<p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${fortressLord.name}</strong> on his throne!</p>`;
+        log(`Encountered the final boss: ${fortressLord.name}.`);
+        setGameText(text);
+        startCombat(fortressLord);
+        updateUI();
+        return;
+    }
+
     gameState.roomsExplored++;
     const roll = rollDie(6);
     
@@ -207,6 +222,11 @@ function winCombat() {
     
     log(`You defeated the ${monster.name}!`);
     log(`You gained ${monster.points} points and ${silverFound} silver.`);
+
+    if (monster.name === 'Fortress Lord') {
+        winGame();
+        return;
+    }
     
     setGameText(`<p class='success'>You defeated the ${monster.name}!</p><p>You gained ${monster.points} points and found ${silverFound} silver.</p><p>You may continue exploring.</p>`);
     
@@ -220,17 +240,17 @@ function flee() {
     gameState.hp -= damage;
     log(`You fled from combat, taking ${damage} damage.`);
     
-    setGameText(`<p class='warning'>You escape from the monster, but take ${damage} damage in your haste.</p><p>The room feels unsafe. You move on.</p>`);
-    
     gameState.inCombat = false;
     gameState.currentMonster = null;
-    
+
     if (gameState.hp <= 0) {
+        updateUI(); // Update UI to show correct HP before game over
         gameOver("You died while trying to flee.");
         return;
     }
     
-    updateUI();
+    // Move to the next room immediately after fleeing.
+    exploreRoom();
 }
 
 function usePotion() {
@@ -278,11 +298,7 @@ function closeShop() {
 
 function levelUp() {
     gameState.level++;
-    gameState.points = 0;
-    gameState.roomsExplored = 0;
-    if (gameState.silver >= 40) {
-        gameState.silver -= 40;
-    }
+    gameState.points -= 15; // Subtract the cost of leveling up
     
     const bonusRoll = rollDie(3);
     let bonusText = "";
@@ -299,6 +315,14 @@ function levelUp() {
     
     log(`LEVEL UP! You are now level ${gameState.level}!`);
     setGameText(`<p class='success'>You leveled up to level ${gameState.level}! ${bonusText}</p>`);
+    updateUI();
+}
+
+function winGame() {
+    log(`VICTORY! You defeated the Fortress Lord!`);
+    setGameText(`<h3>🏆 VICTORY! 🏆</h3><p>You have defeated the Fortress Lord and conquered the Dark Fort!</p><p>Your final score: ${gameState.points}</p><button onclick="resetGame()">Start New Adventure</button>`);
+
+    gameState.inCombat = false;
     updateUI();
 }
 
@@ -324,7 +348,8 @@ function resetGame() {
         currentMonster: null,
         inCombat: false,
         gameStarted: false,
-        roomsExplored: 0
+        roomsExplored: 0,
+        bossEncountered: false
     };
     if (logEl) {
         logEl.innerHTML = "";
