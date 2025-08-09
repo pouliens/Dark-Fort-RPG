@@ -18,6 +18,15 @@ body {
     border-radius: 10px;
 }
 
+@keyframes damage-flash-anim {
+    0% { border-color: #ff4136; }
+    100% { border-color: #d4af37; }
+}
+
+.damage-flash {
+    animation: damage-flash-anim 0.4s;
+}
+
 h1 {
     text-align: center;
     color: #ff6b35;

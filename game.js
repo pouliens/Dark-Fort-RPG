@@ -66,6 +66,16 @@ function setGameText(html) {
     }
 }
 
+function triggerDamageEffect() {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.classList.add('damage-flash');
+        setTimeout(() => {
+            container.classList.remove('damage-flash');
+        }, 400); // Duration should match the animation
+    }
+}
+
 function updateUI() {
     // Stats
     document.getElementById('hp').textContent = gameState.hp;
@@ -138,6 +148,7 @@ function exploreRoom() {
         } else {
             const damage = rollDie(4);
             gameState.hp -= damage;
+            triggerDamageEffect();
             text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
             log(`Took ${damage} damage from a trap.`);
         }
@@ -202,6 +213,7 @@ function monsterAttack() {
     const monster = gameState.currentMonster;
     const damage = rollDamage(monster.damage);
     gameState.hp -= damage;
+    triggerDamageEffect();
     log(`The ${monster.name} hits you for ${damage} damage.`);
     
     if (gameTextEl) {
@@ -239,6 +251,7 @@ function winCombat() {
 function flee() {
     const damage = rollDie(4);
     gameState.hp -= damage;
+    triggerDamageEffect();
     log(`You fled from combat, taking ${damage} damage.`);
     
     gameState.inCombat = false;
