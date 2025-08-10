@@ -202,7 +202,6 @@ function updateUI() {
  * Starts a new game.
  */
 function startGame() {
-    playStartGameSound();
     gameState.gameStarted = true;
     gameState.silver = 25 + rollDie(6);
 
@@ -227,7 +226,6 @@ function startGame() {
  * Explores a new room, triggering events like traps, monsters, or shops.
  */
 function exploreRoom() {
-    playExploreSound();
 
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
@@ -290,7 +288,6 @@ function exploreRoom() {
 function usePotion() {
     const potionIndex = gameState.inventory.indexOf('Mikstūra');
     if (potionIndex > -1) {
-        playPotionSound();
         const healing = rollDie(6) + rollDie(6);
         gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
 
@@ -354,7 +351,6 @@ function attack() {
         const damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus;
         monster.currentHp -= damage;
 
-        playMonsterHitSound();
         triggerMonsterHitEffect();
         log(`Pataikei ${monster.name} ir padarei ${damage} žalos.`);
         combatLogEl.innerHTML = `<p class='success'>Pataikei ${monster.name} ir padarei ${damage} žalos.</p>`;
@@ -367,7 +363,6 @@ function attack() {
             monsterAttack();
         }
     } else {
-        playMissSound();
         log(`Nepataikei į ${monster.name}.`);
         combatLogEl.innerHTML = `<p class='warning'>Nepataikei į ${monster.name}.</p>`;
         monsterAttack();
@@ -379,7 +374,6 @@ function attack() {
  * Flees from combat.
  */
 function flee() {
-    playFleeSound();
     const combatLogEl = document.getElementById('combat-log');
 
     if (Math.random() < 0.5) { // 50% chance to flee
@@ -423,7 +417,6 @@ function monsterAttack() {
 
 function winCombat(killingBlowDamage) {
     const monster = gameState.currentMonster;
-    playWinCombatSound();
     gameState.points += monster.points;
     
     const silverFound = rollDie(6) + monster.difficulty;
@@ -465,7 +458,6 @@ function winCombat(killingBlowDamage) {
 
 function openShop(isFirstTime = false, tab = 'buy') {
     gameState.inShop = true;
-    playShopSound();
 
     let shopText = isFirstTime ? "<p class='success'>Atsiranda paslaptingas prekeivis, siūlantis savo prekes.</p>" : "";
 
@@ -580,7 +572,6 @@ function equipItem(item) {
 function levelUp() {
     if (gameState.points < 10) return;
     
-    playLevelUpSound();
     gameState.level++;
     gameState.points -= 10;
 
@@ -616,7 +607,6 @@ function levelUp() {
  * Ends the game in victory.
  */
 function winGame() {
-    playWinGameSound();
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
     setGameText(`<h3>🏆 PERGALĖ! 🏆</h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     gameState.inCombat = false;
@@ -628,7 +618,6 @@ function winGame() {
  * @param {string} reason - The reason for the game over.
  */
 function gameOver(reason) {
-    playGameOverSound();
     gameState.playerIsDead = true;
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
     setGameText(`<h3>💀 ŽAIDIMAS BAIGTAS 💀</h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
