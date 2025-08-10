@@ -45,6 +45,13 @@ body {
     text-align: center;
 }
 
+.shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
 h1 {
     text-align: center;
     color: #ff6b35;

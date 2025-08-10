@@ -219,7 +219,7 @@ function startCombat(monster) {
     let text = `<div id="combat-encounter">${encounterText}</div>`;
     text += `<div class="monster-stats" id="monster-stats-display">`;
     text += `<h4>${monster.name}</h4>`;
-    text += `<p>HP: <span id="monster-hp">${monster.currentHp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>`;
+    text += `<p>HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>`;
     text += `</div>`;
     text += `<div id="combat-log"></div>`;
 
@@ -355,7 +355,7 @@ function openShop(isFirstTime = false) {
     }
     shopText += "<h4>🛒 Peddler's Wares</h4>";
     shopItems.forEach(item => {
-        shopText += `<p>${item.name} (${item.price}s): ${item.description} <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button></p>`;
+        shopText += `<p class="shop-item"><span>${item.name} (${item.price}s): ${item.description}</span> <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button></p>`;
     });
     shopText += `<button onclick="closeShop()">Leave Shop</button>`;
     setGameText(shopText);
