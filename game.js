@@ -15,7 +15,8 @@ let gameState = {
     inShop: false,
     gameStarted: false,
     roomsExplored: 0,
-    bossEncountered: false
+    bossEncountered: false,
+    playerIsDead: false
 };
 
 // --- GAME DATA ---
@@ -35,10 +36,19 @@ const toughMonsters = [
 
 const fortressLord = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
 
+const lootDrops = [
+    { name: 'Sword', type: 'weapon', value: 'd6' },
+    { name: 'Leather Armor', type: 'armor', value: 1 },
+    { name: 'Potion', type: 'potion' }
+];
+
 const shopItems = [
-    { name: 'Potion', price: 5, description: 'Heals d6 HP.' },
-    { name: 'Sword', price: 10, description: 'A basic weapon (d6 damage).' },
-    { name: 'Rope', price: 5, description: 'Helps avoid pit traps.' }
+    { name: 'Potion', price: 5, description: 'Heals 2d6 HP.', type: 'potion' },
+    { name: 'Sword', price: 10, description: 'A basic weapon (d6 damage).', type: 'weapon', value: 'd6' },
+    { name: 'Great Sword', price: 25, description: 'A better weapon (d8 damage).', type: 'weapon', value: 'd8' },
+    { name: 'Leather Armor', price: 15, description: 'Basic armor (1 defense).', type: 'armor', value: 1 },
+    { name: 'Chainmail Armor', price: 30, description: 'Better armor (2 defense).', type: 'armor', value: 2 },
+    { name: 'Rope', price: 5, description: 'Helps avoid pit traps.', type: 'utility' }
 ];
 
 // --- UTILITY FUNCTIONS ---
@@ -111,15 +121,16 @@ function updateUI() {
     }
 
     // Buttons
+    const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead;
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
-    document.getElementById('exploreBtn').style.display = gameState.gameStarted && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
-    document.getElementById('attackBtn').style.display = gameState.inCombat ? 'block' : 'none';
-    document.getElementById('fleeBtn').style.display = gameState.inCombat ? 'block' : 'none';
-    document.getElementById('usePotionBtn').style.display = gameState.gameStarted && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop ? 'block' : 'none';
+    document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
+    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
+    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
+    document.getElementById('usePotionBtn').style.display = isPlayerActionable && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop ? 'block' : 'none';
     
     // Level up button
     const canLevelUp = gameState.points >= 15;
-    document.getElementById('levelUpBtn').style.display = canLevelUp && !gameState.inCombat ? 'block' : 'none';
+    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat ? 'block' : 'none';
 }
 
 // --- GAME ACTIONS ---
@@ -290,18 +301,44 @@ function monsterAttack() {
 function winCombat() {
     const monster = gameState.currentMonster;
     gameState.points += monster.points;
-    const silverFound = rollDie(6);
-    gameState.silver += silverFound;
     
     log(`You defeated the ${monster.name}!`);
-    log(`You gained ${monster.points} points and ${silverFound} silver.`);
+
+    // Loot drops
+    const silverFound = rollDie(6) + monster.difficulty;
+    gameState.silver += silverFound;
+    let loot = [ `${silverFound} silver` ];
+
+    // Chance to drop an item
+    if (Math.random() < 0.2 + (monster.difficulty * 0.1)) { // Increased drop chance for tougher monsters
+        const droppedItem = { ...lootDrops[rollDie(lootDrops.length) - 1] };
+        loot.push(droppedItem.name);
+        gameState.inventory.push(droppedItem.name);
+        log(`The monster dropped a ${droppedItem.name}!`);
+        if (droppedItem.type === 'weapon' || droppedItem.type === 'armor') {
+            equipItem(droppedItem);
+        }
+    }
+
+    // Chance to drop a potion
+    if (Math.random() < 0.3) {
+        loot.push('Potion');
+        gameState.inventory.push('Potion');
+        log('The monster dropped a potion!');
+    }
 
     if (monster.name === 'Fortress Lord') {
         winGame();
         return;
     }
     
-    setGameText(`<p class='success'>You defeated the ${monster.name}!</p><p>You gained ${monster.points} points and found ${silverFound} silver.</p><p>You may continue exploring.</p>`);
+    let text = `<p class='success'>You defeated the ${monster.name}!</p>`;
+    text += `<p>You gained ${monster.points} points.</p>`;
+    if (loot.length > 0) {
+        text += `<p><strong>Loot:</strong> ${loot.join(', ')}</p>`;
+    }
+    text += `<p>You may continue exploring.</p>`;
+    setGameText(text);
     
     gameState.inCombat = false;
     gameState.currentMonster = null;
@@ -330,7 +367,7 @@ function flee() {
 
 function usePotion() {
     if (gameState.inventory.includes('Potion')) {
-        const healing = rollDie(6);
+        const healing = rollDie(6) + rollDie(6);
         gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
         
         const potionIndex = gameState.inventory.indexOf('Potion');
@@ -362,16 +399,41 @@ function openShop(isFirstTime = false) {
     updateUI();
 }
 
+function getDamageValue(diceString) {
+    const match = diceString.match(/d(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+function equipItem(item) {
+    if (item.type === 'weapon') {
+        const currentDamageValue = getDamageValue(gameState.playerDamage);
+        const newItemValue = getDamageValue(item.value);
+        if (newItemValue > currentDamageValue) {
+            gameState.playerDamage = item.value;
+            log(`You equipped the ${item.name}, increasing your damage!`);
+        }
+    } else if (item.type === 'armor') {
+        if (item.value > gameState.playerDefense) {
+            gameState.playerDefense = item.value;
+            log(`You equipped the ${item.name}, increasing your defense!`);
+        }
+    }
+}
+
 function buyItem(itemName, price) {
     if (gameState.silver >= price) {
+        const item = shopItems.find(i => i.name === itemName);
+        if (!item) return;
+
         gameState.silver -= price;
         gameState.inventory.push(itemName);
-        if (itemName === 'Sword' && gameState.playerDamage === 'd4') {
-            gameState.playerDamage = 'd6';
-            log('Your damage increases with the new sword!');
-        }
         log(`You bought a ${itemName}.`);
-        openShop(); // Refresh shop view without intro
+
+        if (item.type === 'weapon' || item.type === 'armor') {
+            equipItem(item);
+        }
+
+        openShop(); // Refresh shop view
     }
 }
 
@@ -422,14 +484,10 @@ function winGame() {
 }
 
 function gameOver(reason) {
+    gameState.playerIsDead = true;
     log(`GAME OVER: ${reason}`);
     setGameText(`<h3>💀 GAME OVER 💀</h3><p>${reason}</p><p>Your adventure ends here.</p><button onclick="resetGame()">Start New Adventure</button>`);
-    
-    document.getElementById('exploreBtn').style.display = 'none';
-    document.getElementById('attackBtn').style.display = 'none';
-    document.getElementById('fleeBtn').style.display = 'none';
-    document.getElementById('usePotionBtn').style.display = 'none';
-    document.getElementById('levelUpBtn').style.display = 'none';
+    updateUI();
 }
 
 function resetGame() {
@@ -447,7 +505,8 @@ function resetGame() {
         inShop: false,
         gameStarted: false,
         roomsExplored: 0,
-        bossEncountered: false
+    bossEncountered: false,
+    playerIsDead: false
     };
     if (logEl) {
         logEl.innerHTML = "";
