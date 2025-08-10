@@ -12,6 +12,8 @@ let gameState = {
     silver: 0,
     points: 0,
     level: 1,
+    playerName: '',
+    playerProfession: '',
     playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
     playerDamageBonus: 0,
     playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
@@ -27,40 +29,7 @@ let gameState = {
     playerIsDead: false
 };
 
-// -----------------------------------------------------------------------------
-// ŽAIDIMO DUOMENYS
-// -----------------------------------------------------------------------------
-
-const WEAK_MONSTERS = [
-    { name: 'Kraujuotas Skeletas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Katakombų Kultistas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Goblinas', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
-    { name: 'Nemirėlių Šuo', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
-];
-
-const TOUGH_MONSTERS = [
-    { name: 'Nekromantas-Burtininkas', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
-    { name: 'Mažas Akmeninis Trolis', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
-    { name: 'Medūza', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
-    { name: 'Griuvėsių Baziliskas', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
-];
-
-const FORTRESS_LORD = { name: 'Tvirtovės Valdovas', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
-
-const LOOT_DROPS = [
-    { name: 'Kardas', type: 'weapon', value: 'd6' },
-    { name: 'Odiniai Šarvai', type: 'armor', value: 1 },
-    { name: 'Mikstūra', type: 'potion' }
-];
-
-const SHOP_ITEMS = [
-    { name: 'Mikstūra', price: 5, description: 'Gydo 2d6 gyvybių.', type: 'potion' },
-    { name: 'Kardas', price: 10, description: 'Paprastas ginklas (d6 žala).', type: 'weapon', value: 'd6' },
-    { name: 'Didysis Kardas', price: 25, description: 'Geresnis ginklas (d8 žala).', type: 'weapon', value: 'd8' },
-    { name: 'Odiniai Šarvai', price: 15, description: 'Paprasti šarvai (1 gynyba).', type: 'armor', value: 1 },
-    { name: 'Grandininiai Šarvai', price: 30, description: 'Geresni šarvai (2 gynyba).', type: 'armor', value: 2 },
-    { name: 'Virvė', price: 5, description: 'Padeda išvengti spąstų duobių.', type: 'utility' }
-];
+// Data is now in game-data.js
 
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
@@ -104,6 +73,11 @@ function handleInventoryClick(itemName) {
 
     if (!itemDetails) {
         log(`Negalima panaudoti daikto ${itemName}.`);
+        return;
+    }
+
+    if (itemDetails.type === 'utility') {
+        log(`Daiktas ${itemName} naudojamas automatiškai.`);
         return;
     }
 
@@ -176,6 +150,9 @@ function updateUI() {
     document.getElementById('points').textContent = gameState.points;
     document.getElementById('maxPoints').textContent = 10;
     document.getElementById('level').textContent = gameState.level;
+    if (gameState.playerName) {
+        document.getElementById('playerName').textContent = `📜 ${gameState.playerName}`;
+    }
     let damageString = gameState.playerDamage;
     if (gameState.playerDamageBonus > 0) {
         damageString += `+${gameState.playerDamageBonus}`;
@@ -198,9 +175,17 @@ function updateUI() {
             if (count > 1) {
                 displayText += ` (x${count})`;
             }
-
+            const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
             const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
-            return `<button class="inventory-item ${isEquipped ? 'equipped' : ''}" onclick="handleInventoryClick('${itemName}')">
+            const isUtility = itemDetails && itemDetails.type === 'utility';
+
+            let classes = 'inventory-item';
+            if (isEquipped) classes += ' equipped';
+            if (isUtility) classes += ' non-selectable';
+
+            const onclick = isUtility ? '' : `onclick="handleInventoryClick('${itemName}')"`;
+
+            return `<button class="${classes}" ${onclick}>
                         ${displayText}
                     </button>`;
         }).join(' ');
@@ -229,6 +214,10 @@ function startGame() {
     gameState.gameStarted = true;
     gameState.silver = 25 + rollDie(6);
 
+    // Assign random name and profession
+    gameState.playerName = PLAYER_NAMES[rollDie(PLAYER_NAMES.length) - 1];
+    gameState.playerProfession = PLAYER_PROFESSIONS[rollDie(PLAYER_PROFESSIONS.length) - 1];
+
     // Starting inventory
     let startingInventory = ['Kardas', 'Mikstūra'];
     if (Math.random() < 0.5) startingInventory.push('Mikstūra');
@@ -239,6 +228,7 @@ function startGame() {
         gameState.equippedWeapon = 'Kardas';
     }
     
+    log(`Tavo vardas yra ${gameState.playerName}, tu esi ${gameState.playerProfession}.`);
     log(`Nuotykis prasideda! Radai ${gameState.silver} sidabro.`);
     log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
     
@@ -644,12 +634,13 @@ function gameOver(reason) {
  */
 function resetGame() {
     gameState = {
-
         hp: 20,
         maxHp: 20,
         silver: 0,
         points: 0,
         level: 1,
+        playerName: '',
+        playerProfession: '',
         playerDamage: 'd4',
         playerDamageBonus: 0,
         playerDefense: 0,
@@ -661,11 +652,11 @@ function resetGame() {
         inShop: false,
         gameStarted: false,
         roomsExplored: 0,
-    bossEncountered: false,
-    playerIsDead: false
+        bossEncountered: false,
+        playerIsDead: false
     };
     logEl.innerHTML = "";
-    setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę, drąsusis Karguntai!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
+    setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
     updateUI();
 }
 

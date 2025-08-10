@@ -168,6 +168,16 @@ h3, h4 {
     box-shadow: 0 0 5px #ffc107;
 }
 
+.inventory-item.non-selectable {
+    cursor: default;
+    background: #3a3a3a;
+    color: #aaa;
+}
+
+.inventory-item.non-selectable:hover {
+    background: #3a3a3a;
+}
+
 
 /* -----------------------------------------------------------------------------
    BUTTONS
