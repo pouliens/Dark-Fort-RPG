@@ -1,9 +1,9 @@
 // =============================================================================
-// DARK FORT RPG - GAME LOGIC
+// DARK FORT RPG - ŽAIDIMO LOGIKA
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// GAME STATE INITIALIZATION
+// ŽAIDIMO BŪSENOS INICIALIZACIJA
 // -----------------------------------------------------------------------------
 
 let gameState = {
@@ -12,9 +12,9 @@ let gameState = {
     silver: 0,
     points: 0,
     level: 1,
-    playerDamage: 'd4', // Default player damage
+    playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
     playerDamageBonus: 0,
-    playerDefense: 0,   // Default player defense
+    playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
     inventory: [],
     currentMonster: null,
     inCombat: false,
@@ -26,38 +26,38 @@ let gameState = {
 };
 
 // -----------------------------------------------------------------------------
-// GAME DATA
+// ŽAIDIMO DUOMENYS
 // -----------------------------------------------------------------------------
 
 const WEAK_MONSTERS = [
-    { name: 'Blood-drenched Skeleton', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Catacomb Cultist', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Goblin', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
-    { name: 'Undead Hound', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
+    { name: 'Kraujuotas Skeletas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
+    { name: 'Katakombų Kultistas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
+    { name: 'Goblinas', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
+    { name: 'Nemirėlių Šuo', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
 ];
 
 const TOUGH_MONSTERS = [
-    { name: 'Necro-Sorcerer', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
-    { name: 'Small Stone Troll', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
-    { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
-    { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
+    { name: 'Nekromantas-Burtininkas', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
+    { name: 'Mažas Akmeninis Trolis', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
+    { name: 'Medūza', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
+    { name: 'Griuvėsių Baziliskas', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
 ];
 
-const FORTRESS_LORD = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
+const FORTRESS_LORD = { name: 'Tvirtovės Valdovas', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
 
 const LOOT_DROPS = [
-    { name: 'Sword', type: 'weapon', value: 'd6' },
-    { name: 'Leather Armor', type: 'armor', value: 1 },
-    { name: 'Potion', type: 'potion' }
+    { name: 'Kardas', type: 'weapon', value: 'd6' },
+    { name: 'Odiniai Šarvai', type: 'armor', value: 1 },
+    { name: 'Mikstūra', type: 'potion' }
 ];
 
 const SHOP_ITEMS = [
-    { name: 'Potion', price: 5, description: 'Heals 2d6 HP.', type: 'potion' },
-    { name: 'Sword', price: 10, description: 'A basic weapon (d6 damage).', type: 'weapon', value: 'd6' },
-    { name: 'Great Sword', price: 25, description: 'A better weapon (d8 damage).', type: 'weapon', value: 'd8' },
-    { name: 'Leather Armor', price: 15, description: 'Basic armor (1 defense).', type: 'armor', value: 1 },
-    { name: 'Chainmail Armor', price: 30, description: 'Better armor (2 defense).', type: 'armor', value: 2 },
-    { name: 'Rope', price: 5, description: 'Helps avoid pit traps.', type: 'utility' }
+    { name: 'Mikstūra', price: 5, description: 'Gydo 2d6 gyvybių.', type: 'potion' },
+    { name: 'Kardas', price: 10, description: 'Paprastas ginklas (d6 žala).', type: 'weapon', value: 'd6' },
+    { name: 'Didysis Kardas', price: 25, description: 'Geresnis ginklas (d8 žala).', type: 'weapon', value: 'd8' },
+    { name: 'Odiniai Šarvai', price: 15, description: 'Paprasti šarvai (1 gynyba).', type: 'armor', value: 1 },
+    { name: 'Grandininiai Šarvai', price: 30, description: 'Geresni šarvai (2 gynyba).', type: 'armor', value: 2 },
+    { name: 'Virvė', price: 5, description: 'Padeda išvengti spąstų duobių.', type: 'utility' }
 ];
 
 // -----------------------------------------------------------------------------
@@ -163,15 +163,15 @@ function updateUI() {
     // Update Inventory
     const inventoryEl = document.getElementById('inventory');
     if (gameState.inventory.length === 0) {
-        inventoryEl.innerHTML = 'Empty';
+        inventoryEl.innerHTML = 'Tuščia';
     } else {
         const inventoryDisplay = gameState.inventory.map(itemName => {
             const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
             if (itemDetails) {
                 if (itemDetails.type === 'weapon') {
-                    return `${itemName} (${itemDetails.value} damage)`;
+                    return `${itemName} (${itemDetails.value} žala)`;
                 } else if (itemDetails.type === 'armor') {
-                    return `${itemName} (${itemDetails.value} defense)`;
+                    return `${itemName} (${itemDetails.value} gynyba)`;
                 }
             }
             return itemName;
@@ -186,7 +186,7 @@ function updateUI() {
     document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     
-    const canUsePotion = isPlayerActionable && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop;
+    const canUsePotion = isPlayerActionable && gameState.inventory.includes('Mikstūra') && gameState.hp < gameState.maxHp && !gameState.inShop;
     document.getElementById('usePotionBtn').style.display = canUsePotion ? 'block' : 'none';
 
     const canLevelUp = gameState.points >= 10;
@@ -207,19 +207,19 @@ function startGame() {
     gameState.silver = 25 + rollDie(6);
 
     // Starting inventory
-    let startingInventory = ['Sword', 'Potion'];
-    if (Math.random() < 0.5) startingInventory.push('Potion');
-    if (Math.random() < 0.3) startingInventory.push('Rope');
+    let startingInventory = ['Kardas', 'Mikstūra'];
+    if (Math.random() < 0.5) startingInventory.push('Mikstūra');
+    if (Math.random() < 0.3) startingInventory.push('Virvė');
     gameState.inventory = startingInventory;
 
-    if (gameState.inventory.includes('Sword')) {
+    if (gameState.inventory.includes('Kardas')) {
         gameState.playerDamage = 'd6';
     }
     
-    log(`Adventure begins! Found ${gameState.silver} silver.`);
-    log(`Your gear: ${gameState.inventory.join(', ')}.`);
+    log(`Nuotykis prasideda! Radai ${gameState.silver} sidabro.`);
+    log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
     
-    setGameText("<p>You enter a dimly lit chamber. The air is thick with the smell of dust and decay. A single door leads deeper into the catacomb.</p><p>What do you do?</p>");
+    setGameText("<p>Įeini į prieblandoje skendintį kambarį. Ore tvyro dulkių ir puvėsių kvapas. Vienerios durys veda gilyn į katakombas.</p><p>Ką darysi?</p>");
     updateUI();
 }
 
@@ -231,7 +231,7 @@ function exploreRoom() {
 
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
-        log(`Encountered the final boss: ${FORTRESS_LORD.name}.`);
+        log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
         startCombat(FORTRESS_LORD);
         return;
     }
@@ -239,46 +239,46 @@ function exploreRoom() {
     gameState.points++;
     gameState.roomsExplored++;
     const roll = rollDie(6);
-    let text = `<p><strong>Room ${gameState.roomsExplored}:</strong></p>`;
+    let text = `<p><strong>Kambarys ${gameState.roomsExplored}:</strong></p>`;
 
     switch (roll) {
         case 1:
         case 2: // Empty Room
-            text += "<p>The room is empty, save for dust and cobwebs.</p>";
-            log("Room was empty.");
+            text += "<p>Kambarys tuščias, tik dulkės ir voratinkliai.</p>";
+            log("Kambarys buvo tuščias.");
             break;
         case 3: // Trap
-            if (gameState.inventory.includes('Rope')) {
-                text += "<p class='success'>You spot a pit trap and use your rope to safely cross it.</p>";
-                log("Safely avoided a pit trap.");
+            if (gameState.inventory.includes('Virvė')) {
+                text += "<p class='success'>Pastebėjai spąstus-duobę ir saugiai perėjai per ją virve.</p>";
+                log("Saugiai išvengta spąstų-duobės.");
             } else {
                 const damage = rollDie(4);
                 gameState.hp -= damage;
                 playPlayerHitSound();
                 triggerDamageEffect();
-                text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
-                log(`Took ${damage} damage from a trap.`);
+                text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${damage} žalos!</p>`;
+                log(`Patyrė ${damage} žalos nuo spąstų.`);
             }
             break;
         case 4: // Weak Monster
             const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
-            log(`Encountered a ${weakMonster.name}.`);
+            log(`Sutikai ${weakMonster.name}.`);
             startCombat(weakMonster);
             return;
         case 5: // Tough Monster
             const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
-            log(`Encountered a ${toughMonster.name}.`);
+            log(`Sutikai ${toughMonster.name}.`);
             startCombat(toughMonster);
             return;
         case 6: // Shop
-            log("Found a shop.");
+            log("Radai parduotuvę.");
             openShop(true);
             return;
     }
     
     setGameText(text);
     if (gameState.hp <= 0) {
-        gameOver("You succumbed to a trap!");
+        gameOver("Mirėte nuo spąstų!");
     } else {
         updateUI();
     }
@@ -288,20 +288,20 @@ function exploreRoom() {
  * Uses a potion to heal the player.
  */
 function usePotion() {
-    const potionIndex = gameState.inventory.indexOf('Potion');
+    const potionIndex = gameState.inventory.indexOf('Mikstūra');
     if (potionIndex > -1) {
         playPotionSound();
         const healing = rollDie(6) + rollDie(6);
         gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
 
         gameState.inventory.splice(potionIndex, 1);
-        log(`You used a potion and healed for ${healing} HP.`);
+        log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
 
         if (gameState.inCombat) {
-            document.getElementById('combat-log').innerHTML = `<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`;
+            document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
             monsterAttack();
         } else {
-            setGameText(`<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`);
+            setGameText(`<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
         }
         updateUI();
     }
@@ -321,15 +321,15 @@ function startCombat(monster) {
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
 
     let encounterText = monster.name === FORTRESS_LORD.name
-        ? `<p><strong>Final Chamber:</strong></p><p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${FORTRESS_LORD.name}</strong> on his throne!</p>`
+        ? `<p><strong>Paskutinė menė:</strong></p><p class='warning'>Didžiuliai paskutinės menės vartai girgždėdami atsidaro, atidengdami <strong>${FORTRESS_LORD.name}</strong> savo soste!</p>`
         : TOUGH_MONSTERS.some(m => m.name === monster.name)
-            ? `<p class='warning'>A fearsome ${monster.name} blocks your path!</p>`
-            : `<p class='warning'>A ${monster.name} appears!</p>`;
+            ? `<p class='warning'>Bauginantis ${monster.name} pastoja tau kelią!</p>`
+            : `<p class='warning'>Pasirodo ${monster.name}!</p>`;
 
     let text = `<div id="combat-encounter">${encounterText}</div>
                 <div class="monster-stats" id="monster-stats-display">
                     <h4>${monster.name}</h4>
-                    <p>HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>
+                    <p>GYVYBĖS: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | ŽALA: ${monster.damage}</p>
                 </div>
                 <div id="combat-log"></div>`;
 
@@ -356,8 +356,8 @@ function attack() {
 
         playMonsterHitSound();
         triggerMonsterHitEffect();
-        log(`You hit the ${monster.name} for ${damage} damage.`);
-        combatLogEl.innerHTML = `<p class='success'>You hit the ${monster.name} for ${damage} damage.</p>`;
+        log(`Pataikei ${monster.name} ir padarei ${damage} žalos.`);
+        combatLogEl.innerHTML = `<p class='success'>Pataikei ${monster.name} ir padarei ${damage} žalos.</p>`;
 
         document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
 
@@ -368,8 +368,8 @@ function attack() {
         }
     } else {
         playMissSound();
-        log(`You missed the ${monster.name}.`);
-        combatLogEl.innerHTML = `<p class='warning'>You missed the ${monster.name}.</p>`;
+        log(`Nepataikei į ${monster.name}.`);
+        combatLogEl.innerHTML = `<p class='warning'>Nepataikei į ${monster.name}.</p>`;
         monsterAttack();
     }
     updateUI();
@@ -385,12 +385,12 @@ function flee() {
     if (Math.random() < 0.5) { // 50% chance to flee
         gameState.inCombat = false;
         gameState.currentMonster = null;
-        log("You successfully fled from the combat.");
-        setGameText("<p class='success'>You managed to escape!</p><p>You may continue exploring.</p>");
+        log("Sėkmingai pabėgai iš kovos.");
+        setGameText("<p class='success'>Pavyko pabėgti!</p><p>Gali tęsti tyrinėjimą.</p>");
         updateUI();
     } else {
-        log("You failed to flee.");
-        combatLogEl.innerHTML = `<p class='warning'>You failed to escape!</p>`;
+        log("Nepavyko pabėgti.");
+        combatLogEl.innerHTML = `<p class='warning'>Nepavyko pabėgti!</p>`;
         monsterAttack();
     }
 }
@@ -408,15 +408,15 @@ function monsterAttack() {
         triggerDamageEffect();
     }
 
-    log(`The ${monster.name} hits you for ${damage} damage.`);
+    log(`${monster.name} tau smogė ir padarė ${damage} žalos.`);
     
     const combatLogEl = document.getElementById('combat-log');
     if(combatLogEl) {
-        combatLogEl.innerHTML += `<p class='warning'>The ${monster.name} retaliates, hitting you for ${damage} damage.</p>`;
+        combatLogEl.innerHTML += `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`;
     }
 
     if (gameState.hp <= 0) {
-        gameOver(`You were slain by a ${monster.name}.`);
+        gameOver(`Tave nužudė ${monster.name}.`);
     }
     updateUI();
 }
@@ -428,27 +428,27 @@ function winCombat(killingBlowDamage) {
     
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
-    let loot = [`${silverFound} silver`];
+    let loot = [`${silverFound} sidabro`];
 
     if (Math.random() < 0.2 + (monster.difficulty * 0.1)) {
         const droppedItem = { ...LOOT_DROPS[rollDie(LOOT_DROPS.length) - 1] };
         loot.push(droppedItem.name);
         gameState.inventory.push(droppedItem.name);
-        log(`The monster dropped a ${droppedItem.name}!`);
+        log(`Pabaisa išmetė ${droppedItem.name}!`);
         equipItem(droppedItem);
     }
 
-    log(`You defeated the ${monster.name}!`);
+    log(`Nugalėjai ${monster.name}!`);
 
     if (monster.name === FORTRESS_LORD.name) {
         winGame();
         return;
     }
     
-    let text = `<p class='success'>You defeated the ${monster.name} with a final blow of ${killingBlowDamage} damage!</p>
-                <p>You gained ${monster.points} points.</p>
-                <p><strong>Loot:</strong> ${loot.join(', ')}</p>
-                <p>You may continue exploring.</p>`;
+    let text = `<p class='success'>Nugalėjai ${monster.name} su lemiamu ${killingBlowDamage} žalos smūgiu!</p>
+                <p>Gavai ${monster.points} taškų.</p>
+                <p><strong>Grobis:</strong> ${loot.join(', ')}</p>
+                <p>Gali tęsti tyrinėjimą.</p>`;
 
     setGameText(text);
     
@@ -467,28 +467,28 @@ function openShop(isFirstTime = false, tab = 'buy') {
     gameState.inShop = true;
     playShopSound();
 
-    let shopText = isFirstTime ? "<p class='success'>A mysterious peddler appears, offering their wares.</p>" : "";
+    let shopText = isFirstTime ? "<p class='success'>Atsiranda paslaptingas prekeivis, siūlantis savo prekes.</p>" : "";
 
     shopText += `
         <div class="shop-tabs">
-            <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Buy</button>
-            <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Sell</button>
+            <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Pirkti</button>
+            <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Parduoti</button>
         </div>
     `;
 
     if (tab === 'buy') {
-        shopText += "<h4>🛒 Peddler's Wares</h4>";
+        shopText += "<h4>🛒 Prekeivio Prekės</h4>";
         SHOP_ITEMS.forEach(item => {
             shopText += `<div class="shop-item">
                 <span>${item.name} (${item.price}s): ${item.description}</span>
-                <button onclick="buyItem('${item.name}')" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button>
+                <button onclick="buyItem('${item.name}')" ${gameState.silver < item.price ? 'disabled' : ''}>Pirkti</button>
             </div>`;
         });
     } else { // Sell tab
-        shopText += "<h4>🎒 Your Wares</h4>";
+        shopText += "<h4>🎒 Tavo Prekės</h4>";
         const sellableInventory = [...new Set(gameState.inventory)];
         if (sellableInventory.length === 0) {
-            shopText += "<p>You have nothing to sell.</p>";
+            shopText += "<p>Neturi nieko parduoti.</p>";
         } else {
             sellableInventory.forEach(itemName => {
                 const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
@@ -496,13 +496,13 @@ function openShop(isFirstTime = false, tab = 'buy') {
                 const itemCount = gameState.inventory.filter(i => i === itemName).length;
                 shopText += `<div class="shop-item">
                     <span>${itemName} (x${itemCount})</span>
-                    <button onclick="sellItem('${itemName}', ${sellPrice})">Sell for ${sellPrice}s</button>
+                    <button onclick="sellItem('${itemName}', ${sellPrice})">Parduoti už ${sellPrice}s</button>
                 </div>`;
             });
         }
     }
 
-    shopText += `<button onclick="closeShop()">Leave Shop</button>`;
+    shopText += `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
     setGameText(shopText);
     updateUI();
 }
@@ -513,7 +513,7 @@ function buyItem(itemName) {
         playBuySound();
         gameState.silver -= item.price;
         gameState.inventory.push(itemName);
-        log(`You bought a ${itemName}.`);
+        log(`Nusipirkai ${itemName}.`);
         equipItem(item);
         openShop(false, 'buy'); // Refresh shop view
     }
@@ -525,7 +525,7 @@ function sellItem(itemName, sellPrice) {
         playSellSound();
         gameState.inventory.splice(itemIndex, 1);
         gameState.silver += sellPrice;
-        log(`You sold a ${itemName} for ${sellPrice} silver.`);
+        log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
         recalculateStats();
         openShop(false, 'sell');
     }
@@ -554,7 +554,7 @@ function recalculateStats() {
 
 function closeShop() {
     gameState.inShop = false;
-    setGameText("<p>You leave the peddler behind and continue into the darkness.</p>");
+    setGameText("<p>Palieki prekeivį ir toliau keliauji į tamsą.</p>");
     updateUI();
 }
 
@@ -566,12 +566,12 @@ function equipItem(item) {
     if (item.type === 'weapon') {
         if (getDamageValue(item.value) > getDamageValue(gameState.playerDamage)) {
             gameState.playerDamage = item.value;
-            log(`You equipped the ${item.name}, increasing your damage!`);
+            log(`Užsidėjai ${item.name}, padidindamas savo žalą!`);
         }
     } else if (item.type === 'armor') {
         if (item.value > gameState.playerDefense) {
             gameState.playerDefense = item.value;
-            log(`You equipped the ${item.name}, increasing your defense!`);
+            log(`Užsidėjai ${item.name}, padidindamas savo gynybą!`);
         }
     }
     updateUI();
@@ -584,26 +584,26 @@ function levelUp() {
     gameState.level++;
     gameState.points -= 10;
 
-    let bonusText = "Your defense increased by 1";
+    let bonusText = "Tavo gynyba padidėjo 1";
     gameState.playerDefense++;
 
     // Damage bonus applies to each attack
     gameState.playerDamageBonus++;
-    bonusText += " and your damage increased by 1";
+    bonusText += " ir tavo žala padidėjo 1";
 
     // Occasional die upgrade
     if (gameState.level % 2 === 0) {
         if (gameState.playerDamage === 'd4') {
             gameState.playerDamage = 'd6';
-            bonusText += " and your damage die was upgraded to d6!";
+            bonusText += " ir tavo žalos kauliukas buvo patobulintas į d6!";
         } else if (gameState.playerDamage === 'd6') {
             gameState.playerDamage = 'd8';
-            bonusText += " and your damage die was upgraded to d8!";
+            bonusText += " ir tavo žalos kauliukas buvo patobulintas į d8!";
         }
     }
     
-    log(`LEVEL UP! You are now level ${gameState.level}!`);
-    setGameText(`<p class='success'>You leveled up to level ${gameState.level}! ${bonusText}.</p>`);
+    log(`PASIEKEI NAUJĄ LYGĮ! Dabar esi ${gameState.level} lygio!`);
+    setGameText(`<p class='success'>Pasiekei ${gameState.level} lygį! ${bonusText}.</p>`);
     updateUI();
 }
 
@@ -617,8 +617,8 @@ function levelUp() {
  */
 function winGame() {
     playWinGameSound();
-    log(`VICTORY! You defeated the Fortress Lord!`);
-    setGameText(`<h3>🏆 VICTORY! 🏆</h3><p>You have defeated the Fortress Lord and conquered the Dark Fort!</p><p>Your final score: ${gameState.points}</p><button onclick="resetGame()">Start New Adventure</button>`);
+    log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
+    setGameText(`<h3>🏆 PERGALĖ! 🏆</h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     gameState.inCombat = false;
     updateUI();
 }
@@ -630,8 +630,8 @@ function winGame() {
 function gameOver(reason) {
     playGameOverSound();
     gameState.playerIsDead = true;
-    log(`GAME OVER: ${reason}`);
-    setGameText(`<h3>💀 GAME OVER 💀</h3><p>${reason}</p><p>Your adventure ends here.</p><button onclick="resetGame()">Start New Adventure</button>`);
+    log(`ŽAIDIMAS BAIGTAS: ${reason}`);
+    setGameText(`<h3>💀 ŽAIDIMAS BAIGTAS 💀</h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     updateUI();
 }
 
@@ -659,7 +659,7 @@ function resetGame() {
     playerIsDead: false
     };
     logEl.innerHTML = "";
-    setGameText('<p>Welcome to the Dark Fort, brave Kargunt!</p><p>Click "Start Adventure" to begin your perilous journey...</p>');
+    setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę, drąsusis Karguntai!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
     updateUI();
 }
 

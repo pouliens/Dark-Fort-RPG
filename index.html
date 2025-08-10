@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Fort - Solo RPG</title>
+    <title>Tamsioji Tvirtovė - Solo RPG</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>🏰 DARK FORT 🏰</h1>
+        <h1>🏰 TAMSIOJI TVIRTOVĖ 🏰</h1>
         
         <!-- Character Stats -->
         <div class="character-sheet">
-            <h3>📜 KARGUNT</h3>
+            <h3>📜 KARGUNTAS</h3>
             <div class="stats">
-                <div class="stat">❤️ HP: <span id="hp">15</span>/<span id="maxHp">15</span></div>
-                <div class="stat">🪙 Silver: <span id="silver">0</span></div>
-                <div class="stat">⚔️ Damage: <span id="playerDamage">d4</span></div>
-                <div class="stat">🛡️ Defense: <span id="playerDefense">0</span></div>
-                <div class="stat">⭐ Points: <span id="points">0</span>/<span id="maxPoints">15</span></div>
-                <div class="stat">🏆 Level: <span id="level">1</span></div>
+                <div class="stat">❤️ GYVYBĖS: <span id="hp">15</span>/<span id="maxHp">15</span></div>
+                <div class="stat">🪙 SIDABRAS: <span id="silver">0</span></div>
+                <div class="stat">⚔️ ŽALA: <span id="playerDamage">d4</span></div>
+                <div class="stat">🛡️ Gynyba: <span id="playerDefense">0</span></div>
+                <div class="stat">⭐ TAŠKAI: <span id="points">0</span>/<span id="maxPoints">15</span></div>
+                <div class="stat">🏆 LYGIS: <span id="level">1</span></div>
             </div>
         </div>
 
@@ -27,39 +27,39 @@
         <div class="main-content">
             <div class="game-area">
                 <div id="gameText">
-                    <p>Welcome to the Dark Fort, brave Kargunt!</p>
-                    <p>Click "Start Adventure" to begin your perilous journey...</p>
+                    <p>Sveikas atvykęs į Tamsiąją Tvirtovę, drąsusis Karguntai!</p>
+                    <p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>
                 </div>
             </div>
 
             <div class="actions" id="gameActions">
-                <button id="startBtn" onclick="startGame()">🚪 Start Adventure</button>
-                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;">🔍 Explore</button>
-                <button id="attackBtn" onclick="attack()" style="display: none;">⚔️ Attack</button>
-                <button id="fleeBtn" onclick="flee()" style="display: none;">🏃 Flee</button>
-                <button id="usePotionBtn" onclick="usePotion()" style="display: none;">🧪 Use Potion</button>
-                <button id="levelUpBtn" onclick="levelUp()" style="display: none;">🌟 Level Up!</button>
+                <button id="startBtn" onclick="startGame()">🚪 Pradėti Nuotykį</button>
+                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;">🔍 Tyrinėti</button>
+                <button id="attackBtn" onclick="attack()" style="display: none;">⚔️ Pulti</button>
+                <button id="fleeBtn" onclick="flee()" style="display: none;">🏃 Bėgti</button>
+                <button id="usePotionBtn" onclick="usePotion()" style="display: none;">🧪 Gerti Mikstūrą</button>
+                <button id="levelUpBtn" onclick="levelUp()" style="display: none;">🌟 Kelti Lygį!</button>
                 <!-- Simplified buttons. Shop button removed, will be contextual. -->
             </div>
         </div>
         
         <!-- Inventory -->
         <div class="inventory">
-            <h4>🎒 Inventory:</h4>
-            <div id="inventory">Empty</div>
+            <h4>🎒 Inventorius:</h4>
+            <div id="inventory">Tuščia</div>
         </div>
 
         <!-- Log -->
         <div class="log">
-            <h4>📋 Log:</h4>
+            <h4>📋 Žurnalas:</h4>
             <div id="log"></div>
         </div>
         
     </div>
 
-    <!-- Sound Effects Library - jsfxr -->
-    <!-- Using a library for generating retro sounds. If this link breaks, you can download jsfxr.js and host it locally -->
-    <script src="https://cdn.jsdelivr.net/gh/s-macke/jsfxr/jsfxr.js"></script>
+    <!-- Sound Effects Library - sfxr.js -->
+    <script src="https://sfxr.me/riffwave.js"></script>
+    <script src="https://sfxr.me/sfxr.js"></script>
     <script src="sounds.js"></script>
     <script src="game.js"></script>
 </body>
