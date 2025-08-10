@@ -136,6 +136,7 @@ function updateUI() {
 
 // --- GAME ACTIONS ---
 function startGame() {
+    playStartGameSound();
     gameState.gameStarted = true;
   
     gameState.silver = 25 + rollDie(6);
@@ -162,6 +163,7 @@ function startGame() {
 }
 
 function exploreRoom() {
+    playExploreSound();
     // Boss encounter at level 2
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
@@ -185,6 +187,7 @@ function exploreRoom() {
         } else {
             const damage = rollDie(4);
             gameState.hp -= damage;
+            playPlayerHitSound();
             triggerDamageEffect();
             text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
             log(`Took ${damage} damage from a trap.`);
@@ -247,6 +250,7 @@ function attack() {
     if (combatLogEl) combatLogEl.innerHTML = ''; // Clear previous turn log
 
     if (attackRoll >= monster.difficulty) {
+        playAttackSound();
         const damage = rollDamage(gameState.playerDamage);
         monster.currentHp -= damage;
         log(`You hit the ${monster.name} for ${damage} damage.`);
@@ -259,8 +263,10 @@ function attack() {
         if (monsterHpEl) {
             monsterHpEl.textContent = monster.currentHp;
         }
+        playMonsterHitSound();
         triggerMonsterHitEffect();
     } else {
+        playMissSound();
         log(`You missed the ${monster.name}.`);
         if (combatLogEl) {
             combatLogEl.innerHTML += `<p class='warning'>You missed the ${monster.name}.</p>`;
@@ -283,6 +289,7 @@ function monsterAttack() {
 
     gameState.hp -= damage;
     if (damage > 0) {
+        playPlayerHitSound();
         triggerDamageEffect();
     }
     log(`The ${monster.name} hits you for ${damage} damage.`);
@@ -300,6 +307,7 @@ function monsterAttack() {
 }
 
 function winCombat() {
+    playWinCombatSound();
     const monster = gameState.currentMonster;
     gameState.points += monster.points;
     
@@ -348,6 +356,7 @@ function winCombat() {
 
 function flee() {
     if (gameState.hp <= 0) return; // Prevent fleeing if already dead
+    playFleeSound();
     const damage = rollDie(4);
     gameState.hp -= damage;
     triggerDamageEffect();
@@ -368,6 +377,7 @@ function flee() {
 
 function usePotion() {
     if (gameState.inventory.includes('Potion')) {
+        playPotionSound();
         const healing = rollDie(6) + rollDie(6);
         gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
         
@@ -390,6 +400,9 @@ function usePotion() {
 }
 
 function openShop(isFirstTime = false) {
+    if (isFirstTime) {
+        playShopSound();
+    }
     gameState.inShop = true;
     let shopText = "";
     if (isFirstTime) {
@@ -427,6 +440,7 @@ function equipItem(item) {
 
 function buyItem(itemName, price) {
     if (gameState.silver >= price) {
+        playBuySound();
         const item = shopItems.find(i => i.name === itemName);
         if (!item) return;
 
@@ -449,6 +463,7 @@ function closeShop() {
 }
 
 function levelUp() {
+    playLevelUpSound();
     gameState.level++;
     gameState.points -= 10; // Subtract the cost of leveling up
     
@@ -474,6 +489,7 @@ function levelUp() {
 }
 
 function winGame() {
+    playWinGameSound();
     log(`VICTORY! You defeated the Fortress Lord!`);
     setGameText(`<h3>🏆 VICTORY! 🏆</h3><p>You have defeated the Fortress Lord and conquered the Dark Fort!</p><p>Your final score: ${gameState.points}</p><button onclick="resetGame()">Start New Adventure</button>`);
 
@@ -482,6 +498,7 @@ function winGame() {
 }
 
 function gameOver(reason) {
+    playGameOverSound();
     gameState.playerIsDead = true;
     log(`GAME OVER: ${reason}`);
     setGameText(`<h3>💀 GAME OVER 💀</h3><p>${reason}</p><p>Your adventure ends here.</p><button onclick="resetGame()">Start New Adventure</button>`);
