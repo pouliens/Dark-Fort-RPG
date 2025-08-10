@@ -1,15 +1,13 @@
 // --- SOUND EFFECTS ---
 
-// A utility function to play a sound based on jsfxr parameters
+// A utility function to play a sound based on sfxr parameters
 function playSound(params) {
-    // Check if jsfxr is loaded
-    if (typeof jsfxr !== 'undefined') {
-        const sound = jsfxr(params);
-        const audio = new Audio();
-        audio.src = sound;
-        audio.play();
+    // Check if sfxr is loaded
+    if (typeof sfxr !== 'undefined') {
+        const sfx = new sfxr.SoundEffect(params);
+        sfx.toAudio().play();
     } else {
-        console.warn("jsfxr library not found. Sound disabled.");
+        console.warn("sfxr library not found. Sound disabled.");
     }
 }
 
