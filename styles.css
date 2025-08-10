@@ -96,6 +96,29 @@ h3, h4 {
     margin-bottom: 10px;
 }
 
+.shop-tabs {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.shop-tabs button {
+    flex-grow: 1;
+    background: #444;
+    border: 1px solid #555;
+    border-bottom: 1px solid #d4af37;
+    padding: 10px;
+    margin: 0;
+    border-radius: 5px 5px 0 0;
+    color: #aaa;
+}
+
+.shop-tabs button.active {
+    background: #2a2a2a;
+    color: #d4af37;
+    border: 1px solid #d4af37;
+    border-bottom: 1px solid #2a2a2a;
+}
+
 .log p {
     margin: 0 0 5px;
     padding-bottom: 5px;

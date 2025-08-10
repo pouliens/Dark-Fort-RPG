@@ -162,7 +162,22 @@ function updateUI() {
 
     // Update Inventory
     const inventoryEl = document.getElementById('inventory');
-    inventoryEl.innerHTML = gameState.inventory.length > 0 ? gameState.inventory.join(', ') : 'Empty';
+    if (gameState.inventory.length === 0) {
+        inventoryEl.innerHTML = 'Empty';
+    } else {
+        const inventoryDisplay = gameState.inventory.map(itemName => {
+            const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
+            if (itemDetails) {
+                if (itemDetails.type === 'weapon') {
+                    return `${itemName} (${itemDetails.value} damage)`;
+                } else if (itemDetails.type === 'armor') {
+                    return `${itemName} (${itemDetails.value} defense)`;
+                }
+            }
+            return itemName;
+        }).join(', ');
+        inventoryEl.innerHTML = inventoryDisplay;
+    }
 
     // Update Buttons
     const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead;
@@ -175,7 +190,7 @@ function updateUI() {
     document.getElementById('usePotionBtn').style.display = canUsePotion ? 'block' : 'none';
 
     const canLevelUp = gameState.points >= 10;
-    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat ? 'block' : 'none';
+    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
 }
 
 
@@ -342,12 +357,12 @@ function attack() {
         playMonsterHitSound();
         triggerMonsterHitEffect();
         log(`You hit the ${monster.name} for ${damage} damage.`);
-        combatLogEl.innerHTML = `<p class='success'>You hit the ${monster.name} for ${damage} damage. It has ${Math.max(0, monster.currentHp)} HP left.</p>`;
+        combatLogEl.innerHTML = `<p class='success'>You hit the ${monster.name} for ${damage} damage.</p>`;
 
-        document.getElementById('monster-hp').textContent = monster.currentHp;
+        document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
 
         if (monster.currentHp <= 0) {
-            winCombat();
+            winCombat(damage);
         } else {
             monsterAttack();
         }
@@ -406,7 +421,7 @@ function monsterAttack() {
     updateUI();
 }
 
-function winCombat() {
+function winCombat(killingBlowDamage) {
     const monster = gameState.currentMonster;
     playWinCombatSound();
     gameState.points += monster.points;
@@ -430,7 +445,7 @@ function winCombat() {
         return;
     }
     
-    let text = `<p class='success'>You defeated the ${monster.name}!</p>
+    let text = `<p class='success'>You defeated the ${monster.name} with a final blow of ${killingBlowDamage} damage!</p>
                 <p>You gained ${monster.points} points.</p>
                 <p><strong>Loot:</strong> ${loot.join(', ')}</p>
                 <p>You may continue exploring.</p>`;
@@ -456,8 +471,8 @@ function openShop(isFirstTime = false, tab = 'buy') {
 
     shopText += `
         <div class="shop-tabs">
-            <button onclick="openShop(false, 'buy')">Buy</button>
-            <button onclick="openShop(false, 'sell')">Sell</button>
+            <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Buy</button>
+            <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Sell</button>
         </div>
     `;
 
