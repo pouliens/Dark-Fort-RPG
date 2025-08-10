@@ -8,6 +8,7 @@ let gameState = {
     points: 0,
     level: 1,
     playerDamage: 'd4', // Default player damage
+    playerDamageBonus: 0,
     playerDefense: 0,   // Default player defense
     inventory: [],
     currentMonster: null,
@@ -108,7 +109,11 @@ function updateUI() {
     document.getElementById('points').textContent = gameState.points;
     document.getElementById('maxPoints').textContent = 10;
     document.getElementById('level').textContent = gameState.level;
-    document.getElementById('playerDamage').textContent = gameState.playerDamage;
+    let damageString = gameState.playerDamage;
+    if (gameState.playerDamageBonus > 0) {
+        damageString += `+${gameState.playerDamageBonus}`;
+    }
+    document.getElementById('playerDamage').textContent = damageString;
     document.getElementById('playerDefense').textContent = gameState.playerDefense;
 
     // Inventory
@@ -242,19 +247,20 @@ function startCombat(monster) {
 function attack() {
     const monster = gameState.currentMonster;
     const attackRoll = rollDie(6);
+    let damage = 0; // Initialize damage to 0
     
     let combatLogEl = document.getElementById('combat-log');
     if (combatLogEl) combatLogEl.innerHTML = ''; // Clear previous turn log
 
     if (attackRoll >= monster.difficulty) {
-        const damage = rollDamage(gameState.playerDamage);
+        damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus;
         monster.currentHp -= damage;
         log(`You hit the ${monster.name} for ${damage} damage.`);
 
         if (combatLogEl) {
-            combatLogEl.innerHTML += `<p class='success'>You hit the ${monster.name} for ${damage} damage. It has ${monster.currentHp} HP left.</p>`;
+            combatLogEl.innerHTML += `<p class='success'>You hit the ${monster.name} for ${damage} damage.</p>`;
         }
-
+        playSound('hit');
         const monsterHpEl = document.getElementById('monster-hp');
         if (monsterHpEl) {
             monsterHpEl.textContent = monster.currentHp;
@@ -268,7 +274,7 @@ function attack() {
     }
     
     if (monster.currentHp <= 0) {
-        winCombat();
+        winCombat(damage); // Pass the actual damage dealt
     } else {
         monsterAttack();
     }
@@ -284,6 +290,7 @@ function monsterAttack() {
     gameState.hp -= damage;
     if (damage > 0) {
         triggerDamageEffect();
+        playSound('hit');
     }
     log(`The ${monster.name} hits you for ${damage} damage.`);
     
@@ -299,12 +306,12 @@ function monsterAttack() {
     updateUI();
 }
 
-function winCombat() {
+function winCombat(killingBlow) {
     const monster = gameState.currentMonster;
     gameState.points += monster.points;
     
-    log(`You defeated the ${monster.name}!`);
-
+    log(`You defeated the ${monster.name} with a final blow of ${killingBlow} damage!`);
+    playSound('win');
     // Loot drops
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
@@ -333,7 +340,7 @@ function winCombat() {
         return;
     }
     
-    let text = `<p class='success'>You defeated the ${monster.name}!</p>`;
+    let text = `<p class='success'>You defeated the ${monster.name} with a final blow of ${killingBlow} damage!</p>`;
     text += `<p>You gained ${monster.points} points.</p>`;
     if (loot.length > 0) {
         text += `<p><strong>Loot:</strong> ${loot.join(', ')}</p>`;
@@ -389,16 +396,39 @@ function usePotion() {
     }
 }
 
-function openShop(isFirstTime = false) {
+function openShop(isFirstTime = false, tab = 'buy') {
     gameState.inShop = true;
     let shopText = "";
     if (isFirstTime) {
         shopText += "<p class='success'>A mysterious peddler appears, offering their wares.</p>";
     }
-    shopText += "<h4>🛒 Peddler's Wares</h4>";
-    shopItems.forEach(item => {
-        shopText += `<p class="shop-item"><span>${item.name} (${item.price}s): ${item.description}</span> <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button></p>`;
-    });
+    shopText += `
+        <div>
+            <button onclick="openShop(false, 'buy')">Buy</button>
+            <button onclick="openShop(false, 'sell')">Sell</button>
+        </div>
+    `;
+
+    if (tab === 'buy') {
+        shopText += "<h4>🛒 Peddler's Wares</h4>";
+        shopItems.forEach(item => {
+            shopText += `<p class="shop-item"><span>${item.name} (${item.price}s): ${item.description}</span> <button onclick="buyItem('${item.name}', ${item.price})" ${gameState.silver < item.price ? 'disabled' : ''}>Buy</button></p>`;
+        });
+    } else { // Sell tab
+        shopText += "<h4>🎒 Your Wares</h4>";
+        if (gameState.inventory.length === 0) {
+            shopText += "<p>You have nothing to sell.</p>";
+        } else {
+            const sellableInventory = [...new Set(gameState.inventory)]; // Unique items
+            sellableInventory.forEach(itemName => {
+                const itemDetails = shopItems.find(i => i.name === itemName);
+                const sellPrice = itemDetails ? Math.floor(itemDetails.price / 2) : 2; // Default sell price if not in shop list
+                const itemCount = gameState.inventory.filter(i => i === itemName).length;
+                shopText += `<p class="shop-item"><span>${itemName} (x${itemCount})</span> <button onclick="sellItem('${itemName}', ${sellPrice})">Sell for ${sellPrice}s</button></p>`;
+            });
+        }
+    }
+
     shopText += `<button onclick="closeShop()">Leave Shop</button>`;
     setGameText(shopText);
     updateUI();
@@ -438,9 +468,42 @@ function buyItem(itemName, price) {
             equipItem(item);
         }
 
-        openShop(); // Refresh shop view
+        openShop(false, 'buy'); // Refresh shop view
     }
 }
+
+function sellItem(itemName, sellPrice) {
+    const itemIndex = gameState.inventory.indexOf(itemName);
+    if (itemIndex > -1) {
+        gameState.inventory.splice(itemIndex, 1);
+        gameState.silver += sellPrice;
+        log(`You sold a ${itemName} for ${sellPrice} silver.`);
+        recalculateStats();
+        openShop(false, 'sell'); // Refresh sell tab
+    }
+}
+
+function recalculateStats() {
+    // Reset stats to default
+    gameState.playerDamage = 'd4';
+    gameState.playerDefense = 0;
+
+    // Recalculate based on inventory
+    const weapons = shopItems.filter(item => item.type === 'weapon' && gameState.inventory.includes(item.name));
+    const armors = shopItems.filter(item => item.type === 'armor' && gameState.inventory.includes(item.name));
+
+    if (weapons.length > 0) {
+        const bestWeapon = weapons.reduce((best, current) => getDamageValue(current.value) > getDamageValue(best.value) ? current : best);
+        gameState.playerDamage = bestWeapon.value;
+    }
+
+    if (armors.length > 0) {
+        const bestArmor = armors.reduce((best, current) => current.value > best.value ? current : best);
+        gameState.playerDefense = bestArmor.value;
+    }
+    updateUI();
+}
+
 
 function closeShop() {
     gameState.inShop = false;
@@ -453,6 +516,7 @@ function levelUp() {
     gameState.points -= 10; // Subtract the cost of leveling up
     
     gameState.playerDefense++;
+    gameState.playerDamageBonus++;
     let damageUpgraded = false;
     if (gameState.playerDamage === 'd4') {
         gameState.playerDamage = 'd6';
@@ -461,7 +525,7 @@ function levelUp() {
         gameState.playerDamage = 'd8';
         damageUpgraded = true;
     }
-    let bonusText = "Your defense increased by 1";
+    let bonusText = "Your defense increased by 1 and your damage increased by 1";
     if (damageUpgraded) {
         bonusText += " and your damage die was upgraded!";
     } else {
@@ -469,6 +533,7 @@ function levelUp() {
     }
     
     log(`LEVEL UP! You are now level ${gameState.level}!`);
+    playSound('levelUp');
     setGameText(`<p class='success'>You leveled up to level ${gameState.level}! ${bonusText}</p>`);
     updateUI();
 }
@@ -496,6 +561,7 @@ function resetGame() {
         points: 0,
         level: 1,
         playerDamage: 'd4',
+        playerDamageBonus: 0,
         playerDefense: 0,
         inventory: [],
         currentMonster: null,
@@ -513,9 +579,28 @@ function resetGame() {
     updateUI();
 }
 
+// --- SOUNDS ---
+const sounds = {
+    attack: new Audio('https://www.soundjay.com/sword/sword-slide2.mp3'),
+    hit: new Audio('https://www.soundjay.com/human/sounds/man-getting-hit-01.mp3'),
+    win: new Audio('https://www.soundjay.com/misc/sounds/coins-in-hand-2.mp3'),
+    levelUp: new Audio('https://www.soundjay.com/misc/sounds/magic-chime-01.mp3')
+};
+
+function playSound(soundName) {
+    if (sounds[soundName]) {
+        sounds[soundName].currentTime = 0;
+        sounds[soundName].play().catch(e => console.log(`Could not play sound: ${e}`));
+    }
+}
+
 // --- INITIALIZE ---
 document.addEventListener('DOMContentLoaded', () => {
     gameTextEl = document.getElementById('gameText');
     logEl = document.getElementById('log');
+    // Add click sounds to all buttons
+    document.querySelectorAll('button').forEach(button => {
+        button.addEventListener('click', () => playSound('attack'));
+    });
     updateUI();
 });
