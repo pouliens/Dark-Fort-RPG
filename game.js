@@ -329,6 +329,8 @@ function attack() {
     const monster = gameState.currentMonster;
     if (!monster) return;
 
+    playAttackSound();
+
     const combatLogEl = document.getElementById('combat-log');
     combatLogEl.innerHTML = ''; // Clear previous log
 
@@ -356,6 +358,26 @@ function attack() {
         monsterAttack();
     }
     updateUI();
+}
+
+/**
+ * Flees from combat.
+ */
+function flee() {
+    playFleeSound();
+    const combatLogEl = document.getElementById('combat-log');
+
+    if (Math.random() < 0.5) { // 50% chance to flee
+        gameState.inCombat = false;
+        gameState.currentMonster = null;
+        log("You successfully fled from the combat.");
+        setGameText("<p class='success'>You managed to escape!</p><p>You may continue exploring.</p>");
+        updateUI();
+    } else {
+        log("You failed to flee.");
+        combatLogEl.innerHTML = `<p class='warning'>You failed to escape!</p>`;
+        monsterAttack();
+    }
 }
 
 /**
@@ -485,6 +507,7 @@ function buyItem(itemName) {
 function sellItem(itemName, sellPrice) {
     const itemIndex = gameState.inventory.indexOf(itemName);
     if (itemIndex > -1) {
+        playSellSound();
         gameState.inventory.splice(itemIndex, 1);
         gameState.silver += sellPrice;
         log(`You sold a ${itemName} for ${sellPrice} silver.`);

@@ -26,6 +26,7 @@ const sounds = {
     potion: [2,,0.1,0.2,0.3,0.7,,-0.2,,,,,,,,,,1,,,,,0.5],
     shop: [1,,0.1,0.3,0.1,0.5,,-0.2,,,,,,,,,,1,,,,,0.5],
     buy: [0, , 0.2, , 0.2, 0.5, , -0.4, , , , , , 0.2, , 0.2, , , 1, , , , , 0.5],
+    sell: [0, , 0.2, , 0.2, 0.5, , 0.4, , , , , , 0.2, , 0.2, , , 1, , , , , 0.5],
     levelUp: [0,0.01,0.4,0.31,0.39,0.73,0.2,-0.21,0,0,0,0,0,0.1,0,0.6,0,0,1,0,0,0,0,0.5],
     winGame: [0,0,0.5,0.4,0.3,0.8,0.2,-0.2,0,0,0,0,0,0.2,0,0.7,0,0,1,0,0,0,0,0.5],
     gameOver: [3,0,0.5,0.5,0.5,0.1,0.2,-0.8,0,0,0,0,0,0.5,0,0.2,0,0,1,0,0,0,0,0.5]
@@ -43,6 +44,7 @@ function playFleeSound() { playSound(sounds.flee); }
 function playPotionSound() { playSound(sounds.potion); }
 function playShopSound() { playSound(sounds.shop); }
 function playBuySound() { playSound(sounds.buy); }
+function playSellSound() { playSound(sounds.sell); }
 function playLevelUpSound() { playSound(sounds.levelUp); }
 function playWinGameSound() { playSound(sounds.winGame); }
 function playGameOverSound() { playSound(sounds.gameOver); }
