@@ -106,6 +106,7 @@ function updateUI() {
     document.getElementById('maxHp').textContent = gameState.maxHp;
     document.getElementById('silver').textContent = gameState.silver;
     document.getElementById('points').textContent = gameState.points;
+    document.getElementById('maxPoints').textContent = 10;
     document.getElementById('level').textContent = gameState.level;
     document.getElementById('playerDamage').textContent = gameState.playerDamage;
     document.getElementById('playerDefense').textContent = gameState.playerDefense;
@@ -129,7 +130,7 @@ function updateUI() {
     document.getElementById('usePotionBtn').style.display = isPlayerActionable && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop ? 'block' : 'none';
     
     // Level up button
-    const canLevelUp = gameState.points >= 15;
+    const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat ? 'block' : 'none';
 }
 
@@ -168,7 +169,7 @@ function exploreRoom() {
         startCombat(fortressLord);
         return;
     }
-
+    gameState.points++;
     gameState.roomsExplored++;
     const roll = rollDie(6);
     
@@ -374,10 +375,14 @@ function usePotion() {
         gameState.inventory.splice(potionIndex, 1);
         
         log(`You used a potion and healed for ${healing} HP.`);
-        setGameText(`<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`);
-        
         if (gameState.inCombat) {
+            const combatLogEl = document.getElementById('combat-log');
+            if (combatLogEl) {
+                combatLogEl.innerHTML = `<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`;
+            }
             monsterAttack();
+        } else {
+            setGameText(`<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`);
         }
 
         updateUI();
@@ -445,29 +450,22 @@ function closeShop() {
 
 function levelUp() {
     gameState.level++;
-    gameState.points -= 15; // Subtract the cost of leveling up
+    gameState.points -= 10; // Subtract the cost of leveling up
     
-    const bonusRoll = rollDie(3);
-    let bonusText = "";
-    if (bonusRoll === 1) {
-        gameState.maxHp += 5;
-        gameState.hp += 5;
-        bonusText = "Your max HP increases by 5!";
-    } else if (bonusRoll === 2) {
-        gameState.playerDefense += 1;
-        bonusText = "Your defense increases by 1!";
+    gameState.playerDefense++;
+    let damageUpgraded = false;
+    if (gameState.playerDamage === 'd4') {
+        gameState.playerDamage = 'd6';
+        damageUpgraded = true;
+    } else if (gameState.playerDamage === 'd6') {
+        gameState.playerDamage = 'd8';
+        damageUpgraded = true;
+    }
+    let bonusText = "Your defense increased by 1";
+    if (damageUpgraded) {
+        bonusText += " and your damage die was upgraded!";
     } else {
-        if (gameState.playerDamage === 'd4') {
-            gameState.playerDamage = 'd6';
-            bonusText = "Your damage die is now a d6!";
-        } else if (gameState.playerDamage === 'd6') {
-            gameState.playerDamage = 'd8';
-            bonusText = "Your damage die is now a d8!";
-        } else { // Already at d8, give HP instead
-            gameState.maxHp += 3;
-            gameState.hp += 3;
-            bonusText = "Your max HP increased by 3!";
-        }
+        bonusText += "!";
     }
     
     log(`LEVEL UP! You are now level ${gameState.level}!`);
