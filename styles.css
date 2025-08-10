@@ -18,13 +18,38 @@ body {
     border-radius: 10px;
 }
 
-@keyframes damage-flash-anim {
-    0% { border-color: #ff4136; }
-    100% { border-color: #d4af37; }
+@keyframes player-damage-anim {
+    0% { background-color: #8B0000; } /* Dark red flash on player stats */
+    100% { background-color: #333; }
 }
 
-.damage-flash {
-    animation: damage-flash-anim 0.4s;
+.player-damage-flash {
+    animation: player-damage-anim 0.4s;
+}
+
+@keyframes monster-hit-anim {
+    0% { background-color: #006400; } /* Dark green flash on monster stats */
+    100% { background-color: #3a3a3a; }
+}
+
+.monster-hit-flash {
+    animation: monster-hit-anim 0.4s;
+}
+
+.monster-stats {
+    background-color: #3a3a3a;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    text-align: center;
+}
+
+.shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
 }
 
 h1 {
