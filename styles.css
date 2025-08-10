@@ -58,7 +58,8 @@ h3, h4 {
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* Adjusted for more compact view */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
 }
 
@@ -119,6 +120,19 @@ h3, h4 {
     border-bottom: 1px solid #2a2a2a;
 }
 
+#log {
+    max-height: 70px; /* Approx 3 entries */
+    overflow-y: hidden;
+    transition: max-height 0.3s ease-out;
+    cursor: pointer;
+    padding-right: 10px; /* For scrollbar space */
+}
+
+#log.expanded {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
 .log p {
     margin: 0 0 5px;
     padding-bottom: 5px;
@@ -128,6 +142,32 @@ h3, h4 {
 .log p:last-child {
     border-bottom: none;
 }
+
+.inventory-item {
+    display: inline-block;
+    background: #444;
+    color: #d4af37;
+    border: 1px solid #555;
+    padding: 5px 10px;
+    margin: 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    width: auto; /* Override general button styles */
+}
+
+.inventory-item:hover {
+    background: #555;
+}
+
+.inventory-item.equipped {
+    background: #d4af37;
+    color: #2a2a2a;
+    border-color: #ffc107;
+    box-shadow: 0 0 5px #ffc107;
+}
+
 
 /* -----------------------------------------------------------------------------
    BUTTONS
@@ -198,4 +238,38 @@ button:disabled {
 
 .monster-hit-flash {
     animation: monster-hit-anim 0.4s;
+}
+
+/* -----------------------------------------------------------------------------
+   TOOLTIPS
+   -------------------------------------------------------------------------- */
+
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 110%; /* Position above the element */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    color: #d4af37;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    white-space: nowrap;
+    z-index: 10;
+
+    /* Fade-in effect */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
