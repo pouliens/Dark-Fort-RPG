@@ -1,6 +1,11 @@
-// Simplified Dark Fort RPG - Game Logic
+// =============================================================================
+// DARK FORT RPG - GAME LOGIC
+// =============================================================================
 
-// --- GAME STATE ---
+// -----------------------------------------------------------------------------
+// GAME STATE INITIALIZATION
+// -----------------------------------------------------------------------------
+
 let gameState = {
     hp: 20,
     maxHp: 20,
@@ -20,30 +25,33 @@ let gameState = {
     playerIsDead: false
 };
 
-// --- GAME DATA ---
-const weakMonsters = [
+// -----------------------------------------------------------------------------
+// GAME DATA
+// -----------------------------------------------------------------------------
+
+const WEAK_MONSTERS = [
     { name: 'Blood-drenched Skeleton', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
     { name: 'Catacomb Cultist', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
     { name: 'Goblin', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
     { name: 'Undead Hound', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
 ];
 
-const toughMonsters = [
+const TOUGH_MONSTERS = [
     { name: 'Necro-Sorcerer', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
     { name: 'Small Stone Troll', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
     { name: 'Medusa', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
     { name: 'Ruin Basilisk', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
 ];
 
-const fortressLord = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
+const FORTRESS_LORD = { name: 'Fortress Lord', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
 
-const lootDrops = [
+const LOOT_DROPS = [
     { name: 'Sword', type: 'weapon', value: 'd6' },
     { name: 'Leather Armor', type: 'armor', value: 1 },
     { name: 'Potion', type: 'potion' }
 ];
 
-const shopItems = [
+const SHOP_ITEMS = [
     { name: 'Potion', price: 5, description: 'Heals 2d6 HP.', type: 'potion' },
     { name: 'Sword', price: 10, description: 'A basic weapon (d6 damage).', type: 'weapon', value: 'd6' },
     { name: 'Great Sword', price: 25, description: 'A better weapon (d8 damage).', type: 'weapon', value: 'd8' },
@@ -52,57 +60,93 @@ const shopItems = [
     { name: 'Rope', price: 5, description: 'Helps avoid pit traps.', type: 'utility' }
 ];
 
-// --- UTILITY FUNCTIONS ---
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
+
+/**
+ * Rolls a die with a given number of sides.
+ * @param {number} sides - The number of sides on the die.
+ * @returns {number} The result of the roll.
+ */
 function rollDie(sides) {
     return Math.floor(Math.random() * sides) + 1;
 }
 
+/**
+ * Calculates damage based on a dice string (e.g., 'd6').
+ * @param {string} diceString - The dice string.
+ * @returns {number} The calculated damage.
+ */
 function rollDamage(diceString) {
     const match = diceString.match(/d(\d+)/);
-    if (match) {
-        return rollDie(parseInt(match[1], 10));
-    }
-    return 1;
+    return match ? rollDie(parseInt(match[1], 10)) : 1;
 }
 
-// --- UI FUNCTIONS ---
-// Define elements at a scope accessible by all functions
+/**
+ * Gets the numerical value of a damage die string.
+ * @param {string} diceString - The dice string (e.g., 'd6').
+ * @returns {number} The max roll of the die.
+ */
+function getDamageValue(diceString) {
+    const match = diceString.match(/d(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// UI FUNCTIONS
+// -----------------------------------------------------------------------------
+
 let gameTextEl, logEl;
 
+/**
+ * Logs a message to the game log.
+ * @param {string} message - The message to log.
+ */
 function log(message) {
     if (logEl) {
         logEl.innerHTML = `<p>${message}</p>` + logEl.innerHTML;
     }
 }
 
+/**
+ * Sets the main game text.
+ * @param {string} html - The HTML content to set.
+ */
 function setGameText(html) {
     if (gameTextEl) {
         gameTextEl.innerHTML = html;
     }
 }
 
+/**
+ * Triggers a visual effect for player damage.
+ */
 function triggerDamageEffect() {
     const characterSheetEl = document.querySelector('.character-sheet');
     if (characterSheetEl) {
         characterSheetEl.classList.add('player-damage-flash');
-        setTimeout(() => {
-            characterSheetEl.classList.remove('player-damage-flash');
-        }, 400);
+        setTimeout(() => characterSheetEl.classList.remove('player-damage-flash'), 400);
     }
 }
 
+/**
+ * Triggers a visual effect for monster hits.
+ */
 function triggerMonsterHitEffect() {
     const monsterStatsEl = document.getElementById('monster-stats-display');
     if (monsterStatsEl) {
         monsterStatsEl.classList.add('monster-hit-flash');
-        setTimeout(() => {
-            monsterStatsEl.classList.remove('monster-hit-flash');
-        }, 400);
+        setTimeout(() => monsterStatsEl.classList.remove('monster-hit-flash'), 400);
     }
 }
 
+/**
+ * Updates the entire UI based on the current game state.
+ */
 function updateUI() {
-    // Stats
+    // Update Stats
     document.getElementById('hp').textContent = gameState.hp;
     document.getElementById('maxHp').textContent = gameState.maxHp;
     document.getElementById('silver').textContent = gameState.silver;
@@ -116,42 +160,41 @@ function updateUI() {
     document.getElementById('playerDamage').textContent = damageString;
     document.getElementById('playerDefense').textContent = gameState.playerDefense;
 
-    // Inventory
+    // Update Inventory
     const inventoryEl = document.getElementById('inventory');
-    if (inventoryEl) {
-        if (gameState.inventory.length > 0) {
-            inventoryEl.innerHTML = gameState.inventory.join(', ');
-        } else {
-            inventoryEl.innerHTML = 'Empty';
-        }
-    }
+    inventoryEl.innerHTML = gameState.inventory.length > 0 ? gameState.inventory.join(', ') : 'Empty';
 
-    // Buttons
+    // Update Buttons
     const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead;
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
-    document.getElementById('usePotionBtn').style.display = isPlayerActionable && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop ? 'block' : 'none';
     
-    // Level up button
+    const canUsePotion = isPlayerActionable && gameState.inventory.includes('Potion') && gameState.hp < gameState.maxHp && !gameState.inShop;
+    document.getElementById('usePotionBtn').style.display = canUsePotion ? 'block' : 'none';
+
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat ? 'block' : 'none';
 }
 
-// --- GAME ACTIONS ---
+
+// -----------------------------------------------------------------------------
+// CORE GAME ACTIONS
+// -----------------------------------------------------------------------------
+
+/**
+ * Starts a new game.
+ */
 function startGame() {
+    playStartGameSound();
     gameState.gameStarted = true;
-  
     gameState.silver = 25 + rollDie(6);
 
+    // Starting inventory
     let startingInventory = ['Sword', 'Potion'];
-    if (Math.random() < 0.5) {
-        startingInventory.push('Potion');
-    }
-    if (Math.random() < 0.3) {
-        startingInventory.push('Rope');
-    }
+    if (Math.random() < 0.5) startingInventory.push('Potion');
+    if (Math.random() < 0.3) startingInventory.push('Rope');
     gameState.inventory = startingInventory;
 
     if (gameState.inventory.includes('Sword')) {
@@ -162,90 +205,129 @@ function startGame() {
     log(`Your gear: ${gameState.inventory.join(', ')}.`);
     
     setGameText("<p>You enter a dimly lit chamber. The air is thick with the smell of dust and decay. A single door leads deeper into the catacomb.</p><p>What do you do?</p>");
-    
     updateUI();
 }
 
+/**
+ * Explores a new room, triggering events like traps, monsters, or shops.
+ */
 function exploreRoom() {
-    // Boss encounter at level 2
+    playExploreSound();
+
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
-        log(`Encountered the final boss: ${fortressLord.name}.`);
-        startCombat(fortressLord);
+        log(`Encountered the final boss: ${FORTRESS_LORD.name}.`);
+        startCombat(FORTRESS_LORD);
         return;
     }
+
     gameState.points++;
     gameState.roomsExplored++;
     const roll = rollDie(6);
-    
     let text = `<p><strong>Room ${gameState.roomsExplored}:</strong></p>`;
-    
-    if (roll <= 2) { // Empty Room
-        text += "<p>The room is empty, save for dust and cobwebs.</p>";
-        log("Room was empty.");
-    } else if (roll === 3) { // Trap
-        if (gameState.inventory.includes('Rope')) {
-            text += "<p class='success'>You spot a pit trap and use your rope to safely cross it.</p>";
-            log("Safely avoided a pit trap.");
-        } else {
-            const damage = rollDie(4);
-            gameState.hp -= damage;
-            triggerDamageEffect();
-            text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
-            log(`Took ${damage} damage from a trap.`);
-        }
-    } else if (roll === 4) { // Weak Monster
-        const monster = weakMonsters[rollDie(weakMonsters.length) - 1];
-        log(`Encountered a ${monster.name}.`);
-        startCombat(monster);
-        return;
-    } else if (roll === 5) { // Tough Monster
-        const monster = toughMonsters[rollDie(toughMonsters.length) - 1];
-        log(`Encountered a ${monster.name}.`);
-        startCombat(monster);
-        return;
-    } else { // Shop
-        log("Found a shop.");
-        openShop(true);
-        return;
+
+    switch (roll) {
+        case 1:
+        case 2: // Empty Room
+            text += "<p>The room is empty, save for dust and cobwebs.</p>";
+            log("Room was empty.");
+            break;
+        case 3: // Trap
+            if (gameState.inventory.includes('Rope')) {
+                text += "<p class='success'>You spot a pit trap and use your rope to safely cross it.</p>";
+                log("Safely avoided a pit trap.");
+            } else {
+                const damage = rollDie(4);
+                gameState.hp -= damage;
+                playPlayerHitSound();
+                triggerDamageEffect();
+                text += `<p class='warning'>You fall into a pit trap, taking ${damage} damage!</p>`;
+                log(`Took ${damage} damage from a trap.`);
+            }
+            break;
+        case 4: // Weak Monster
+            const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
+            log(`Encountered a ${weakMonster.name}.`);
+            startCombat(weakMonster);
+            return;
+        case 5: // Tough Monster
+            const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
+            log(`Encountered a ${toughMonster.name}.`);
+            startCombat(toughMonster);
+            return;
+        case 6: // Shop
+            log("Found a shop.");
+            openShop(true);
+            return;
     }
     
     setGameText(text);
-    
     if (gameState.hp <= 0) {
         gameOver("You succumbed to a trap!");
-        return;
+    } else {
+        updateUI();
     }
-    
-    updateUI();
 }
 
+/**
+ * Uses a potion to heal the player.
+ */
+function usePotion() {
+    const potionIndex = gameState.inventory.indexOf('Potion');
+    if (potionIndex > -1) {
+        playPotionSound();
+        const healing = rollDie(6) + rollDie(6);
+        gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
+
+        gameState.inventory.splice(potionIndex, 1);
+        log(`You used a potion and healed for ${healing} HP.`);
+
+        if (gameState.inCombat) {
+            document.getElementById('combat-log').innerHTML = `<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`;
+            monsterAttack();
+        } else {
+            setGameText(`<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`);
+        }
+        updateUI();
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// COMBAT ACTIONS
+// -----------------------------------------------------------------------------
+
+/**
+ * Initiates combat with a monster.
+ * @param {object} monster - The monster to fight.
+ */
 function startCombat(monster) {
     gameState.inCombat = true;
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
 
-    let encounterText;
-    if (monster.name === fortressLord.name) {
-        encounterText = `<p><strong>Final Chamber:</strong></p><p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${fortressLord.name}</strong> on his throne!</p>`;
-    } else if (toughMonsters.some(m => m.name === monster.name)) {
-        encounterText = `<p class='warning'>A fearsome ${monster.name} blocks your path!</p>`;
-    } else {
-        encounterText = `<p class='warning'>A ${monster.name} appears!</p>`;
-    }
+    let encounterText = monster.name === FORTRESS_LORD.name
+        ? `<p><strong>Final Chamber:</strong></p><p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${FORTRESS_LORD.name}</strong> on his throne!</p>`
+        : TOUGH_MONSTERS.some(m => m.name === monster.name)
+            ? `<p class='warning'>A fearsome ${monster.name} blocks your path!</p>`
+            : `<p class='warning'>A ${monster.name} appears!</p>`;
 
-    let text = `<div id="combat-encounter">${encounterText}</div>`;
-    text += `<div class="monster-stats" id="monster-stats-display">`;
-    text += `<h4>${monster.name}</h4>`;
-    text += `<p>HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>`;
-    text += `</div>`;
-    text += `<div id="combat-log"></div>`;
+    let text = `<div id="combat-encounter">${encounterText}</div>
+                <div class="monster-stats" id="monster-stats-display">
+                    <h4>${monster.name}</h4>
+                    <p>HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>
+                </div>
+                <div id="combat-log"></div>`;
 
     setGameText(text);
     updateUI();
 }
 
+/**
+ * Player attacks the current monster.
+ */
 function attack() {
     const monster = gameState.currentMonster;
+
     const attackRoll = rollDie(6);
     let damage = 0; // Initialize damage to 0
     
@@ -256,6 +338,8 @@ function attack() {
         damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus;
         monster.currentHp -= damage;
         log(`You hit the ${monster.name} for ${damage} damage.`);
+        combatLogEl.innerHTML += `<p class='success'>You hit the ${monster.name} for ${damage} damage. It has ${monster.currentHp} HP left.</p>`;
+
 
         if (combatLogEl) {
             combatLogEl.innerHTML += `<p class='success'>You hit the ${monster.name} for ${damage} damage.</p>`;
@@ -265,12 +349,12 @@ function attack() {
         if (monsterHpEl) {
             monsterHpEl.textContent = monster.currentHp;
         }
+  
         triggerMonsterHitEffect();
     } else {
+        playMissSound();
         log(`You missed the ${monster.name}.`);
-        if (combatLogEl) {
-            combatLogEl.innerHTML += `<p class='warning'>You missed the ${monster.name}.</p>`;
-        }
+        combatLogEl.innerHTML += `<p class='warning'>You missed the ${monster.name}.</p>`;
     }
     
     if (monster.currentHp <= 0) {
@@ -278,33 +362,33 @@ function attack() {
     } else {
         monsterAttack();
     }
-
     updateUI();
 }
 
+/**
+ * The current monster attacks the player.
+ */
 function monsterAttack() {
     const monster = gameState.currentMonster;
-    let damage = rollDamage(monster.damage);
-    damage = Math.max(0, damage - gameState.playerDefense); // Apply player defense
+    let damage = Math.max(0, rollDamage(monster.damage) - gameState.playerDefense);
 
     gameState.hp -= damage;
     if (damage > 0) {
+        playPlayerHitSound();
         triggerDamageEffect();
         playSound('hit');
     }
     log(`The ${monster.name} hits you for ${damage} damage.`);
     
     const combatLogEl = document.getElementById('combat-log');
-    if (combatLogEl) {
-        combatLogEl.innerHTML += `<p class='warning'>The ${monster.name} retaliates, hitting you for ${damage} damage.</p>`;
-    }
+    combatLogEl.innerHTML += `<p class='warning'>The ${monster.name} retaliates, hitting you for ${damage} damage.</p>`;
     
     if (gameState.hp <= 0) {
         gameOver(`You were slain by a ${monster.name}.`);
     }
-    
     updateUI();
 }
+
 
 function winCombat(killingBlow) {
     const monster = gameState.currentMonster;
@@ -313,22 +397,18 @@ function winCombat(killingBlow) {
     log(`You defeated the ${monster.name} with a final blow of ${killingBlow} damage!`);
     playSound('win');
     // Loot drops
+
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
-    let loot = [ `${silverFound} silver` ];
+    let loot = [`${silverFound} silver`];
 
-    // Chance to drop an item
-    if (Math.random() < 0.2 + (monster.difficulty * 0.1)) { // Increased drop chance for tougher monsters
-        const droppedItem = { ...lootDrops[rollDie(lootDrops.length) - 1] };
+    if (Math.random() < 0.2 + (monster.difficulty * 0.1)) {
+        const droppedItem = { ...LOOT_DROPS[rollDie(LOOT_DROPS.length) - 1] };
         loot.push(droppedItem.name);
         gameState.inventory.push(droppedItem.name);
         log(`The monster dropped a ${droppedItem.name}!`);
-        if (droppedItem.type === 'weapon' || droppedItem.type === 'armor') {
-            equipItem(droppedItem);
-        }
+        equipItem(droppedItem);
     }
-
-    // Chance to drop a potion
     if (Math.random() < 0.3) {
         loot.push('Potion');
         gameState.inventory.push('Potion');
@@ -340,12 +420,14 @@ function winCombat(killingBlow) {
         return;
     }
     
+
     let text = `<p class='success'>You defeated the ${monster.name} with a final blow of ${killingBlow} damage!</p>`;
     text += `<p>You gained ${monster.points} points.</p>`;
     if (loot.length > 0) {
         text += `<p><strong>Loot:</strong> ${loot.join(', ')}</p>`;
     }
     text += `<p>You may continue exploring.</p>`;
+
     setGameText(text);
     
     gameState.inCombat = false;
@@ -353,48 +435,11 @@ function winCombat(killingBlow) {
     updateUI();
 }
 
-function flee() {
-    if (gameState.hp <= 0) return; // Prevent fleeing if already dead
-    const damage = rollDie(4);
-    gameState.hp -= damage;
-    triggerDamageEffect();
-    log(`You fled from combat, taking ${damage} damage.`);
-    
-    gameState.inCombat = false;
-    gameState.currentMonster = null;
 
-    if (gameState.hp <= 0) {
-        updateUI(); // Update UI to show correct HP before game over
-        gameOver("You died while trying to flee.");
-        return;
-    }
-    
-    // Move to the next room immediately after fleeing.
-    exploreRoom();
-}
+// -----------------------------------------------------------------------------
+// SHOP ACTIONS
+// -----------------------------------------------------------------------------
 
-function usePotion() {
-    if (gameState.inventory.includes('Potion')) {
-        const healing = rollDie(6) + rollDie(6);
-        gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
-        
-        const potionIndex = gameState.inventory.indexOf('Potion');
-        gameState.inventory.splice(potionIndex, 1);
-        
-        log(`You used a potion and healed for ${healing} HP.`);
-        if (gameState.inCombat) {
-            const combatLogEl = document.getElementById('combat-log');
-            if (combatLogEl) {
-                combatLogEl.innerHTML = `<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`;
-            }
-            monsterAttack();
-        } else {
-            setGameText(`<p class='success'>You drink a potion, restoring ${healing} health. You now have ${gameState.hp} HP.</p>`);
-        }
-
-        updateUI();
-    }
-}
 
 function openShop(isFirstTime = false, tab = 'buy') {
     gameState.inShop = true;
@@ -430,20 +475,48 @@ function openShop(isFirstTime = false, tab = 'buy') {
     }
 
     shopText += `<button onclick="closeShop()">Leave Shop</button>`;
+
     setGameText(shopText);
     updateUI();
 }
 
-function getDamageValue(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
+/**
+ * Buys an item from the shop.
+ * @param {string} itemName - The name of the item to buy.
+ */
+function buyItem(itemName) {
+    const item = SHOP_ITEMS.find(i => i.name === itemName);
+    if (item && gameState.silver >= item.price) {
+        playBuySound();
+        gameState.silver -= item.price;
+        gameState.inventory.push(itemName);
+        log(`You bought a ${itemName}.`);
+        equipItem(item);
+        openShop(); // Refresh shop view
+    }
 }
 
+/**
+ * Closes the shop interface.
+ */
+function closeShop() {
+    gameState.inShop = false;
+    setGameText("<p>You leave the peddler behind and continue into the darkness.</p>");
+    updateUI();
+}
+
+
+// -----------------------------------------------------------------------------
+// PLAYER AND CHARACTER ACTIONS
+// -----------------------------------------------------------------------------
+
+/**
+ * Equips an item, updating player stats if it's better than current gear.
+ * @param {object} item - The item to equip.
+ */
 function equipItem(item) {
     if (item.type === 'weapon') {
-        const currentDamageValue = getDamageValue(gameState.playerDamage);
-        const newItemValue = getDamageValue(item.value);
-        if (newItemValue > currentDamageValue) {
+        if (getDamageValue(item.value) > getDamageValue(gameState.playerDamage)) {
             gameState.playerDamage = item.value;
             log(`You equipped the ${item.name}, increasing your damage!`);
         }
@@ -512,21 +585,27 @@ function closeShop() {
 }
 
 function levelUp() {
-    gameState.level++;
-    gameState.points -= 10; // Subtract the cost of leveling up
+    if (gameState.points < 10) return;
+    playLevelUpSound();
     
+    gameState.level++;
+    gameState.points -= 10;
     gameState.playerDefense++;
+
     gameState.playerDamageBonus++;
     let damageUpgraded = false;
+
     if (gameState.playerDamage === 'd4') {
         gameState.playerDamage = 'd6';
-        damageUpgraded = true;
+        bonusText += " and your damage die was upgraded!";
     } else if (gameState.playerDamage === 'd6') {
         gameState.playerDamage = 'd8';
+
         damageUpgraded = true;
     }
     let bonusText = "Your defense increased by 1 and your damage increased by 1";
     if (damageUpgraded) {
+
         bonusText += " and your damage die was upgraded!";
     } else {
         bonusText += "!";
@@ -538,23 +617,40 @@ function levelUp() {
     updateUI();
 }
 
+
+// -----------------------------------------------------------------------------
+// GAME STATE MANAGEMENT
+// -----------------------------------------------------------------------------
+
+/**
+ * Ends the game in victory.
+ */
 function winGame() {
+    playWinGameSound();
     log(`VICTORY! You defeated the Fortress Lord!`);
     setGameText(`<h3>🏆 VICTORY! 🏆</h3><p>You have defeated the Fortress Lord and conquered the Dark Fort!</p><p>Your final score: ${gameState.points}</p><button onclick="resetGame()">Start New Adventure</button>`);
-
     gameState.inCombat = false;
     updateUI();
 }
 
+/**
+ * Ends the game in defeat.
+ * @param {string} reason - The reason for the game over.
+ */
 function gameOver(reason) {
+    playGameOverSound();
     gameState.playerIsDead = true;
     log(`GAME OVER: ${reason}`);
     setGameText(`<h3>💀 GAME OVER 💀</h3><p>${reason}</p><p>Your adventure ends here.</p><button onclick="resetGame()">Start New Adventure</button>`);
     updateUI();
 }
 
+/**
+ * Resets the game to its initial state for a new adventure.
+ */
 function resetGame() {
     gameState = {
+
         hp: 20,
         maxHp: 20,
         silver: 0,
@@ -572,12 +668,11 @@ function resetGame() {
     bossEncountered: false,
     playerIsDead: false
     };
-    if (logEl) {
-        logEl.innerHTML = "";
-    }
+    logEl.innerHTML = "";
     setGameText('<p>Welcome to the Dark Fort, brave Kargunt!</p><p>Click "Start Adventure" to begin your perilous journey...</p>');
     updateUI();
 }
+
 
 // --- SOUNDS ---
 const sounds = {
@@ -595,6 +690,7 @@ function playSound(soundName) {
 }
 
 // --- INITIALIZE ---
+
 document.addEventListener('DOMContentLoaded', () => {
     gameTextEl = document.getElementById('gameText');
     logEl = document.getElementById('log');

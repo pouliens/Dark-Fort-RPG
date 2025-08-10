@@ -1,4 +1,10 @@
-/* Simplified Dark Fort RPG Styles */
+/* =============================================================================
+   DARK FORT RPG - STYLES
+   ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+   BASE & TYPOGRAPHY
+   -------------------------------------------------------------------------- */
 
 body {
     font-family: 'Courier New', monospace;
@@ -9,6 +15,24 @@ body {
     line-height: 1.6;
 }
 
+h1 {
+    text-align: center;
+    color: #ff6b35;
+    text-shadow: 2px 2px 4px #000;
+    font-size: 24px;
+    margin: 10px 0 15px 0;
+}
+
+h3, h4 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #ff6b35;
+}
+
+/* -----------------------------------------------------------------------------
+   LAYOUT & CONTAINER
+   -------------------------------------------------------------------------- */
+
 .container {
     max-width: 600px;
     margin: 0 auto;
@@ -18,22 +42,42 @@ body {
     border-radius: 10px;
 }
 
-@keyframes player-damage-anim {
-    0% { background-color: #8B0000; } /* Dark red flash on player stats */
-    100% { background-color: #333; }
+.character-sheet, .inventory, .log, .game-area {
+    background: #333;
+    padding: 10px;
+    border: 1px solid #555;
+    margin: 15px 0;
+    border-radius: 5px;
 }
 
-.player-damage-flash {
-    animation: player-damage-anim 0.4s;
+.game-area {
+    background: #222;
+    padding: 15px;
+    min-height: 150px;
 }
 
-@keyframes monster-hit-anim {
-    0% { background-color: #006400; } /* Dark green flash on monster stats */
-    100% { background-color: #3a3a3a; }
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
 }
 
-.monster-hit-flash {
-    animation: monster-hit-anim 0.4s;
+.actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 20px 0;
+}
+
+/* -----------------------------------------------------------------------------
+   UI COMPONENTS
+   -------------------------------------------------------------------------- */
+
+.stat {
+    background: #444;
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-size: 14px;
 }
 
 .monster-stats {
@@ -52,92 +96,6 @@ body {
     margin-bottom: 10px;
 }
 
-h1 {
-    text-align: center;
-    color: #ff6b35;
-    text-shadow: 2px 2px 4px #000;
-    font-size: 24px;
-    margin: 10px 0 15px 0;
-}
-
-.character-sheet, .inventory, .log {
-    background: #333;
-    padding: 10px;
-    border: 1px solid #555;
-    margin: 15px 0;
-    border-radius: 5px;
-}
-
-h3, h4 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    color: #ff6b35;
-}
-
-.stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 8px;
-}
-
-.stat {
-    background: #444;
-    padding: 6px 8px;
-    border-radius: 3px;
-    font-size: 14px;
-}
-
-.game-area {
-    background: #222;
-    padding: 15px;
-    border: 1px solid #555;
-    border-radius: 5px;
-    margin: 20px 0;
-    min-height: 150px;
-}
-
-.actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    margin: 20px 0;
-}
-
-button {
-    background: #8b4513;
-    color: #d4af37;
-    border: 2px solid #d4af37;
-    padding: 12px;
-    font-family: inherit;
-    font-size: 14px;
-    cursor: pointer;
-    border-radius: 5px;
-    transition: background 0.3s;
-}
-
-button:hover {
-    background: #d4af37;
-    color: #8b4513;
-}
-
-button:disabled {
-    background: #666;
-    color: #999;
-    border-color: #999;
-    cursor: not-allowed;
-}
-
-#levelUpBtn {
-    background: #ffd700;
-    color: #1a1a1a;
-    border-color: #ffc107;
-    font-weight: bold;
-}
-
-.inventory div, .log div {
-    padding-left: 10px;
-}
-
 .log p {
     margin: 0 0 5px;
     padding-bottom: 5px;
@@ -148,6 +106,49 @@ button:disabled {
     border-bottom: none;
 }
 
+/* -----------------------------------------------------------------------------
+   BUTTONS
+   -------------------------------------------------------------------------- */
+
+button {
+    background: #8b4513;
+    color: #d4af37;
+    border: 2px solid #d4af37;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.3s, color 0.3s;
+}
+
+button:hover:not(:disabled) {
+    background: #d4af37;
+    color: #8b4513;
+}
+
+button:disabled {
+    background: #555;
+    color: #888;
+    border-color: #777;
+    cursor: not-allowed;
+}
+
+#levelUpBtn {
+    background: #ffd700;
+    color: #1a1a1a;
+    border-color: #ffc107;
+    font-weight: bold;
+}
+
+#levelUpBtn:hover:not(:disabled) {
+    background: #ffc107;
+}
+
+/* -----------------------------------------------------------------------------
+   EFFECTS & MODIFIERS
+   -------------------------------------------------------------------------- */
+
 .warning {
     color: #ff6b35;
     font-weight: bold;
@@ -156,4 +157,22 @@ button:disabled {
 .success {
     color: #32cd32;
     font-weight: bold;
+}
+
+@keyframes player-damage-anim {
+    0% { background-color: #8B0000; } /* Dark red flash */
+    100% { background-color: #333; }
+}
+
+.player-damage-flash {
+    animation: player-damage-anim 0.4s;
+}
+
+@keyframes monster-hit-anim {
+    0% { background-color: #006400; } /* Dark green flash */
+    100% { background-color: #3a3a3a; }
+}
+
+.monster-hit-flash {
+    animation: monster-hit-anim 0.4s;
 }
