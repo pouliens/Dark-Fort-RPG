@@ -7,6 +7,8 @@ let gameState = {
     silver: 0,
     points: 0,
     level: 1,
+    playerDamage: 'd4', // Default player damage
+    playerDefense: 0,   // Default player defense
     inventory: [],
     currentMonster: null,
     inCombat: false,
@@ -45,8 +47,10 @@ function rollDie(sides) {
 }
 
 function rollDamage(diceString) {
-    if (diceString === 'd6') return rollDie(6);
-    if (diceString === 'd4') return rollDie(4);
+    const match = diceString.match(/d(\d+)/);
+    if (match) {
+        return rollDie(parseInt(match[1], 10));
+    }
     return 1;
 }
 
@@ -67,12 +71,22 @@ function setGameText(html) {
 }
 
 function triggerDamageEffect() {
-    const container = document.querySelector('.container');
-    if (container) {
-        container.classList.add('damage-flash');
+    const characterSheetEl = document.querySelector('.character-sheet');
+    if (characterSheetEl) {
+        characterSheetEl.classList.add('player-damage-flash');
         setTimeout(() => {
-            container.classList.remove('damage-flash');
-        }, 400); // Duration should match the animation
+            characterSheetEl.classList.remove('player-damage-flash');
+        }, 400);
+    }
+}
+
+function triggerMonsterHitEffect() {
+    const monsterStatsEl = document.getElementById('monster-stats-display');
+    if (monsterStatsEl) {
+        monsterStatsEl.classList.add('monster-hit-flash');
+        setTimeout(() => {
+            monsterStatsEl.classList.remove('monster-hit-flash');
+        }, 400);
     }
 }
 
@@ -83,6 +97,8 @@ function updateUI() {
     document.getElementById('silver').textContent = gameState.silver;
     document.getElementById('points').textContent = gameState.points;
     document.getElementById('level').textContent = gameState.level;
+    document.getElementById('playerDamage').textContent = gameState.playerDamage;
+    document.getElementById('playerDefense').textContent = gameState.playerDefense;
 
     // Inventory
     const inventoryEl = document.getElementById('inventory');
@@ -120,6 +136,10 @@ function startGame() {
         startingInventory.push('Rope');
     }
     gameState.inventory = startingInventory;
+
+    if (gameState.inventory.includes('Sword')) {
+        gameState.playerDamage = 'd6';
+    }
     
     log(`Adventure begins! Found ${gameState.silver} silver.`);
     log(`Your gear: ${gameState.inventory.join(', ')}.`);
@@ -133,12 +153,8 @@ function exploreRoom() {
     // Boss encounter at level 2
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
-        let text = `<p><strong>Final Chamber:</strong></p>`;
-        text += `<p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${fortressLord.name}</strong> on his throne!</p>`;
         log(`Encountered the final boss: ${fortressLord.name}.`);
-        setGameText(text);
         startCombat(fortressLord);
-        updateUI();
         return;
     }
 
@@ -163,18 +179,18 @@ function exploreRoom() {
         }
     } else if (roll === 4) { // Weak Monster
         const monster = weakMonsters[rollDie(weakMonsters.length) - 1];
-        text += `<p class='warning'>A ${monster.name} appears!</p>`;
         log(`Encountered a ${monster.name}.`);
         startCombat(monster);
+        return;
     } else if (roll === 5) { // Tough Monster
         const monster = toughMonsters[rollDie(toughMonsters.length) - 1];
-        text += `<p class='warning'>A fearsome ${monster.name} blocks your path!</p>`;
         log(`Encountered a ${monster.name}.`);
         startCombat(monster);
+        return;
     } else { // Shop
         log("Found a shop.");
-        openShop(true); // Open shop for the first time
-        return; // Return to prevent overwriting the shop UI
+        openShop(true);
+        return;
     }
     
     setGameText(text);
@@ -190,6 +206,24 @@ function exploreRoom() {
 function startCombat(monster) {
     gameState.inCombat = true;
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
+
+    let encounterText;
+    if (monster.name === fortressLord.name) {
+        encounterText = `<p><strong>Final Chamber:</strong></p><p class='warning'>The massive gates of the final chamber creak open, revealing the <strong>${fortressLord.name}</strong> on his throne!</p>`;
+    } else if (toughMonsters.some(m => m.name === monster.name)) {
+        encounterText = `<p class='warning'>A fearsome ${monster.name} blocks your path!</p>`;
+    } else {
+        encounterText = `<p class='warning'>A ${monster.name} appears!</p>`;
+    }
+
+    let text = `<div id="combat-encounter">${encounterText}</div>`;
+    text += `<div class="monster-stats" id="monster-stats-display">`;
+    text += `<h4>${monster.name}</h4>`;
+    text += `<p>HP: <span id="monster-hp">${monster.currentHp}</span> / ${monster.hp} | Damage: ${monster.damage}</p>`;
+    text += `</div>`;
+    text += `<div id="combat-log"></div>`;
+
+    setGameText(text);
     updateUI();
 }
 
@@ -197,16 +231,28 @@ function attack() {
     const monster = gameState.currentMonster;
     const attackRoll = rollDie(6);
     
-    setGameText(""); // Clear game text for combat log
-    
+    let combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) combatLogEl.innerHTML = ''; // Clear previous turn log
+
     if (attackRoll >= monster.difficulty) {
-        const damage = rollDamage('d6'); // Simplified: all attacks do d6
+        const damage = rollDamage(gameState.playerDamage);
         monster.currentHp -= damage;
         log(`You hit the ${monster.name} for ${damage} damage.`);
-        setGameText(`<p class='success'>You hit the ${monster.name} for ${damage} damage. It has ${monster.currentHp} HP left.</p>`);
+
+        if (combatLogEl) {
+            combatLogEl.innerHTML += `<p class='success'>You hit the ${monster.name} for ${damage} damage. It has ${monster.currentHp} HP left.</p>`;
+        }
+
+        const monsterHpEl = document.getElementById('monster-hp');
+        if (monsterHpEl) {
+            monsterHpEl.textContent = monster.currentHp;
+        }
+        triggerMonsterHitEffect();
     } else {
         log(`You missed the ${monster.name}.`);
-        setGameText(`<p class='warning'>You missed the ${monster.name}.</p>`);
+        if (combatLogEl) {
+            combatLogEl.innerHTML += `<p class='warning'>You missed the ${monster.name}.</p>`;
+        }
     }
     
     if (monster.currentHp <= 0) {
@@ -220,13 +266,18 @@ function attack() {
 
 function monsterAttack() {
     const monster = gameState.currentMonster;
-    const damage = rollDamage(monster.damage);
+    let damage = rollDamage(monster.damage);
+    damage = Math.max(0, damage - gameState.playerDefense); // Apply player defense
+
     gameState.hp -= damage;
-    triggerDamageEffect();
+    if (damage > 0) {
+        triggerDamageEffect();
+    }
     log(`The ${monster.name} hits you for ${damage} damage.`);
     
-    if (gameTextEl) {
-        gameTextEl.innerHTML += `<p class='warning'>The ${monster.name} retaliates, hitting you for ${damage} damage.</p>`;
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) {
+        combatLogEl.innerHTML += `<p class='warning'>The ${monster.name} retaliates, hitting you for ${damage} damage.</p>`;
     }
     
     if (gameState.hp <= 0) {
@@ -315,6 +366,10 @@ function buyItem(itemName, price) {
     if (gameState.silver >= price) {
         gameState.silver -= price;
         gameState.inventory.push(itemName);
+        if (itemName === 'Sword' && gameState.playerDamage === 'd4') {
+            gameState.playerDamage = 'd6';
+            log('Your damage increases with the new sword!');
+        }
         log(`You bought a ${itemName}.`);
         openShop(); // Refresh shop view without intro
     }
@@ -337,11 +392,20 @@ function levelUp() {
         gameState.hp += 5;
         bonusText = "Your max HP increases by 5!";
     } else if (bonusRoll === 2) {
-        gameState.inventory.push('Potion', 'Potion');
-        bonusText = "You receive 2 free potions!";
+        gameState.playerDefense += 1;
+        bonusText = "Your defense increases by 1!";
     } else {
-        gameState.maxHp += 1;
-        bonusText = "Your max HP increases by 1!";
+        if (gameState.playerDamage === 'd4') {
+            gameState.playerDamage = 'd6';
+            bonusText = "Your damage die is now a d6!";
+        } else if (gameState.playerDamage === 'd6') {
+            gameState.playerDamage = 'd8';
+            bonusText = "Your damage die is now a d8!";
+        } else { // Already at d8, give HP instead
+            gameState.maxHp += 3;
+            gameState.hp += 3;
+            bonusText = "Your max HP increased by 3!";
+        }
     }
     
     log(`LEVEL UP! You are now level ${gameState.level}!`);
@@ -375,6 +439,8 @@ function resetGame() {
         silver: 0,
         points: 0,
         level: 1,
+        playerDamage: 'd4',
+        playerDefense: 0,
         inventory: [],
         currentMonster: null,
         inCombat: false,
