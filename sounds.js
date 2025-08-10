@@ -25,5 +25,5 @@ const sounds = {
 // Functions to play specific sounds - only essential ones remain
 function playAttackSound() { playSound(sounds.attack); }
 function playPlayerHitSound() { playSound(sounds.playerHit); }
-function playBuySound() { playSound(sounds.buy); }
-function playSellSound() { playSound(sounds.sell); }
+function playBuySound() { /* sound removed */ }
+function playSellSound() { /* sound removed */ }

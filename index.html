@@ -14,12 +14,12 @@
         <div class="character-sheet">
             <h3>📜 KARGUNTAS</h3>
             <div class="stats">
-                <div class="stat">❤️ GYVYBĖS: <span id="hp">15</span>/<span id="maxHp">15</span></div>
-                <div class="stat">🪙 SIDABRAS: <span id="silver">0</span></div>
-                <div class="stat">⭐ TAŠKAI: <span id="points">0</span>/<span id="maxPoints">15</span></div>
-                <div class="stat">⚔️ ŽALA: <span id="playerDamage">d4</span></div>
-                <div class="stat">🛡️ ŠARVAI: <span id="playerDefense">0</span></div>
-                <div class="stat">🏆 LYGIS: <span id="level">1</span></div>
+                <div class="stat" data-tooltip="Gyvybės">❤️ <span id="hp">15</span>/<span id="maxHp">15</span></div>
+                <div class="stat" data-tooltip="Sidabras">🪙 <span id="silver">0</span></div>
+                <div class="stat" data-tooltip="Taškai">⭐ <span id="points">0</span>/<span id="maxPoints">10</span></div>
+                <div class="stat" data-tooltip="Žala">⚔️ <span id="playerDamage">d4</span></div>
+                <div class="stat" data-tooltip="Šarvai">🛡️ <span id="playerDefense">0</span></div>
+                <div class="stat" data-tooltip="Lygis">🏆 <span id="level">1</span></div>
             </div>
         </div>
 
@@ -37,9 +37,8 @@
                 <button id="exploreBtn" onclick="exploreRoom()" style="display: none;">🔍 Tyrinėti</button>
                 <button id="attackBtn" onclick="attack()" style="display: none;">⚔️ Pulti</button>
                 <button id="fleeBtn" onclick="flee()" style="display: none;">🏃 Bėgti</button>
-                <button id="usePotionBtn" onclick="usePotion()" style="display: none;">🧪 Gerti Mikstūrą</button>
                 <button id="levelUpBtn" onclick="levelUp()" style="display: none;">🌟 Kelti Lygį!</button>
-                <!-- Simplified buttons. Shop button removed, will be contextual. -->
+                <!-- Simplified buttons. Shop and Potion buttons removed, will be contextual. -->
             </div>
         </div>
         

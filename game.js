@@ -16,6 +16,8 @@ let gameState = {
     playerDamageBonus: 0,
     playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
     inventory: [],
+    equippedWeapon: null,
+    equippedArmor: null,
     currentMonster: null,
     inCombat: false,
     inShop: false,
@@ -93,6 +95,27 @@ function getDamageValue(diceString) {
     return match ? parseInt(match[1], 10) : 0;
 }
 
+/**
+ * Handles clicks on inventory items, routing to use or equip functions.
+ * @param {string} itemName - The name of the item clicked.
+ */
+function handleInventoryClick(itemName) {
+    const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
+
+    if (!itemDetails) {
+        log(`Negalima panaudoti daikto ${itemName}.`);
+        return;
+    }
+
+    if (itemDetails.type === 'potion') {
+        usePotion();
+    } else if (itemDetails.type === 'weapon' || itemDetails.type === 'armor') {
+        toggleEquip(itemName, itemDetails.type);
+    } else {
+        log(`Daiktas ${itemName} neturi panaudojimo.`);
+    }
+}
+
 
 // -----------------------------------------------------------------------------
 // UI FUNCTIONS
@@ -165,18 +188,22 @@ function updateUI() {
     if (gameState.inventory.length === 0) {
         inventoryEl.innerHTML = 'Tuščia';
     } else {
-        const inventoryDisplay = gameState.inventory.map(itemName => {
-            const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
-            if (itemDetails) {
-                if (itemDetails.type === 'weapon') {
-                    return `${itemName} (${itemDetails.value} žala)`;
-                } else if (itemDetails.type === 'armor') {
-                    return `${itemName} (${itemDetails.value} gynyba)`;
-                }
+        const itemCounts = gameState.inventory.reduce((acc, itemName) => {
+            acc[itemName] = (acc[itemName] || 0) + 1;
+            return acc;
+        }, {});
+
+        inventoryEl.innerHTML = Object.entries(itemCounts).map(([itemName, count]) => {
+            let displayText = itemName;
+            if (count > 1) {
+                displayText += ` (x${count})`;
             }
-            return itemName;
-        }).join(', ');
-        inventoryEl.innerHTML = inventoryDisplay;
+
+            const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
+            return `<button class="inventory-item ${isEquipped ? 'equipped' : ''}" onclick="handleInventoryClick('${itemName}')">
+                        ${displayText}
+                    </button>`;
+        }).join(' ');
     }
 
     // Update Buttons
@@ -186,9 +213,6 @@ function updateUI() {
     document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     
-    const canUsePotion = isPlayerActionable && gameState.inventory.includes('Mikstūra') && gameState.hp < gameState.maxHp && !gameState.inShop;
-    document.getElementById('usePotionBtn').style.display = canUsePotion ? 'block' : 'none';
-
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
 }
@@ -212,13 +236,14 @@ function startGame() {
     gameState.inventory = startingInventory;
 
     if (gameState.inventory.includes('Kardas')) {
-        gameState.playerDamage = 'd6';
+        gameState.equippedWeapon = 'Kardas';
     }
     
     log(`Nuotykis prasideda! Radai ${gameState.silver} sidabro.`);
     log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
     
     setGameText("<p>Įeini į prieblandoje skendintį kambarį. Ore tvyro dulkių ir puvėsių kvapas. Vienerios durys veda gilyn į katakombas.</p><p>Ką darysi?</p>");
+    recalculateStats(); // To apply starting equipment
     updateUI();
 }
 
@@ -428,7 +453,7 @@ function winCombat(killingBlowDamage) {
         loot.push(droppedItem.name);
         gameState.inventory.push(droppedItem.name);
         log(`Pabaisa išmetė ${droppedItem.name}!`);
-        equipItem(droppedItem);
+        // Player must now equip manually
     }
 
     log(`Nugalėjai ${monster.name}!`);
@@ -506,7 +531,7 @@ function buyItem(itemName) {
         gameState.silver -= item.price;
         gameState.inventory.push(itemName);
         log(`Nusipirkai ${itemName}.`);
-        equipItem(item);
+        // Player must now equip manually from inventory
         openShop(false, 'buy'); // Refresh shop view
     }
 }
@@ -515,32 +540,53 @@ function sellItem(itemName, sellPrice) {
     const itemIndex = gameState.inventory.indexOf(itemName);
     if (itemIndex > -1) {
         playSellSound();
+        // If selling equipped item, unequip it
+        if (itemName === gameState.equippedWeapon) gameState.equippedWeapon = null;
+        if (itemName === gameState.equippedArmor) gameState.equippedArmor = null;
+
         gameState.inventory.splice(itemIndex, 1);
         gameState.silver += sellPrice;
         log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
-        recalculateStats();
+        recalculateStats(); // Recalculate stats after selling
         openShop(false, 'sell');
     }
 }
 
+function toggleEquip(itemName, itemType) {
+    const slot = itemType === 'weapon' ? 'equippedWeapon' : 'equippedArmor';
+
+    if (gameState[slot] === itemName) {
+        // Unequip if clicking the same item
+        gameState[slot] = null;
+        log(`Nusiėmei ${itemName}.`);
+    } else {
+        // Equip new item
+        gameState[slot] = itemName;
+        log(`Užsidėjai ${itemName}.`);
+    }
+    recalculateStats();
+}
+
 function recalculateStats() {
-    // Reset stats to base
+    // Reset stats to base values, considering level but not items
     gameState.playerDamage = 'd4';
-    gameState.playerDefense = 0;
+    gameState.playerDefense = gameState.level - 1; // 0 at level 1, 1 at level 2, etc.
 
-    // Recalculate based on inventory
-    const weapons = (SHOP_ITEMS.concat(LOOT_DROPS)).filter(item => item.type === 'weapon' && gameState.inventory.includes(item.name));
-    const armors = (SHOP_ITEMS.concat(LOOT_DROPS)).filter(item => item.type === 'armor' && gameState.inventory.includes(item.name));
+    // Re-apply damage die upgrades from levels
+    if (gameState.level >= 4) gameState.playerDamage = 'd8';
+    else if (gameState.level >= 2) gameState.playerDamage = 'd6';
 
-    if (weapons.length > 0) {
-        const bestWeapon = weapons.reduce((best, current) => getDamageValue(current.value) > getDamageValue(best.value) ? current : best);
-        gameState.playerDamage = bestWeapon.value;
+    // Apply equipped items' stats
+    if (gameState.equippedWeapon) {
+        const weaponDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === gameState.equippedWeapon);
+        if (weaponDetails) gameState.playerDamage = weaponDetails.value;
     }
 
-    if (armors.length > 0) {
-        const bestArmor = armors.reduce((best, current) => current.value > best.value ? current : best);
-        gameState.playerDefense = bestArmor.value;
+    if (gameState.equippedArmor) {
+        const armorDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === gameState.equippedArmor);
+        if (armorDetails) gameState.playerDefense += armorDetails.value;
     }
+
     updateUI();
 }
 
@@ -554,48 +600,17 @@ function closeShop() {
 // PLAYER AND CHARACTER ACTIONS
 // -----------------------------------------------------------------------------
 
-function equipItem(item) {
-    if (item.type === 'weapon') {
-        if (getDamageValue(item.value) > getDamageValue(gameState.playerDamage)) {
-            gameState.playerDamage = item.value;
-            log(`Užsidėjai ${item.name}, padidindamas savo žalą!`);
-        }
-    } else if (item.type === 'armor') {
-        if (item.value > gameState.playerDefense) {
-            gameState.playerDefense = item.value;
-            log(`Užsidėjai ${item.name}, padidindamas savo gynybą!`);
-        }
-    }
-    updateUI();
-}
-
 function levelUp() {
     if (gameState.points < 10) return;
     
     gameState.level++;
     gameState.points -= 10;
+    gameState.playerDamageBonus++; // This is a direct damage add, separate from die type
 
-    let bonusText = "Tavo gynyba padidėjo 1";
-    gameState.playerDefense++;
-
-    // Damage bonus applies to each attack
-    gameState.playerDamageBonus++;
-    bonusText += " ir tavo žala padidėjo 1";
-
-    // Occasional die upgrade
-    if (gameState.level % 2 === 0) {
-        if (gameState.playerDamage === 'd4') {
-            gameState.playerDamage = 'd6';
-            bonusText += " ir tavo žalos kauliukas buvo patobulintas į d6!";
-        } else if (gameState.playerDamage === 'd6') {
-            gameState.playerDamage = 'd8';
-            bonusText += " ir tavo žalos kauliukas buvo patobulintas į d8!";
-        }
-    }
-    
     log(`PASIEKEI NAUJĄ LYGĮ! Dabar esi ${gameState.level} lygio!`);
-    setGameText(`<p class='success'>Pasiekei ${gameState.level} lygį! ${bonusText}.</p>`);
-    updateUI();
+    setGameText(`<p class='success'>Pasiekei ${gameState.level} lygį! Tavo žala padidėjo 1, o bazinė gynyba ir kiti atributai galėjo pagerėti.</p>`);
+
+    recalculateStats(); // Recalculate all stats to apply level benefits
 }
 
 
@@ -639,6 +654,8 @@ function resetGame() {
         playerDamageBonus: 0,
         playerDefense: 0,
         inventory: [],
+        equippedWeapon: null,
+        equippedArmor: null,
         currentMonster: null,
         inCombat: false,
         inShop: false,
@@ -657,5 +674,14 @@ function resetGame() {
 document.addEventListener('DOMContentLoaded', () => {
     gameTextEl = document.getElementById('gameText');
     logEl = document.getElementById('log');
+
+    // Make log expandable
+    const logContainerEl = document.querySelector('.log');
+    if (logContainerEl) {
+        logContainerEl.addEventListener('click', () => {
+            logEl.classList.toggle('expanded');
+        });
+    }
+
     updateUI();
 });
