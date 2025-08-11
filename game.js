@@ -26,10 +26,44 @@ let gameState = {
     gameStarted: false,
     roomsExplored: 0,
     bossEncountered: false,
-    playerIsDead: false
+    playerIsDead: false,
+    challenges: {}
 };
 
 // Data is now in game-data.js
+
+// -----------------------------------------------------------------------------
+// CHALLENGE FUNCTIONS
+// -----------------------------------------------------------------------------
+
+function loadChallenges() {
+    const savedChallenges = localStorage.getItem('darkFortressChallenges');
+    if (savedChallenges) {
+        gameState.challenges = JSON.parse(savedChallenges);
+    } else {
+        gameState.challenges = CHALLENGES.reduce((acc, challenge) => {
+            acc[challenge.id] = { ...challenge, progress: 0 };
+            return acc;
+        }, {});
+    }
+}
+
+function saveChallenges() {
+    localStorage.setItem('darkFortressChallenges', JSON.stringify(gameState.challenges));
+}
+
+function updateChallengeProgress(type, name, amount) {
+    Object.values(gameState.challenges).forEach(challenge => {
+        if (challenge.type === type && challenge.targetName === name && challenge.progress < challenge.targetValue) {
+            const oldProgress = challenge.progress;
+            challenge.progress = Math.min(challenge.targetValue, challenge.progress + amount);
+
+            if (challenge.progress > oldProgress) {
+                 log(`Iššūkio progresas: ${challenge.description} (${challenge.progress}/${challenge.targetValue})`);
+            }
+        }
+    });
+}
 
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
@@ -200,6 +234,24 @@ function updateUI() {
     
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
+
+    // Update Challenges
+    const challengesEl = document.getElementById('challenges');
+    if (gameState.challenges && Object.keys(gameState.challenges).length > 0) {
+        challengesEl.innerHTML = Object.values(gameState.challenges).map(challenge => {
+            const progress = Math.min(challenge.progress, challenge.targetValue);
+            const isComplete = progress >= challenge.targetValue;
+            const progressText = isComplete ? 'Įvykdyta!' : `${progress} / ${challenge.targetValue}`;
+            return `
+                <div class="challenge ${isComplete ? 'complete' : ''}">
+                    <span class="challenge-desc">${challenge.description}</span>
+                    <span class="challenge-progress">${progressText}</span>
+                </div>
+            `;
+        }).join('');
+    } else {
+        challengesEl.innerHTML = 'Nėra iššūkių.';
+    }
 }
 
 
@@ -211,8 +263,11 @@ function updateUI() {
  * Starts a new game.
  */
 function startGame() {
+    loadChallenges();
     gameState.gameStarted = true;
-    gameState.silver = 25 + rollDie(6);
+    const startingSilver = 25 + rollDie(6);
+    gameState.silver = startingSilver;
+    updateChallengeProgress('collect', 'silver', startingSilver);
 
     // Assign random name and profession
     gameState.playerName = PLAYER_NAMES[rollDie(PLAYER_NAMES.length) - 1];
@@ -229,7 +284,7 @@ function startGame() {
     }
     
     log(`Tavo vardas yra ${gameState.playerName}, tu esi ${gameState.playerProfession}.`);
-    log(`Nuotykis prasideda! Radai ${gameState.silver} sidabro.`);
+    log(`Nuotykis prasideda! Radai ${startingSilver} sidabro.`);
     log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
     
     setGameText("<p>Įeini į prieblandoje skendintį kambarį. Ore tvyro dulkių ir puvėsių kvapas. Vienerios durys veda gilyn į katakombas.</p><p>Ką darysi?</p>");
@@ -251,6 +306,7 @@ function exploreRoom() {
 
     gameState.points++;
     gameState.roomsExplored++;
+    updateChallengeProgress('explore', 'room', 1);
     const roll = rollDie(6);
     let text = `<p><strong>Kambarys ${gameState.roomsExplored}:</strong></p>`;
 
@@ -433,9 +489,11 @@ function monsterAttack() {
 function winCombat(killingBlowDamage) {
     const monster = gameState.currentMonster;
     gameState.points += monster.points;
+    updateChallengeProgress('slay', monster.name, 1);
     
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
+    updateChallengeProgress('collect', 'silver', silverFound);
     let loot = [`${silverFound} sidabro`];
 
     if (Math.random() < 0.2 + (monster.difficulty * 0.1)) {
@@ -536,6 +594,7 @@ function sellItem(itemName, sellPrice) {
 
         gameState.inventory.splice(itemIndex, 1);
         gameState.silver += sellPrice;
+        updateChallengeProgress('collect', 'silver', sellPrice);
         log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
         recalculateStats(); // Recalculate stats after selling
         openShop(false, 'sell');
@@ -613,6 +672,7 @@ function levelUp() {
  */
 function winGame() {
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
+    saveChallenges();
     setGameText(`<h3>🏆 PERGALĖ! 🏆</h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     gameState.inCombat = false;
     updateUI();
@@ -624,6 +684,7 @@ function winGame() {
  */
 function gameOver(reason) {
     gameState.playerIsDead = true;
+    saveChallenges();
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
     setGameText(`<h3>💀 ŽAIDIMAS BAIGTAS 💀</h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     updateUI();

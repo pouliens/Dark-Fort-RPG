@@ -70,6 +70,38 @@ h3, h4 {
     margin: 20px 0;
 }
 
+.challenges {
+    background: #333;
+    padding: 10px;
+    border: 1px solid #555;
+    margin: 15px 0;
+    border-radius: 5px;
+}
+
+.challenge {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px;
+    border-bottom: 1px solid #444;
+}
+
+.challenge:last-child {
+    border-bottom: none;
+}
+
+.challenge.complete {
+    color: #32cd32; /* Same as .success */
+    text-decoration: line-through;
+}
+
+.challenge.complete .challenge-desc {
+    color: #888;
+}
+
+.challenge-progress {
+    font-weight: bold;
+}
+
 /* -----------------------------------------------------------------------------
    UI COMPONENTS
    -------------------------------------------------------------------------- */

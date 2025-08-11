@@ -46,3 +46,10 @@ const PLAYER_PROFESSIONS = [
     'Karys',
     'Žemdirbys'
 ];
+
+const CHALLENGES = [
+    { id: 'collectGold', description: 'Surinkti 100 sidabro', type: 'collect', targetName: 'silver', targetValue: 100, progress: 0 },
+    { id: 'slayGoblins', description: 'Nužudyti 3 goblinus', type: 'slay', targetName: 'Goblinas', targetValue: 3, progress: 0 },
+    { id: 'slayBoss', description: 'Nužudyti Tvirtovės Valdovą', type: 'slay', targetName: 'Tvirtovės Valdovas', targetValue: 1, progress: 0 },
+    { id: 'exploreRooms', description: 'Ištirti 25 kambarius', type: 'explore', targetName: 'room', targetValue: 25, progress: 0 }
+];
