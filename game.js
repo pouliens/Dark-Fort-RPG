@@ -27,7 +27,8 @@ let gameState = {
     roomsExplored: 0,
     bossEncountered: false,
     playerIsDead: false,
-    challenges: {}
+    challenges: {},
+    map: []
 };
 
 // Data is now in game-data.js
@@ -103,6 +104,11 @@ function getDamageValue(diceString) {
  * @param {string} itemName - The name of the item clicked.
  */
 function handleInventoryClick(itemName) {
+    if (itemName === 'Žemėlapis') {
+        openMap();
+        return;
+    }
+
     const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
 
     if (!itemDetails) {
@@ -212,12 +218,13 @@ function updateUI() {
             const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
             const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
             const isUtility = itemDetails && itemDetails.type === 'utility';
+            const isMap = itemName === 'Žemėlapis';
 
             let classes = 'inventory-item';
             if (isEquipped) classes += ' equipped';
             if (isUtility) classes += ' non-selectable';
 
-            const onclick = isUtility ? '' : `onclick="handleInventoryClick('${itemName}')"`;
+            const onclick = (isUtility && !isMap) ? '' : `onclick="handleInventoryClick('${itemName}')"`;
 
             return `<button class="${classes}" ${onclick}>
                         ${displayText}
@@ -274,7 +281,7 @@ function startGame() {
     gameState.playerProfession = PLAYER_PROFESSIONS[rollDie(PLAYER_PROFESSIONS.length) - 1];
 
     // Starting inventory
-    let startingInventory = ['Kardas', 'Mikstūra'];
+    let startingInventory = ['Žemėlapis', 'Kardas', 'Mikstūra'];
     if (Math.random() < 0.5) startingInventory.push('Mikstūra');
     if (Math.random() < 0.3) startingInventory.push('Virvė');
     gameState.inventory = startingInventory;
@@ -309,17 +316,21 @@ function exploreRoom() {
     updateChallengeProgress('explore', 'room', 1);
     const roll = rollDie(6);
     let text = `<p><strong>Kambarys ${gameState.roomsExplored}:</strong></p>`;
+    let roomEvent = { room: gameState.roomsExplored, type: 'Tuščias', details: '' };
 
     switch (roll) {
         case 1:
         case 2: // Empty Room
             text += "<p>Kambarys tuščias, tik dulkės ir voratinkliai.</p>";
             log("Kambarys buvo tuščias.");
+            roomEvent.type = 'Tuščias';
             break;
         case 3: // Trap
+            roomEvent.type = 'Spąstai';
             if (gameState.inventory.includes('Virvė')) {
                 text += "<p class='success'>Pastebėjai spąstus-duobę ir saugiai perėjai per ją virve.</p>";
                 log("Saugiai išvengta spąstų-duobės.");
+                roomEvent.details = 'Išvengta';
             } else {
                 const damage = rollDie(4);
                 gameState.hp -= damage;
@@ -327,24 +338,30 @@ function exploreRoom() {
                 triggerDamageEffect();
                 text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${damage} žalos!</p>`;
                 log(`Patyrė ${damage} žalos nuo spąstų.`);
+                roomEvent.details = `Patyrė ${damage} žalos`;
             }
             break;
         case 4: // Weak Monster
             const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
             log(`Sutikai ${weakMonster.name}.`);
+            gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: weakMonster.name });
             startCombat(weakMonster);
             return;
         case 5: // Tough Monster
             const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
             log(`Sutikai ${toughMonster.name}.`);
+            gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: toughMonster.name });
             startCombat(toughMonster);
             return;
         case 6: // Shop
             log("Radai parduotuvę.");
+            gameState.map.push({ room: gameState.roomsExplored, type: 'Parduotuvė', details: '' });
             openShop(true);
             return;
     }
     
+    gameState.map.push(roomEvent);
+
     setGameText(text);
     if (gameState.hp <= 0) {
         gameOver("Mirėte nuo spąstų!");
@@ -645,6 +662,47 @@ function closeShop() {
     updateUI();
 }
 
+
+// -----------------------------------------------------------------------------
+// MAP ACTIONS
+// -----------------------------------------------------------------------------
+
+function getRoomIcon(type) {
+    switch (type) {
+        case 'Priešas': return '💀';
+        case 'Spąstai': return '❗';
+        case 'Parduotuvė': return '🛒';
+        case 'Lobis': return '💰';
+        case 'Tuščias': return '🚪';
+        default: return '?';
+    }
+}
+
+function openMap() {
+    const mapGridEl = document.getElementById('mapGrid');
+    const mapModalEl = document.getElementById('mapModal');
+
+    mapGridEl.innerHTML = ''; // Clear previous map
+    gameState.map.forEach(room => {
+        const roomEl = document.createElement('div');
+        roomEl.className = 'map-cell';
+        roomEl.innerHTML = `
+            <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
+            <div class="map-cell-room-number">${room.room}</div>
+            <div class="map-cell-details">${room.details}</div>
+        `;
+        mapGridEl.appendChild(roomEl);
+    });
+
+    mapModalEl.style.display = 'block';
+}
+
+function closeMap() {
+    const mapModalEl = document.getElementById('mapModal');
+    mapModalEl.style.display = 'none';
+}
+
+
 // -----------------------------------------------------------------------------
 // PLAYER AND CHARACTER ACTIONS
 // -----------------------------------------------------------------------------
@@ -714,7 +772,8 @@ function resetGame() {
         gameStarted: false,
         roomsExplored: 0,
         bossEncountered: false,
-        playerIsDead: false
+        playerIsDead: false,
+        map: []
     };
     logEl.innerHTML = "";
     setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
