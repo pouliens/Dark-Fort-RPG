@@ -508,12 +508,19 @@ function startCombat(monster) {
             ? `<p class='warning'>Bauginantis ${monster.name} pastoja tau kelią!</p>`
             : `<p class='warning'>Pasirodo ${monster.name}!</p>`;
 
-    let text = `<div id="combat-encounter">${encounterText}</div>
-                <div class="monster-stats" id="monster-stats-display">
-                    <h4>${monster.name}</h4>
-                    <p>GYVYBĖS: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | ŽALA: ${monster.damage}</p>
-                </div>
-                <div id="combat-log"></div>`;
+    let text = `<div class="combat-scene">
+                    <div class="combat-visual">
+                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
+                    </div>
+                    <div class="combat-info">
+                        <div id="combat-encounter">${encounterText}</div>
+                        <div class="monster-stats" id="monster-stats-display">
+                            <h4>${monster.name}</h4>
+                            <p>GYVYBĖS: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | ŽALA: ${monster.damage}</p>
+                        </div>
+                    </div>
+                    <div id="combat-log" class="combat-log-area"></div>
+                </div>`;
 
     setGameText(text);
     updateUI();
@@ -685,77 +692,82 @@ function openShop(isFirstTime = false, tab = 'buy') {
         </div>
     `;
 
+    // Helper to generate item HTML
+    const createShopItemHTML = (item, isBuying, count = 1) => {
+        let icon = 'help';
+        let statInfo = '';
+        let price = 0;
+        let action = '';
+        let disabled = '';
+        let btnText = '';
+
+        if (isBuying) {
+            price = item.price;
+            action = `onclick="buyItem('${item.name}')"`;
+            disabled = gameState.silver < price ? 'disabled' : '';
+            btnText = `${price} <span class="material-symbols-outlined icon-small">paid</span>`;
+        } else {
+            price = Math.floor((item.price || 5) / 2);
+            action = `onclick="sellItem('${item.name}', ${price})"`;
+            btnText = `+${price} <span class="material-symbols-outlined icon-small">paid</span>`;
+        }
+
+        // Determine icon and stats
+        if (item.type === 'weapon') {
+            icon = 'flash_on';
+            statInfo = `<span class="stat-badge damage" title="Žala">${item.value} <span class="material-symbols-outlined icon-small">flash_on</span></span>`;
+        } else if (item.type === 'armor') {
+            icon = 'shield';
+            statInfo = `<span class="stat-badge defense" title="Gynyba">+${item.value} <span class="material-symbols-outlined icon-small">shield</span></span>`;
+        } else if (item.type === 'potion') {
+            icon = 'local_pharmacy';
+            statInfo = `<span class="stat-badge healing" title="Gydymas">HP <span class="material-symbols-outlined icon-small">favorite</span></span>`;
+        } else {
+            icon = 'backpack';
+            statInfo = `<span class="stat-badge utility" title="Naudingas"><span class="material-symbols-outlined icon-small">build</span></span>`;
+        }
+
+        const nameDisplay = isBuying ? item.name : `${item.name} ${count > 1 ? `(x${count})` : ''}`;
+
+        return `<div class="shop-item">
+            <div class="shop-item-info">
+                <span class="material-symbols-outlined item-icon">${icon}</span>
+                <div class="item-details">
+                    <div class="item-header">
+                        <span class="item-name">${nameDisplay}</span>
+                        ${statInfo}
+                    </div>
+                    <div class="item-desc">${item.description || 'Nėra aprašymo.'}</div>
+                </div>
+            </div>
+            <button class="buy-btn" ${action} ${disabled}>
+                ${btnText}
+            </button>
+        </div>`;
+    };
+
     if (tab === 'buy') {
         shopText += "<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>";
         SHOP_ITEMS.forEach(item => {
-            let icon = 'help';
-            let statInfo = '';
-
-            if (item.type === 'weapon') {
-                icon = 'flash_on';
-                statInfo = `<span class="stat-badge damage" title="Žala">${item.value} <span class="material-symbols-outlined icon-small">flash_on</span></span>`;
-            } else if (item.type === 'armor') {
-                icon = 'shield';
-                statInfo = `<span class="stat-badge defense" title="Gynyba">+${item.value} <span class="material-symbols-outlined icon-small">shield</span></span>`;
-            } else if (item.type === 'potion') {
-                icon = 'local_pharmacy';
-                statInfo = `<span class="stat-badge healing" title="Gydymas">HP <span class="material-symbols-outlined icon-small">favorite</span></span>`;
-            } else {
-                icon = 'backpack';
-                statInfo = `<span class="stat-badge utility" title="Naudingas"><span class="material-symbols-outlined icon-small">build</span></span>`;
-            }
-
-            const canAfford = gameState.silver >= item.price;
-
-            shopText += `<div class="shop-item">
-                <div class="shop-item-info">
-                    <span class="material-symbols-outlined item-icon">${icon}</span>
-                    <div class="item-details">
-                        <div class="item-header">
-                            <span class="item-name">${item.name}</span>
-                            ${statInfo}
-                        </div>
-                        <div class="item-desc">${item.description}</div>
-                    </div>
-                </div>
-                <button class="buy-btn" onclick="buyItem('${item.name}')" ${!canAfford ? 'disabled' : ''}>
-                    ${item.price} <span class="material-symbols-outlined icon-small">paid</span>
-                </button>
-            </div>`;
+            shopText += createShopItemHTML(item, true);
         });
     } else { // Sell tab
         shopText += "<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>";
-
-        const inventoryCounts = gameState.inventory.reduce((acc, item) => {
-            acc[item] = (acc[item] || 0) + 1;
-            return acc;
-        }, {});
-        const sellableInventory = Object.keys(inventoryCounts);
+        const sellableInventory = [...new Set(gameState.inventory)];
 
         if (sellableInventory.length === 0) {
             shopText += "<p>Neturi nieko parduoti.</p>";
         } else {
             sellableInventory.forEach(itemName => {
-                const itemDetails = ITEM_LOOKUP[itemName];
-                const sellPrice = itemDetails ? Math.floor((itemDetails.price || 5) / 2) : 2;
-                const itemCount = inventoryCounts[itemName];
+                let itemDetails = ITEM_LOOKUP[itemName];
 
-                let icon = 'backpack';
-                if (itemDetails) {
-                    if (itemDetails.type === 'weapon') icon = 'flash_on';
-                    else if (itemDetails.type === 'armor') icon = 'shield';
-                    else if (itemDetails.type === 'potion') icon = 'local_pharmacy';
+                // Fallback if item details missing
+                if (!itemDetails) {
+                    itemDetails = { name: itemName, type: 'misc', description: 'Paprastas daiktas.', price: 2 };
                 }
 
-                shopText += `<div class="shop-item">
-                    <div class="shop-item-info">
-                         <span class="material-symbols-outlined item-icon">${icon}</span>
-                         <span class="item-name">${itemName} (x${itemCount})</span>
-                    </div>
-                    <button class="buy-btn" onclick="sellItem('${itemName}', ${sellPrice})">
-                        +${sellPrice} <span class="material-symbols-outlined icon-small">paid</span>
-                    </button>
-                </div>`;
+                const count = gameState.inventory.filter(i => i === itemName).length;
+                shopText += createShopItemHTML(itemDetails, false, count);
             });
         }
     }
