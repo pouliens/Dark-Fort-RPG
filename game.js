@@ -710,14 +710,20 @@ function openShop(isFirstTime = false, tab = 'buy') {
         });
     } else { // Sell tab
         shopText += "<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>";
-        const sellableInventory = [...new Set(gameState.inventory)];
+
+        const inventoryCounts = gameState.inventory.reduce((acc, item) => {
+            acc[item] = (acc[item] || 0) + 1;
+            return acc;
+        }, {});
+        const sellableInventory = Object.keys(inventoryCounts);
+
         if (sellableInventory.length === 0) {
             shopText += "<p>Neturi nieko parduoti.</p>";
         } else {
             sellableInventory.forEach(itemName => {
                 const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
                 const sellPrice = itemDetails ? Math.floor((itemDetails.price || 5) / 2) : 2;
-                const itemCount = gameState.inventory.filter(i => i === itemName).length;
+                const itemCount = inventoryCounts[itemName];
 
                 let icon = 'backpack';
                 if (itemDetails) {
