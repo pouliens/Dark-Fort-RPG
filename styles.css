@@ -71,6 +71,12 @@ body {
 
 /* Typography */
 h1 {
+    display: none; /* Replaced by .cyber-glitch */
+}
+
+h1.cyber-glitch {
+    display: block;
+    position: relative;
     font-family: var(--font-header);
     color: var(--accent-yellow);
     text-align: center;
@@ -78,9 +84,52 @@ h1 {
     margin: 10px 0 20px 0;
     text-shadow: var(--glow-yellow);
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 4px;
     border-bottom: var(--border-style) var(--accent-pink);
     padding-bottom: 10px;
+}
+
+h1.cyber-glitch::before,
+h1.cyber-glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-main);
+}
+
+h1.cyber-glitch::before {
+    left: 2px;
+    text-shadow: -1px 0 var(--accent-red);
+    clip: rect(24px, 550px, 90px, 0);
+    animation: glitch-anim-2 3s infinite linear alternate-reverse;
+}
+
+h1.cyber-glitch::after {
+    left: -2px;
+    text-shadow: -1px 0 var(--accent-cyan);
+    clip: rect(85px, 550px, 140px, 0);
+    animation: glitch-anim 2.5s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+    0% { clip: rect(11px, 9999px, 81px, 0); }
+    20% { clip: rect(74px, 9999px, 11px, 0); }
+    40% { clip: rect(54px, 9999px, 126px, 0); }
+    60% { clip: rect(8px, 9999px, 95px, 0); }
+    80% { clip: rect(138px, 9999px, 34px, 0); }
+    100% { clip: rect(5px, 9999px, 47px, 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip: rect(2px, 9999px, 148px, 0); }
+    20% { clip: rect(86px, 9999px, 96px, 0); }
+    40% { clip: rect(104px, 9999px, 66px, 0); }
+    60% { clip: rect(44px, 9999px, 6px, 0); }
+    80% { clip: rect(71px, 9999px, 127px, 0); }
+    100% { clip: rect(31px, 9999px, 4px, 0); }
 }
 
 h3 {
@@ -469,4 +518,47 @@ button:disabled {
     box-shadow: var(--glow-cyan);
     border-radius: 5px;
     margin-bottom: 5px;
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    background: rgba(15, 15, 19, 0.95);
+    color: var(--text-main);
+    border-left: 4px solid var(--accent-cyan);
+    padding: 15px 20px;
+    min-width: 250px;
+    font-family: var(--font-sub);
+    font-size: 0.9rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(4px);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.toast.success { border-color: var(--accent-yellow); color: var(--accent-yellow); box-shadow: var(--glow-yellow); }
+.toast.danger { border-color: var(--accent-red); color: var(--accent-red); box-shadow: 0 0 5px rgba(255, 51, 51, 0.5); }
+.toast.info { border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: var(--glow-cyan); }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }

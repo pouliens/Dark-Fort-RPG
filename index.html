@@ -13,7 +13,7 @@
 <body>
     <div id="crt-overlay"></div>
     <div class="container">
-        <h1>🏰 TAMSIOJI TVIRTOVĖ 🏰</h1>
+        <h1 class="cyber-glitch" data-text="TAMSIOJI TVIRTOVĖ">TAMSIOJI TVIRTOVĖ</h1>
         
         <!-- Character Stats -->
         <div class="character-sheet">
@@ -41,6 +41,8 @@
                 <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Pradėti Nuotykį</button>
                 <button id="exploreBtn" onclick="exploreRoom()" style="display: none;"><span class="material-symbols-outlined">search</span> Tyrinėti</button>
                 <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Pulti</button>
+                <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">gavel</span> Galingas Smūgis</button>
+                <button id="scavengeBtn" onclick="scavenge()" style="display: none;"><span class="material-symbols-outlined">manage_search</span> Ieškoti</button>
                 <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Bėgti</button>
                 <button id="levelUpBtn" onclick="levelUp()" style="display: none;"><span class="material-symbols-outlined">upgrade</span> Kelti Lygį!</button>
                 <!-- Simplified buttons. Shop and Potion buttons removed, will be contextual. -->
@@ -77,6 +79,8 @@
         </div>
         
     </div>
+
+    <div id="toast-container"></div>
 
     <!-- Sound Effects Library - sfxr.js -->
     <script src="https://sfxr.me/riffwave.js"></script>

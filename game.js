@@ -27,6 +27,7 @@ let gameState = {
     roomsExplored: 0,
     bossEncountered: false,
     playerIsDead: false,
+    canScavenge: false,
     challenges: {},
     map: []
 };
@@ -69,6 +70,32 @@ function updateChallengeProgress(type, name, amount) {
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
+
+/**
+ * Shows a toast notification.
+ * @param {string} message - The message to display.
+ * @param {string} type - 'info', 'success', or 'danger'.
+ */
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    let icon = 'info';
+    if (type === 'success') icon = 'check_circle';
+    if (type === 'danger') icon = 'warning';
+
+    toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${message}`;
+
+    container.appendChild(toast);
+
+    // Remove after animation (3s total: 0.3 slideIn + 2.2 wait + 0.5 fadeOut)
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
 
 /**
  * Rolls a die with a given number of sides.
@@ -237,6 +264,8 @@ function updateUI() {
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
+    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
+    document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
     
     const canLevelUp = gameState.points >= 10;
@@ -297,16 +326,19 @@ function startGame() {
     setGameText("<p>Įeini į prieblandoje skendintį kambarį. Ore tvyro dulkių ir puvėsių kvapas. Vienerios durys veda gilyn į katakombas.</p><p>Ką darysi?</p>");
     recalculateStats(); // To apply starting equipment
     updateUI();
+    showToast("Nuotykis prasidėjo!", "success");
 }
 
 /**
  * Explores a new room, triggering events like traps, monsters, or shops.
  */
 function exploreRoom() {
+    gameState.canScavenge = false;
 
     if (gameState.level >= 2 && !gameState.bossEncountered) {
         gameState.bossEncountered = true;
         log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
+        showToast("BOSSAS!", "danger");
         startCombat(FORTRESS_LORD);
         return;
     }
@@ -324,6 +356,7 @@ function exploreRoom() {
             text += "<p>Kambarys tuščias, tik dulkės ir voratinkliai.</p>";
             log("Kambarys buvo tuščias.");
             roomEvent.type = 'Tuščias';
+            gameState.canScavenge = true;
             break;
         case 3: // Trap
             roomEvent.type = 'Spąstai';
@@ -331,6 +364,7 @@ function exploreRoom() {
                 text += "<p class='success'>Pastebėjai spąstus-duobę ir saugiai perėjai per ją virve.</p>";
                 log("Saugiai išvengta spąstų-duobės.");
                 roomEvent.details = 'Išvengta';
+                showToast("Išvengta spąstų (Virvė)", "success");
             } else {
                 const damage = rollDie(4);
                 gameState.hp -= damage;
@@ -339,23 +373,27 @@ function exploreRoom() {
                 text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${damage} žalos!</p>`;
                 log(`Patyrė ${damage} žalos nuo spąstų.`);
                 roomEvent.details = `Patyrė ${damage} žalos`;
+                showToast(`Spąstai! -${damage} HP`, "danger");
             }
             break;
         case 4: // Weak Monster
             const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
             log(`Sutikai ${weakMonster.name}.`);
             gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: weakMonster.name });
+            showToast(`Priešas: ${weakMonster.name}`, "warning");
             startCombat(weakMonster);
             return;
         case 5: // Tough Monster
             const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
             log(`Sutikai ${toughMonster.name}.`);
             gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: toughMonster.name });
+            showToast(`Priešas: ${toughMonster.name}`, "danger");
             startCombat(toughMonster);
             return;
         case 6: // Shop
             log("Radai parduotuvę.");
             gameState.map.push({ room: gameState.roomsExplored, type: 'Parduotuvė', details: '' });
+            showToast("Radai Parduotuvę", "info");
             openShop(true);
             return;
     }
@@ -381,6 +419,7 @@ function usePotion() {
 
         gameState.inventory.splice(potionIndex, 1);
         log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
+        showToast(`Pasigydei: +${healing} HP`, "success");
 
         if (gameState.inCombat) {
             document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
@@ -388,6 +427,39 @@ function usePotion() {
         } else {
             setGameText(`<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
         }
+        updateUI();
+    }
+}
+
+
+/**
+ * Scavenge the current room for resources.
+ */
+function scavenge() {
+    gameState.canScavenge = false;
+    const roll = rollDie(6);
+
+    if (roll <= 2) {
+        // Ambush!
+        const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
+        log(`Ieškodamas sukėlei triukšmą ir prisišaukei ${weakMonster.name}!`);
+        showToast("PASALA!", "danger");
+        setGameText(`<p class="warning">Besirausdamas griuvėsiuose pažadinai ${weakMonster.name}!</p>`);
+        startCombat(weakMonster);
+    } else if (roll <= 4) {
+        // Nothing
+        log("Nieko neradai.");
+        showToast("Nieko neradai", "info");
+        setGameText("<p>Nieko naudingo neradai.</p>");
+        updateUI();
+    } else {
+        // Loot!
+        const silver = rollDie(6) + 2;
+        gameState.silver += silver;
+        updateChallengeProgress('collect', 'silver', silver);
+        log(`Radai ${silver} sidabro!`);
+        showToast(`Radai: ${silver} sidabro`, "success");
+        setGameText(`<p class="success">Tarp šiukšlių radai paslėptą kapšą su ${silver} sidabro!</p>`);
         updateUI();
     }
 }
@@ -426,6 +498,17 @@ function startCombat(monster) {
  * Player attacks the current monster.
  */
 function attack() {
+    performAttack(false);
+}
+
+/**
+ * Player performs a power attack.
+ */
+function powerAttack() {
+    performAttack(true);
+}
+
+function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
     if (!monster) return;
 
@@ -434,14 +517,28 @@ function attack() {
     const combatLogEl = document.getElementById('combat-log');
     combatLogEl.innerHTML = ''; // Clear previous log
 
-    const attackRoll = rollDie(6);
-    if (attackRoll >= monster.difficulty) {
-        const damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus;
+    let attackRoll = rollDie(6);
+    let hitBonus = 0;
+    let damageBonus = 0;
+
+    if (isPowerAttack) {
+        hitBonus = -2;
+        damageBonus = 2;
+        log("Bandai galingą smūgį...");
+    }
+
+    if (attackRoll + hitBonus >= monster.difficulty) {
+        const damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus + damageBonus;
         monster.currentHp -= damage;
 
         triggerMonsterHitEffect();
-        log(`Pataikei ${monster.name} ir padarei ${damage} žalos.`);
-        combatLogEl.innerHTML = `<p class='success'>Pataikei ${monster.name} ir padarei ${damage} žalos.</p>`;
+
+        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.`;
+        if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
+
+        log(msg);
+        showToast(isPowerAttack ? `Galingas! -${damage} HP` : `Pataikei! -${damage} HP`, "success");
+        combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
 
         document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
 
@@ -451,8 +548,9 @@ function attack() {
             monsterAttack();
         }
     } else {
-        log(`Nepataikei į ${monster.name}.`);
-        combatLogEl.innerHTML = `<p class='warning'>Nepataikei į ${monster.name}.</p>`;
+        log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
+        showToast(isPowerAttack ? "Nepavyko!" : "Nepataikei!", "danger");
+        combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
         monsterAttack();
     }
     updateUI();
@@ -491,6 +589,9 @@ function monsterAttack() {
         gameState.hp -= damage;
         playPlayerHitSound();
         triggerDamageEffect();
+        showToast(`Gavai smūgį! -${damage} HP`, "danger");
+    } else {
+        showToast("Blokavai smūgį!", "info");
     }
 
     log(`${monster.name} tau smogė ir padarė ${damage} žalos.`);
@@ -521,6 +622,7 @@ function winCombat(killingBlowDamage) {
         loot.push(droppedItem.name);
         gameState.inventory.push(droppedItem.name);
         log(`Pabaisa išmetė ${droppedItem.name}!`);
+        showToast(`Radai daiktą: ${droppedItem.name}`, "success");
         // Player must now equip manually
     }
 
@@ -599,6 +701,7 @@ function buyItem(itemName) {
         gameState.silver -= item.price;
         gameState.inventory.push(itemName);
         log(`Nusipirkai ${itemName}.`);
+        showToast(`Nusipirkai: ${itemName}`, "success");
         // Player must now equip manually from inventory
         openShop(false, 'buy'); // Refresh shop view
     }
@@ -616,6 +719,7 @@ function sellItem(itemName, sellPrice) {
         gameState.silver += sellPrice;
         updateChallengeProgress('collect', 'silver', sellPrice);
         log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
+        showToast(`Pardavei: ${itemName} (+${sellPrice})`, "info");
         recalculateStats(); // Recalculate stats after selling
         openShop(false, 'sell');
     }
@@ -628,10 +732,12 @@ function toggleEquip(itemName, itemType) {
         // Unequip if clicking the same item
         gameState[slot] = null;
         log(`Nusiėmei ${itemName}.`);
+        showToast(`Nusiėmei: ${itemName}`, "info");
     } else {
         // Equip new item
         gameState[slot] = itemName;
         log(`Užsidėjai ${itemName}.`);
+        showToast(`Užsidėjai: ${itemName}`, "success");
     }
     recalculateStats();
 }
@@ -718,6 +824,7 @@ function levelUp() {
     gameState.playerDamageBonus++; // This is a direct damage add, separate from die type
 
     log(`PASIEKEI NAUJĄ LYGĮ! Dabar esi ${gameState.level} lygio!`);
+    showToast(`LYGIS PAKILO! (${gameState.level})`, "success");
     setGameText(`<p class='success'>Pasiekei ${gameState.level} lygį! Tavo žala padidėjo 1, o bazinė gynyba ir kiti atributai galėjo pagerėti.</p>`);
 
     recalculateStats(); // Recalculate all stats to apply level benefits
@@ -733,6 +840,7 @@ function levelUp() {
  */
 function winGame() {
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
+    showToast("PERGALĖ!", "success");
     saveChallenges();
     setGameText(`<h3><span class="material-symbols-outlined">emoji_events</span> PERGALĖ! <span class="material-symbols-outlined">emoji_events</span></h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     gameState.inCombat = false;
@@ -747,6 +855,7 @@ function gameOver(reason) {
     gameState.playerIsDead = true;
     saveChallenges();
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
+    showToast("ŽAIDIMAS BAIGTAS", "danger");
     setGameText(`<h3><span class="material-symbols-outlined">skull</span> ŽAIDIMAS BAIGTAS <span class="material-symbols-outlined">skull</span></h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     updateUI();
 }
