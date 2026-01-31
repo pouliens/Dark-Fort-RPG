@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@100..900&family=Orbitron:wght@400..900&family=Share+Tech+Mono&family=Special+Elite&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,14 +17,14 @@
         
         <!-- Character Stats -->
         <div class="character-sheet">
-            <h3 id="playerName">📜</h3>
+            <h3 id="playerName"><span class="material-symbols-outlined">history_edu</span></h3>
             <div class="stats">
-                <div class="stat" data-tooltip="Gyvybės">❤️ <span id="hp">15</span>/<span id="maxHp">15</span></div>
-                <div class="stat" data-tooltip="Sidabras">🪙 <span id="silver">0</span></div>
-                <div class="stat" data-tooltip="Taškai">⭐ <span id="points">0</span>/<span id="maxPoints">10</span></div>
-                <div class="stat" data-tooltip="Žala">⚔️ <span id="playerDamage">d4</span></div>
-                <div class="stat" data-tooltip="Šarvai">🛡️ <span id="playerDefense">0</span></div>
-                <div class="stat" data-tooltip="Lygis">🏆 <span id="level">1</span></div>
+                <div class="stat" data-tooltip="Gyvybės"><span class="material-symbols-outlined">favorite</span> <span id="hp">15</span>/<span id="maxHp">15</span></div>
+                <div class="stat" data-tooltip="Sidabras"><span class="material-symbols-outlined">paid</span> <span id="silver">0</span></div>
+                <div class="stat" data-tooltip="Taškai"><span class="material-symbols-outlined">star</span> <span id="points">0</span>/<span id="maxPoints">10</span></div>
+                <div class="stat" data-tooltip="Žala"><span class="material-symbols-outlined">flash_on</span> <span id="playerDamage">d4</span></div>
+                <div class="stat" data-tooltip="Šarvai"><span class="material-symbols-outlined">shield</span> <span id="playerDefense">0</span></div>
+                <div class="stat" data-tooltip="Lygis"><span class="material-symbols-outlined">emoji_events</span> <span id="level">1</span></div>
             </div>
         </div>
 
@@ -37,23 +38,23 @@
             </div>
 
             <div class="actions" id="gameActions">
-                <button id="startBtn" onclick="startGame()">🚪 Pradėti Nuotykį</button>
-                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;">🔍 Tyrinėti</button>
-                <button id="attackBtn" onclick="attack()" style="display: none;">⚔️ Pulti</button>
-                <button id="fleeBtn" onclick="flee()" style="display: none;">🏃 Bėgti</button>
-                <button id="levelUpBtn" onclick="levelUp()" style="display: none;">🌟 Kelti Lygį!</button>
+                <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Pradėti Nuotykį</button>
+                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;"><span class="material-symbols-outlined">search</span> Tyrinėti</button>
+                <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Pulti</button>
+                <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Bėgti</button>
+                <button id="levelUpBtn" onclick="levelUp()" style="display: none;"><span class="material-symbols-outlined">upgrade</span> Kelti Lygį!</button>
                 <!-- Simplified buttons. Shop and Potion buttons removed, will be contextual. -->
             </div>
         </div>
         
         <!-- Inventory -->
         <div class="inventory">
-            <h4>🎒 Inventorius:</h4>
+            <h4><span class="material-symbols-outlined">backpack</span> Inventorius:</h4>
             <div id="inventory">Tuščia</div>
 
             <!-- Challenges -->
             <div class="challenges">
-                <h4>🏆 Iššūkiai:</h4>
+                <h4><span class="material-symbols-outlined">emoji_events</span> Iššūkiai:</h4>
                 <div id="challenges">Tuoj...</div>
             </div>
         </div>
@@ -71,7 +72,7 @@
 
         <!-- Log -->
         <div class="log">
-            <h4>📋 Žurnalas:</h4>
+            <h4><span class="material-symbols-outlined">menu_book</span> Žurnalas:</h4>
             <div id="log"></div>
         </div>
         
