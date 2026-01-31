@@ -382,14 +382,94 @@ button:disabled {
     border: 1px solid var(--text-dim);
     margin-bottom: 8px;
     padding: 8px;
+    gap: 10px;
 }
 
-.shop-item button {
-    padding: 5px 10px;
+.shop-item-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.item-icon {
+    font-size: 2rem;
+    color: var(--accent-cyan);
+    min-width: 40px;
+    text-align: center;
+}
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+    flex-wrap: wrap;
+}
+
+.item-name {
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: 4px;
     font-size: 0.8rem;
+    font-family: var(--font-ui);
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.stat-badge.damage {
+    color: var(--accent-red);
+    border: 1px solid var(--accent-red);
+}
+
+.stat-badge.defense {
+    color: var(--accent-cyan);
+    border: 1px solid var(--accent-cyan);
+}
+
+.stat-badge.healing {
+    color: var(--accent-pink);
+    border: 1px solid var(--accent-pink);
+}
+
+.stat-badge.utility {
+    color: var(--text-dim);
+    border: 1px solid var(--text-dim);
+}
+
+.icon-small {
+    font-size: 1rem;
+    vertical-align: middle;
+}
+
+.item-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.buy-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    padding: 8px 12px;
     width: auto;
     clip-path: none;
+    font-size: 0.9rem;
 }
+
 
 /* Combat */
 .monster-stats {
