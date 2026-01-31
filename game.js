@@ -170,7 +170,7 @@ let gameTextEl, logEl;
  */
 function log(message) {
     if (logEl) {
-        logEl.innerHTML = `<p>${message}</p>` + logEl.innerHTML;
+        logEl.insertAdjacentHTML('afterbegin', `<p>${message}</p>`);
     }
 }
 
