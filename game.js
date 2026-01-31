@@ -35,6 +35,21 @@ let gameState = {
 // Data is now in game-data.js
 
 // -----------------------------------------------------------------------------
+// OPTIMIZATIONS
+// -----------------------------------------------------------------------------
+
+const ITEM_LOOKUP = {};
+// Populate lookup map. Order matters: LOOT_DROPS first, then SHOP_ITEMS overwrites.
+// This preserves the precedence of SHOP_ITEMS which was implicit in the original [...SHOP_ITEMS, ...LOOT_DROPS].find()
+// or SHOP_ITEMS.find() || LOOT_DROPS.find() logic.
+if (typeof LOOT_DROPS !== 'undefined') {
+    LOOT_DROPS.forEach(item => ITEM_LOOKUP[item.name] = item);
+}
+if (typeof SHOP_ITEMS !== 'undefined') {
+    SHOP_ITEMS.forEach(item => ITEM_LOOKUP[item.name] = item);
+}
+
+// -----------------------------------------------------------------------------
 // CHALLENGE FUNCTIONS
 // -----------------------------------------------------------------------------
 
@@ -136,7 +151,7 @@ function handleInventoryClick(itemName) {
         return;
     }
 
-    const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
+    const itemDetails = ITEM_LOOKUP[itemName];
 
     if (!itemDetails) {
         log(`Negalima panaudoti daikto ${itemName}.`);
@@ -242,7 +257,7 @@ function updateUI() {
             if (count > 1) {
                 displayText += ` (x${count})`;
             }
-            const itemDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === itemName);
+            const itemDetails = ITEM_LOOKUP[itemName];
             const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
             const isUtility = itemDetails && itemDetails.type === 'utility';
             const isMap = itemName === 'Žemėlapis';
@@ -715,7 +730,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
             shopText += "<p>Neturi nieko parduoti.</p>";
         } else {
             sellableInventory.forEach(itemName => {
-                const itemDetails = SHOP_ITEMS.find(i => i.name === itemName) || LOOT_DROPS.find(i => i.name === itemName);
+                const itemDetails = ITEM_LOOKUP[itemName];
                 const sellPrice = itemDetails ? Math.floor((itemDetails.price || 5) / 2) : 2;
                 const itemCount = gameState.inventory.filter(i => i === itemName).length;
 
@@ -803,12 +818,12 @@ function recalculateStats() {
 
     // Apply equipped items' stats
     if (gameState.equippedWeapon) {
-        const weaponDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === gameState.equippedWeapon);
+        const weaponDetails = ITEM_LOOKUP[gameState.equippedWeapon];
         if (weaponDetails) gameState.playerDamage = weaponDetails.value;
     }
 
     if (gameState.equippedArmor) {
-        const armorDetails = [...SHOP_ITEMS, ...LOOT_DROPS].find(i => i.name === gameState.equippedArmor);
+        const armorDetails = ITEM_LOOKUP[gameState.equippedArmor];
         if (armorDetails) gameState.playerDefense += armorDetails.value;
     }
 
