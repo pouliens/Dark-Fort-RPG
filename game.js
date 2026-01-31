@@ -191,7 +191,7 @@ function updateUI() {
     document.getElementById('maxPoints').textContent = 10;
     document.getElementById('level').textContent = gameState.level;
     if (gameState.playerName) {
-        document.getElementById('playerName').textContent = `📜 ${gameState.playerName}`;
+        document.getElementById('playerName').innerHTML = `<span class="material-symbols-outlined">history_edu</span> ${gameState.playerName}`;
     }
     let damageString = gameState.playerDamage;
     if (gameState.playerDamageBonus > 0) {
@@ -465,6 +465,9 @@ function flee() {
     const combatLogEl = document.getElementById('combat-log');
 
     if (Math.random() < 0.5) { // 50% chance to flee
+        if (gameState.currentMonster && gameState.currentMonster.name === FORTRESS_LORD.name) {
+            gameState.bossEncountered = false;
+        }
         gameState.inCombat = false;
         gameState.currentMonster = null;
         log("Sėkmingai pabėgai iš kovos.");
@@ -559,7 +562,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
     `;
 
     if (tab === 'buy') {
-        shopText += "<h4>🛒 Prekeivio Prekės</h4>";
+        shopText += "<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>";
         SHOP_ITEMS.forEach(item => {
             shopText += `<div class="shop-item">
                 <span>${item.name} (${item.price}s): ${item.description}</span>
@@ -567,7 +570,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
             </div>`;
         });
     } else { // Sell tab
-        shopText += "<h4>🎒 Tavo Prekės</h4>";
+        shopText += "<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>";
         const sellableInventory = [...new Set(gameState.inventory)];
         if (sellableInventory.length === 0) {
             shopText += "<p>Neturi nieko parduoti.</p>";
@@ -669,12 +672,12 @@ function closeShop() {
 
 function getRoomIcon(type) {
     switch (type) {
-        case 'Priešas': return '💀';
-        case 'Spąstai': return '❗';
-        case 'Parduotuvė': return '🛒';
-        case 'Lobis': return '💰';
-        case 'Tuščias': return '🚪';
-        default: return '?';
+        case 'Priešas': return '<span class="material-symbols-outlined">skull</span>';
+        case 'Spąstai': return '<span class="material-symbols-outlined">warning</span>';
+        case 'Parduotuvė': return '<span class="material-symbols-outlined">storefront</span>';
+        case 'Lobis': return '<span class="material-symbols-outlined">diamond</span>';
+        case 'Tuščias': return '<span class="material-symbols-outlined">door_front</span>';
+        default: return '<span class="material-symbols-outlined">help</span>';
     }
 }
 
@@ -731,7 +734,7 @@ function levelUp() {
 function winGame() {
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
     saveChallenges();
-    setGameText(`<h3>🏆 PERGALĖ! 🏆</h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
+    setGameText(`<h3><span class="material-symbols-outlined">emoji_events</span> PERGALĖ! <span class="material-symbols-outlined">emoji_events</span></h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     gameState.inCombat = false;
     updateUI();
 }
@@ -744,7 +747,7 @@ function gameOver(reason) {
     gameState.playerIsDead = true;
     saveChallenges();
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
-    setGameText(`<h3>💀 ŽAIDIMAS BAIGTAS 💀</h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
+    setGameText(`<h3><span class="material-symbols-outlined">skull</span> ŽAIDIMAS BAIGTAS <span class="material-symbols-outlined">skull</span></h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
     updateUI();
 }
 
@@ -790,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logContainerEl = document.querySelector('.log');
     if (logContainerEl) {
         logContainerEl.addEventListener('click', () => {
-            logEl.classList.toggle('expanded');
+            logContainerEl.classList.toggle('expanded');
         });
     }
 
