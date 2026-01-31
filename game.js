@@ -335,12 +335,22 @@ function startGame() {
 function exploreRoom() {
     gameState.canScavenge = false;
 
-    if (gameState.level >= 2 && !gameState.bossEncountered) {
-        gameState.bossEncountered = true;
-        log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
-        showToast("BOSSAS!", "danger");
-        startCombat(FORTRESS_LORD);
-        return;
+    if (gameState.level >= 2) {
+        let triggerBoss = false;
+
+        if (!gameState.bossEncountered) {
+            triggerBoss = true;
+        } else if (Math.random() < 0.15) {
+            triggerBoss = true;
+        }
+
+        if (triggerBoss) {
+            gameState.bossEncountered = true;
+            log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
+            showToast("BOSSAS!", "danger");
+            startCombat(FORTRESS_LORD);
+            return;
+        }
     }
 
     gameState.points++;
@@ -563,9 +573,6 @@ function flee() {
     const combatLogEl = document.getElementById('combat-log');
 
     if (Math.random() < 0.5) { // 50% chance to flee
-        if (gameState.currentMonster && gameState.currentMonster.name === FORTRESS_LORD.name) {
-            gameState.bossEncountered = false;
-        }
         gameState.inCombat = false;
         gameState.currentMonster = null;
         log("Sėkmingai pabėgai iš kovos.");
