@@ -1,11 +1,23 @@
 // --- SOUND EFFECTS ---
 
+const soundCache = {};
+
 // A utility function to play a sound based on sfxr parameters
 function playSound(preset) {
     // Check if sfxr is loaded
     if (typeof sfxr !== 'undefined') {
-        const sound = sfxr.generate(preset);
-        sfxr.play(sound);
+        if (!soundCache[preset]) {
+            const params = sfxr.generate(preset);
+            soundCache[preset] = sfxr.toAudio(params);
+        }
+        const player = soundCache[preset];
+        // If it's a standard HTML5 Audio element (fallback), clone it to allow polyphony
+        if (player.cloneNode) {
+            player.cloneNode(true).play();
+        } else {
+            // Otherwise it's likely the WebAudio wrapper which handles polyphony internally
+            player.play();
+        }
     } else {
         console.warn("jsfxr library not found. Sound disabled.");
     }
