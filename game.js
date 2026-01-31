@@ -842,6 +842,9 @@ function openMap() {
     const mapModalEl = document.getElementById('mapModal');
 
     mapGridEl.innerHTML = ''; // Clear previous map
+
+    const fragment = document.createDocumentFragment();
+
     gameState.map.forEach(room => {
         const roomEl = document.createElement('div');
         roomEl.className = 'map-cell';
@@ -850,8 +853,10 @@ function openMap() {
             <div class="map-cell-room-number">${room.room}</div>
             <div class="map-cell-details">${room.details}</div>
         `;
-        mapGridEl.appendChild(roomEl);
+        fragment.appendChild(roomEl);
     });
+
+    mapGridEl.appendChild(fragment);
 
     mapModalEl.style.display = 'block';
 }
