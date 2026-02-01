@@ -242,6 +242,40 @@ function updateUI() {
     document.getElementById('playerDamage').textContent = damageString;
     document.getElementById('playerDefense').textContent = gameState.playerDefense;
 
+    // Update Battle Interface Stats (if active)
+    if (gameState.inCombat) {
+        const battleHp = document.getElementById('battle-player-hp');
+        const battleMaxHp = document.getElementById('battle-player-max-hp');
+        const battleDamage = document.getElementById('battle-player-damage');
+        const battleDefense = document.getElementById('battle-player-defense');
+
+        if (battleHp) battleHp.textContent = gameState.hp;
+        if (battleMaxHp) battleMaxHp.textContent = gameState.maxHp;
+        if (battleDamage) battleDamage.textContent = damageString;
+        if (battleDefense) battleDefense.textContent = gameState.playerDefense;
+
+        if (gameState.currentMonster) {
+            const hpBar = document.getElementById('battle-enemy-hp-bar');
+            if (hpBar) {
+                const pct = Math.max(0, (gameState.currentMonster.currentHp / gameState.currentMonster.hp) * 100);
+                hpBar.style.width = `${pct}%`;
+            }
+        }
+
+        // Quick Items (Potions)
+        const quickItemsEl = document.getElementById('battle-quick-items');
+        if (quickItemsEl) {
+            const potions = gameState.inventory.filter(i => i === 'Mikstūra');
+            if (potions.length > 0) {
+                quickItemsEl.innerHTML = `<button class="battle-item-btn" onclick="usePotion()">
+                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> Gydytis (${potions.length})
+                </button>`;
+            } else {
+                quickItemsEl.innerHTML = '';
+            }
+        }
+    }
+
     // Update Inventory
     const inventoryEl = document.getElementById('inventory');
     if (gameState.inventory.length === 0) {
@@ -501,6 +535,7 @@ function scavenge() {
 function startCombat(monster) {
     gameState.inCombat = true;
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
+    document.body.classList.add('in-combat');
 
     let encounterText = monster.name === FORTRESS_LORD.name
         ? `<p><strong>Paskutinė menė:</strong></p><p class='warning'>Didžiuliai paskutinės menės vartai girgždėdami atsidaro, atidengdami <strong>${FORTRESS_LORD.name}</strong> savo soste!</p>`
@@ -508,19 +543,59 @@ function startCombat(monster) {
             ? `<p class='warning'>Bauginantis ${monster.name} pastoja tau kelią!</p>`
             : `<p class='warning'>Pasirodo ${monster.name}!</p>`;
 
-    let text = `<div class="combat-scene">
-                    <div class="combat-visual">
-                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
+    let damageString = gameState.playerDamage;
+    if (gameState.playerDamageBonus > 0) damageString += `+${gameState.playerDamageBonus}`;
+
+    let text = `
+        <div class="battle-interface">
+            <!-- Enemy Section (Top) -->
+            <div class="battle-enemy">
+                <div class="battle-enemy-visual">
+                     <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
+                </div>
+                <div class="battle-enemy-stats" id="monster-stats-display">
+                    <h3 class="battle-enemy-name">${monster.name}</h3>
+                    <div class="battle-hp-bar-container">
+                        <div id="battle-enemy-hp-bar" class="battle-hp-bar-fill" style="width: 100%;"></div>
                     </div>
-                    <div class="combat-info">
-                        <div id="combat-encounter">${encounterText}</div>
-                        <div class="monster-stats" id="monster-stats-display">
-                            <h4>${monster.name}</h4>
-                            <p>GYVYBĖS: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} | ŽALA: ${monster.damage}</p>
-                        </div>
+                    <div class="battle-enemy-hp-text">
+                        HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp}
+                        <br>Žala: ${monster.damage}
                     </div>
-                    <div id="combat-log" class="combat-log-area"></div>
-                </div>`;
+                </div>
+            </div>
+
+            <!-- Player Section (Middle) -->
+            <div class="battle-player">
+                <div class="battle-player-header">
+                    <span class="battle-player-name">${gameState.playerName}</span>
+                    <span class="battle-player-level">Lygis ${gameState.level}</span>
+                </div>
+                <div class="battle-player-stats-row">
+                    <div class="battle-stat hp">
+                        <span class="material-symbols-outlined">favorite</span>
+                        <span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span>
+                    </div>
+                    <div class="battle-stat damage">
+                        <span class="material-symbols-outlined">flash_on</span> <span id="battle-player-damage">${damageString}</span>
+                    </div>
+                    <div class="battle-stat defense">
+                         <span class="material-symbols-outlined">shield</span> <span id="battle-player-defense">${gameState.playerDefense}</span>
+                    </div>
+                </div>
+                <!-- Quick Items (Potions) -->
+                <div id="battle-quick-items" class="battle-quick-items">
+                    <!-- Populated by updateUI -->
+                </div>
+            </div>
+
+            <!-- Combat Log (Bottom) -->
+            <div id="combat-log" class="battle-log">
+                ${encounterText}
+                <div class="turn-separator">KOVA PRASIDEDA</div>
+            </div>
+        </div>
+    `;
 
     setGameText(text);
     updateUI();
@@ -597,12 +672,13 @@ function flee() {
     if (Math.random() < 0.5) { // 50% chance to flee
         gameState.inCombat = false;
         gameState.currentMonster = null;
+        document.body.classList.remove('in-combat');
         log("Sėkmingai pabėgai iš kovos.");
         setGameText("<p class='success'>Pavyko pabėgti!</p><p>Gali tęsti tyrinėjimą.</p>");
         updateUI();
     } else {
         log("Nepavyko pabėgti.");
-        combatLogEl.innerHTML = `<p class='warning'>Nepavyko pabėgti!</p>`;
+        if (combatLogEl) combatLogEl.innerHTML += `<p class='warning'>Nepavyko pabėgti!</p>`;
         monsterAttack();
     }
 }
@@ -671,6 +747,7 @@ function winCombat(killingBlowDamage) {
     
     gameState.inCombat = false;
     gameState.currentMonster = null;
+    document.body.classList.remove('in-combat');
     updateUI();
 }
 
@@ -942,6 +1019,7 @@ function winGame() {
 function gameOver(reason) {
     gameState.playerIsDead = true;
     saveChallenges();
+    document.body.classList.remove('in-combat');
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
     showToast("ŽAIDIMAS BAIGTAS", "danger");
     setGameText(`<h3><span class="material-symbols-outlined">skull</span> ŽAIDIMAS BAIGTAS <span class="material-symbols-outlined">skull</span></h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
@@ -975,6 +1053,7 @@ function resetGame() {
         playerIsDead: false,
         map: []
     };
+    document.body.classList.remove('in-combat');
     logEl.innerHTML = "";
     setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
     updateUI();
