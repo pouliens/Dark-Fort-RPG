@@ -32,7 +32,8 @@ let gameState = {
     map: [],
     totalSilverCollected: 0,
     monstersDefeated: 0,
-    gameWon: false
+    gameWon: false,
+    inVictory: false
 };
 
 // Data is now in game-data.js
@@ -265,17 +266,30 @@ function updateUI() {
             }
         }
 
-        // Quick Items (Potions)
+        // Quick Items (Potions & Weapons)
         const quickItemsEl = document.getElementById('battle-quick-items');
         if (quickItemsEl) {
+            let buttonsHtml = '';
+
             const potions = gameState.inventory.filter(i => i === 'Mikstūra');
             if (potions.length > 0) {
-                quickItemsEl.innerHTML = `<button class="battle-item-btn" onclick="usePotion()">
+                buttonsHtml += `<button class="battle-item-btn" onclick="usePotion()">
                     <span class="material-symbols-outlined icon-small">local_pharmacy</span> Gydytis (${potions.length})
                 </button>`;
-            } else {
-                quickItemsEl.innerHTML = '';
             }
+
+            const weapons = [...new Set(gameState.inventory)].filter(item => {
+                const details = ITEM_LOOKUP[item];
+                return details && details.type === 'weapon' && item !== gameState.equippedWeapon;
+            });
+
+            weapons.forEach(weapon => {
+                buttonsHtml += `<button class="battle-item-btn" onclick="swapWeaponInBattle('${weapon}')">
+                   <span class="material-symbols-outlined icon-small">flash_on</span> ${weapon}
+               </button>`;
+            });
+
+            quickItemsEl.innerHTML = buttonsHtml;
         }
     }
 
@@ -313,15 +327,17 @@ function updateUI() {
 
     // Update Buttons
     const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon;
+    const buttonsVisible = !gameState.inVictory;
+
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
-    document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
-    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
-    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
-    document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
-    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
+    document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
+    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
+    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
+    document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
+    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
     
     const canLevelUp = gameState.points >= 10;
-    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
+    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
 
     // Update Challenges
     const challengesEl = document.getElementById('challenges');
@@ -498,6 +514,23 @@ function usePotion() {
     }
 }
 
+function swapWeaponInBattle(itemName) {
+    const itemDetails = ITEM_LOOKUP[itemName];
+    if (itemDetails && itemDetails.type === 'weapon') {
+        gameState.equippedWeapon = itemName;
+        recalculateStats();
+
+        // Log for battle
+        const logMsg = `Pasikeitei ginklą į ${itemName}.`;
+        log(logMsg);
+        const combatLogEl = document.getElementById('combat-log');
+        if (combatLogEl) {
+            combatLogEl.innerHTML += `<p class='info' style="color: var(--accent-cyan)">${logMsg}</p>`;
+        }
+        updateUI();
+    }
+}
+
 
 /**
  * Scavenge the current room for resources.
@@ -576,10 +609,6 @@ function startCombat(monster) {
 
             <!-- Player Section (Middle) -->
             <div class="battle-player">
-                <div class="battle-player-header">
-                    <span class="battle-player-name">${gameState.playerName}</span>
-                    <span class="battle-player-level">Lygis ${gameState.level}</span>
-                </div>
                 <div class="battle-player-stats-row">
                     <div class="battle-stat hp">
                         <span class="material-symbols-outlined">favorite</span>
@@ -592,7 +621,7 @@ function startCombat(monster) {
                          <span class="material-symbols-outlined">shield</span> <span id="battle-player-defense">${gameState.playerDefense}</span>
                     </div>
                 </div>
-                <!-- Quick Items (Potions) -->
+                <!-- Quick Items (Potions & Weapons) -->
                 <div id="battle-quick-items" class="battle-quick-items">
                     <!-- Populated by updateUI -->
                 </div>
@@ -721,6 +750,42 @@ function monsterAttack() {
     updateUI();
 }
 
+function showVictoryScreen(monster, lootItems, xp, silver) {
+    let lootHtml = lootItems.length > 0 ? lootItems.map(item => `<span>${item}</span>`).join(', ') : 'Nieko';
+
+    let html = `
+        <div class="victory-screen">
+            <h2>PERGALĖ!</h2>
+            <div class="victory-monster">
+                <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="Victory">
+                <div>Nugalėtas: <strong>${monster.name}</strong></div>
+            </div>
+
+            <div class="victory-rewards">
+                <p><span class="material-symbols-outlined">star</span> +${xp} Taškų</p>
+                <p><span class="material-symbols-outlined">paid</span> +${silver} Sidabro</p>
+                <div class="victory-loot">
+                    Grobis: ${lootHtml}
+                </div>
+            </div>
+
+            <button onclick="endCombatEncounter()">Tęsti</button>
+        </div>
+    `;
+
+    setGameText(html);
+}
+
+function endCombatEncounter() {
+    gameState.inVictory = false;
+    gameState.inCombat = false;
+    gameState.currentMonster = null;
+    document.body.classList.remove('in-combat');
+
+    setGameText("<p>Kova baigta. Aplink tyla. Ką darysi toliau?</p>");
+    updateUI();
+}
+
 function winCombat(killingBlowDamage) {
     const monster = gameState.currentMonster;
     gameState.monstersDefeated++;
@@ -731,15 +796,14 @@ function winCombat(killingBlowDamage) {
     gameState.silver += silverFound;
     gameState.totalSilverCollected += silverFound;
     updateChallengeProgress('collect', 'silver', silverFound);
-    let loot = [`${silverFound} sidabro`];
+
+    let lootItems = [];
 
     if (Math.random() < 0.2 + (monster.difficulty * 0.1)) {
         const droppedItem = { ...LOOT_DROPS[rollDie(LOOT_DROPS.length) - 1] };
-        loot.push(droppedItem.name);
+        lootItems.push(droppedItem.name);
         gameState.inventory.push(droppedItem.name);
         log(`Pabaisa išmetė ${droppedItem.name}!`);
-        // showToast(`Radai daiktą: ${droppedItem.name}`, "success");
-        // Player must now equip manually
     }
 
     log(`Nugalėjai ${monster.name}!`);
@@ -749,16 +813,8 @@ function winCombat(killingBlowDamage) {
         return;
     }
     
-    let text = `<p class='success'>Nugalėjai ${monster.name} su lemiamu ${killingBlowDamage} žalos smūgiu!</p>
-                <p>Gavai ${monster.points} taškų.</p>
-                <p><strong>Grobis:</strong> ${loot.join(', ')}</p>
-                <p>Gali tęsti tyrinėjimą.</p>`;
-
-    setGameText(text);
-    
-    gameState.inCombat = false;
-    gameState.currentMonster = null;
-    document.body.classList.remove('in-combat');
+    gameState.inVictory = true;
+    showVictoryScreen(monster, lootItems, monster.points, silverFound);
     updateUI();
 }
 
@@ -1087,7 +1143,8 @@ function resetGame() {
         map: [],
         totalSilverCollected: 0,
         monstersDefeated: 0,
-        gameWon: false
+        gameWon: false,
+        inVictory: false
     };
     document.body.classList.remove('in-combat');
     logEl.innerHTML = "";
