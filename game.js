@@ -348,6 +348,10 @@ function updateUI() {
  * Starts a new game.
  */
 function startGame() {
+    // Hide Title
+    const titleEl = document.querySelector('h1.cyber-glitch');
+    if (titleEl) titleEl.style.display = 'none';
+
     loadChallenges();
     gameState.gameStarted = true;
     const startingSilver = 25 + rollDie(6);
@@ -1030,6 +1034,10 @@ function gameOver(reason) {
  * Resets the game to its initial state for a new adventure.
  */
 function resetGame() {
+    // Show Title
+    const titleEl = document.querySelector('h1.cyber-glitch');
+    if (titleEl) titleEl.style.display = 'block';
+
     gameState = {
         hp: 20,
         maxHp: 20,
