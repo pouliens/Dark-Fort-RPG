@@ -911,3 +911,62 @@ body.in-combat .log {
     font-size: 0.7rem;
     text-align: center;
 }
+
+/* Victory Screen */
+.victory-screen {
+    text-align: center;
+    animation: fadeIn 0.5s;
+    background: var(--bg-surface);
+    border: var(--border-style) var(--accent-yellow);
+    box-shadow: var(--glow-yellow);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.victory-screen h2 {
+    color: var(--accent-yellow);
+    font-family: var(--font-header);
+    font-size: 2.5rem;
+    text-shadow: 0 0 10px var(--accent-yellow);
+    margin: 0 0 20px 0;
+    text-transform: uppercase;
+}
+
+.victory-monster img {
+    max-width: 150px;
+    height: auto;
+    image-rendering: pixelated;
+    border: 2px solid var(--accent-yellow);
+    box-shadow: 0 0 20px rgba(242, 255, 0, 0.3);
+    margin-bottom: 20px;
+    background: #000;
+}
+
+.victory-rewards {
+    background: rgba(242, 255, 0, 0.05);
+    border: 1px solid var(--accent-yellow);
+    padding: 20px;
+    margin: 20px 0;
+    font-family: var(--font-ui);
+    width: 100%;
+    max-width: 400px;
+}
+
+.victory-rewards p {
+    margin: 8px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.victory-loot {
+    color: var(--accent-pink);
+    font-weight: bold;
+    margin-top: 10px;
+    border-top: 1px dashed var(--text-dim);
+    padding-top: 10px;
+}
