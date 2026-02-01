@@ -29,7 +29,10 @@ let gameState = {
     playerIsDead: false,
     canScavenge: false,
     challenges: {},
-    map: []
+    map: [],
+    totalSilverCollected: 0,
+    monstersDefeated: 0,
+    gameWon: false
 };
 
 // Data is now in game-data.js
@@ -309,7 +312,7 @@ function updateUI() {
     }
 
     // Update Buttons
-    const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead;
+    const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon;
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop ? 'block' : 'none';
     document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat ? 'block' : 'none';
@@ -356,6 +359,7 @@ function startGame() {
     gameState.gameStarted = true;
     const startingSilver = 25 + rollDie(6);
     gameState.silver = startingSilver;
+    gameState.totalSilverCollected += startingSilver;
     updateChallengeProgress('collect', 'silver', startingSilver);
 
     // Assign random name and profession
@@ -519,6 +523,7 @@ function scavenge() {
         // Loot!
         const silver = rollDie(6) + 2;
         gameState.silver += silver;
+        gameState.totalSilverCollected += silver;
         updateChallengeProgress('collect', 'silver', silver);
         log(`Radai ${silver} sidabro!`);
         // showToast(`Radai: ${silver} sidabro`, "success");
@@ -718,11 +723,13 @@ function monsterAttack() {
 
 function winCombat(killingBlowDamage) {
     const monster = gameState.currentMonster;
+    gameState.monstersDefeated++;
     gameState.points += monster.points;
     updateChallengeProgress('slay', monster.name, 1);
     
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
+    gameState.totalSilverCollected += silverFound;
     updateChallengeProgress('collect', 'silver', silverFound);
     let loot = [`${silverFound} sidabro`];
 
@@ -881,6 +888,7 @@ function sellItem(itemName, sellPrice) {
 
         gameState.inventory.splice(itemIndex, 1);
         gameState.silver += sellPrice;
+        gameState.totalSilverCollected += sellPrice;
         updateChallengeProgress('collect', 'silver', sellPrice);
         log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
         // showToast(`Pardavei: ${itemName} (+${sellPrice})`, "info");
@@ -1008,10 +1016,27 @@ function levelUp() {
  * Ends the game in victory.
  */
 function winGame() {
+    gameState.gameWon = true;
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
     showToast("PERGALĖ!", "success");
     saveChallenges();
-    setGameText(`<h3><span class="material-symbols-outlined">emoji_events</span> PERGALĖ! <span class="material-symbols-outlined">emoji_events</span></h3><p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p><p>Tavo galutinis rezultatas: ${gameState.points}</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
+
+    const statsHtml = `
+        <div class="stats" style="margin-top: 20px; margin-bottom: 20px;">
+            <div class="stat"><span class="material-symbols-outlined">star</span> Taškai: ${gameState.points}</div>
+            <div class="stat"><span class="material-symbols-outlined">emoji_events</span> Lygis: ${gameState.level}</div>
+            <div class="stat"><span class="material-symbols-outlined">paid</span> Auksas: ${gameState.totalSilverCollected}</div>
+            <div class="stat"><span class="material-symbols-outlined">skull</span> Priešai: ${gameState.monstersDefeated}</div>
+        </div>
+    `;
+
+    setGameText(`
+        <h3><span class="material-symbols-outlined">emoji_events</span> PERGALĖ! <span class="material-symbols-outlined">emoji_events</span></h3>
+        <p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p>
+        ${statsHtml}
+        <button onclick="resetGame()">Pradėti Naują Nuotykį</button>
+    `);
+
     gameState.inCombat = false;
     updateUI();
 }
@@ -1059,7 +1084,10 @@ function resetGame() {
         roomsExplored: 0,
         bossEncountered: false,
         playerIsDead: false,
-        map: []
+        map: [],
+        totalSilverCollected: 0,
+        monstersDefeated: 0,
+        gameWon: false
     };
     document.body.classList.remove('in-combat');
     logEl.innerHTML = "";
