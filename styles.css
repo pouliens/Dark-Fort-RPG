@@ -970,3 +970,107 @@ body.in-combat .log {
     border-top: 1px dashed var(--text-dim);
     padding-top: 10px;
 }
+
+/* =============================================================================
+   END GAME SCREENS (Victory / Defeat)
+   ========================================================================== */
+
+.end-screen {
+    text-align: center;
+    animation: fadeIn 0.5s;
+    background: var(--bg-surface);
+    border: var(--border-style) var(--text-dim); /* Default fallback */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.end-screen.victory {
+    border-color: var(--accent-yellow);
+    box-shadow: var(--glow-yellow);
+}
+
+.end-screen.defeat {
+    border-color: var(--accent-red);
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+}
+
+.end-screen h2 {
+    font-family: var(--font-header);
+    font-size: 2.5rem;
+    margin: 0 0 20px 0;
+    text-transform: uppercase;
+}
+
+.end-screen.victory h2 {
+    color: var(--accent-yellow);
+    text-shadow: 0 0 10px var(--accent-yellow);
+}
+
+.end-screen.defeat h2 {
+    color: var(--accent-red);
+    text-shadow: 0 0 10px var(--accent-red);
+}
+
+.end-screen-visual {
+    margin-bottom: 20px;
+}
+
+.end-screen-visual img {
+    max-width: 150px;
+    height: auto;
+    image-rendering: pixelated;
+    background: #000;
+    border: 2px solid;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.end-screen.victory .end-screen-visual img {
+    border-color: var(--accent-yellow);
+    box-shadow: 0 0 20px rgba(242, 255, 0, 0.3);
+}
+
+.end-screen.defeat .end-screen-visual img {
+    border-color: var(--accent-red);
+    box-shadow: 0 0 20px rgba(255, 51, 51, 0.3);
+    filter: grayscale(100%) contrast(1.2);
+}
+
+.end-screen-stats {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid;
+    padding: 20px;
+    margin: 20px 0;
+    font-family: var(--font-ui);
+    width: 100%;
+    max-width: 400px;
+}
+
+.end-screen.victory .end-screen-stats {
+    background: rgba(242, 255, 0, 0.05);
+    border-color: var(--accent-yellow);
+}
+
+.end-screen.defeat .end-screen-stats {
+    background: rgba(255, 51, 51, 0.05);
+    border-color: var(--accent-red);
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0;
+    border-bottom: 1px dashed #333;
+    padding-bottom: 5px;
+    color: var(--text-main);
+    font-size: 1.1rem;
+}
+
+.stat-row span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+}

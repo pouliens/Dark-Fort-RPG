@@ -1068,6 +1068,51 @@ function levelUp() {
 // GAME STATE MANAGEMENT
 // -----------------------------------------------------------------------------
 
+function showEndGameScreen(isVictory, message) {
+    const title = isVictory ? "PERGALĖ!" : "ŽAIDIMAS BAIGTAS";
+    const cssClass = isVictory ? "victory" : "defeat";
+    const imageUrl = "https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif";
+
+    // Stats HTML
+    const statsHtml = `
+        <div class="end-screen-stats">
+            <div class="stat-row">
+                <span><span class="material-symbols-outlined icon-small">star</span> Taškai</span>
+                <span>${gameState.points}</span>
+            </div>
+            <div class="stat-row">
+                <span><span class="material-symbols-outlined icon-small">emoji_events</span> Lygis</span>
+                <span>${gameState.level}</span>
+            </div>
+            <div class="stat-row">
+                <span><span class="material-symbols-outlined icon-small">paid</span> Surinktas Auksas</span>
+                <span>${gameState.totalSilverCollected}</span>
+            </div>
+            <div class="stat-row">
+                <span><span class="material-symbols-outlined icon-small">skull</span> Nugalėti Priešai</span>
+                <span>${gameState.monstersDefeated}</span>
+            </div>
+        </div>
+    `;
+
+    const html = `
+        <div class="end-screen ${cssClass}">
+            <h2>${title}</h2>
+            <div class="end-screen-visual">
+                <img src="${imageUrl}" alt="${title}">
+            </div>
+
+            <p>${message}</p>
+
+            ${statsHtml}
+
+            <button onclick="resetGame()">Pradėti Naują Nuotykį</button>
+        </div>
+    `;
+
+    setGameText(html);
+}
+
 /**
  * Ends the game in victory.
  */
@@ -1076,24 +1121,8 @@ function winGame() {
     log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
     showToast("PERGALĖ!", "success");
     saveChallenges();
-
-    const statsHtml = `
-        <div class="stats" style="margin-top: 20px; margin-bottom: 20px;">
-            <div class="stat"><span class="material-symbols-outlined">star</span> Taškai: ${gameState.points}</div>
-            <div class="stat"><span class="material-symbols-outlined">emoji_events</span> Lygis: ${gameState.level}</div>
-            <div class="stat"><span class="material-symbols-outlined">paid</span> Auksas: ${gameState.totalSilverCollected}</div>
-            <div class="stat"><span class="material-symbols-outlined">skull</span> Priešai: ${gameState.monstersDefeated}</div>
-        </div>
-    `;
-
-    setGameText(`
-        <h3><span class="material-symbols-outlined">emoji_events</span> PERGALĖ! <span class="material-symbols-outlined">emoji_events</span></h3>
-        <p>Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!</p>
-        ${statsHtml}
-        <button onclick="resetGame()">Pradėti Naują Nuotykį</button>
-    `);
-
     gameState.inCombat = false;
+    showEndGameScreen(true, "Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!");
     updateUI();
 }
 
@@ -1107,7 +1136,7 @@ function gameOver(reason) {
     document.body.classList.remove('in-combat');
     log(`ŽAIDIMAS BAIGTAS: ${reason}`);
     showToast("ŽAIDIMAS BAIGTAS", "danger");
-    setGameText(`<h3><span class="material-symbols-outlined">skull</span> ŽAIDIMAS BAIGTAS <span class="material-symbols-outlined">skull</span></h3><p>${reason}</p><p>Tavo nuotykis čia baigiasi.</p><button onclick="resetGame()">Pradėti Naują Nuotykį</button>`);
+    showEndGameScreen(false, `${reason} Tavo nuotykis čia baigiasi.`);
     updateUI();
 }
 
