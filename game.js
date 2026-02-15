@@ -525,7 +525,7 @@ function swapWeaponInBattle(itemName) {
         log(logMsg);
         const combatLogEl = document.getElementById('combat-log');
         if (combatLogEl) {
-            combatLogEl.innerHTML += `<p class='info' style="color: var(--accent-cyan)">${logMsg}</p>`;
+            combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">${logMsg}</p>`);
         }
         updateUI();
     }
@@ -716,7 +716,7 @@ function flee() {
         updateUI();
     } else {
         log("Nepavyko pabėgti.");
-        if (combatLogEl) combatLogEl.innerHTML += `<p class='warning'>Nepavyko pabėgti!</p>`;
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>Nepavyko pabėgti!</p>`);
         monsterAttack();
     }
 }
@@ -741,7 +741,7 @@ function monsterAttack() {
     
     const combatLogEl = document.getElementById('combat-log');
     if(combatLogEl) {
-        combatLogEl.innerHTML += `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`;
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`);
     }
 
     if (gameState.hp <= 0) {
