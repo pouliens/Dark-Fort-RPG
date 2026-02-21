@@ -966,17 +966,18 @@ function openShop(isFirstTime = false, tab = 'buy') {
         </div>`;
     };
 
+    let shopItems = [];
     if (tab === 'buy') {
-        shopText += "<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>";
+        shopItems.push("<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>");
         SHOP_ITEMS.forEach(item => {
-            shopText += createShopItemHTML(item, true);
+            shopItems.push(createShopItemHTML(item, true));
         });
     } else { // Sell tab
-        shopText += "<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>";
+        shopItems.push("<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>");
         const sellableInventory = [...new Set(gameState.inventory)];
 
         if (sellableInventory.length === 0) {
-            shopText += "<p>Neturi nieko parduoti.</p>";
+            shopItems.push("<p>Neturi nieko parduoti.</p>");
         } else {
             sellableInventory.forEach(itemName => {
                 let itemDetails = ITEM_LOOKUP[itemName];
@@ -987,10 +988,12 @@ function openShop(isFirstTime = false, tab = 'buy') {
                 }
 
                 const count = gameState.inventory.filter(i => i === itemName).length;
-                shopText += createShopItemHTML(itemDetails, false, count);
+                shopItems.push(createShopItemHTML(itemDetails, false, count));
             });
         }
     }
+
+    shopText += shopItems.join('');
 
     shopText += `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
     setGameText(shopText);
