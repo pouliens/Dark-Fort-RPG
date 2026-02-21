@@ -242,6 +242,69 @@ function triggerMonsterHitEffect() {
     }
 }
 
+let lastInventorySnapshot = [];
+let lastEquippedWeapon = null;
+let lastEquippedArmor = null;
+
+function updateInventoryUI() {
+    const inventoryEl = document.getElementById('inventory');
+
+    // Check for changes
+    let changed = false;
+
+    if (gameState.equippedWeapon !== lastEquippedWeapon || gameState.equippedArmor !== lastEquippedArmor) {
+        changed = true;
+    } else if (gameState.inventory.length !== lastInventorySnapshot.length) {
+        changed = true;
+    } else {
+        const inventory = gameState.inventory;
+        const len = inventory.length;
+        for (let i = 0; i < len; i++) {
+            if (inventory[i] !== lastInventorySnapshot[i]) {
+                changed = true;
+                break;
+            }
+        }
+    }
+
+    if (!changed) return;
+
+    // Update snapshot
+    lastInventorySnapshot = [...gameState.inventory];
+    lastEquippedWeapon = gameState.equippedWeapon;
+    lastEquippedArmor = gameState.equippedArmor;
+
+    if (gameState.inventory.length === 0) {
+        inventoryEl.innerHTML = 'Tuščia';
+    } else {
+        const itemCounts = gameState.inventory.reduce((acc, itemName) => {
+            acc[itemName] = (acc[itemName] || 0) + 1;
+            return acc;
+        }, {});
+
+        inventoryEl.innerHTML = Object.entries(itemCounts).map(([itemName, count]) => {
+            let displayText = itemName;
+            if (count > 1) {
+                displayText += ` (x${count})`;
+            }
+            const itemDetails = ITEM_LOOKUP[itemName];
+            const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
+            const isUtility = itemDetails && itemDetails.type === 'utility';
+            const isMap = itemName === 'Žemėlapis';
+
+            let classes = 'inventory-item';
+            if (isEquipped) classes += ' equipped';
+            if (isUtility) classes += ' non-selectable';
+
+            const onclick = (isUtility && !isMap) ? '' : `onclick="handleInventoryClick('${itemName}')"`;
+
+            return `<button class="${classes}" ${onclick}>
+                        ${displayText}
+                    </button>`;
+        }).join(' ');
+    }
+}
+
 /**
  * Updates the entire UI based on the current game state.
  */
@@ -324,36 +387,7 @@ function updateUI() {
     }
 
     // Update Inventory
-    const inventoryEl = document.getElementById('inventory');
-    if (gameState.inventory.length === 0) {
-        inventoryEl.innerHTML = 'Tuščia';
-    } else {
-        const itemCounts = gameState.inventory.reduce((acc, itemName) => {
-            acc[itemName] = (acc[itemName] || 0) + 1;
-            return acc;
-        }, {});
-
-        inventoryEl.innerHTML = Object.entries(itemCounts).map(([itemName, count]) => {
-            let displayText = itemName;
-            if (count > 1) {
-                displayText += ` (x${count})`;
-            }
-            const itemDetails = ITEM_LOOKUP[itemName];
-            const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
-            const isUtility = itemDetails && itemDetails.type === 'utility';
-            const isMap = itemName === 'Žemėlapis';
-
-            let classes = 'inventory-item';
-            if (isEquipped) classes += ' equipped';
-            if (isUtility) classes += ' non-selectable';
-
-            const onclick = (isUtility && !isMap) ? '' : `onclick="handleInventoryClick('${itemName}')"`;
-
-            return `<button class="${classes}" ${onclick}>
-                        ${displayText}
-                    </button>`;
-        }).join(' ');
-    }
+    updateInventoryUI();
 
     // Update Buttons
     const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon;
