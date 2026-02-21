@@ -34,7 +34,8 @@ let gameState = {
     totalSilverCollected: 0,
     monstersDefeated: 0,
     gameWon: false,
-    inVictory: false
+    inVictory: false,
+    monsterDying: false
 };
 
 // Data is now in game-data.js
@@ -242,6 +243,18 @@ function triggerMonsterHitEffect() {
     }
 }
 
+/**
+ * Triggers a dramatic death animation on the killing blow.
+ */
+function triggerMonsterDeathEffect() {
+    const monsterStatsEl = document.getElementById('monster-stats-display');
+    if (monsterStatsEl) {
+        monsterStatsEl.classList.remove('monster-hit-flash');
+        monsterStatsEl.classList.add('monster-death-flash');
+        setTimeout(() => monsterStatsEl.classList.remove('monster-death-flash'), 900);
+    }
+}
+
 let lastInventorySnapshot = [];
 let lastEquippedWeapon = null;
 let lastEquippedArmor = null;
@@ -395,10 +408,10 @@ function updateUI() {
 
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
-    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
+    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
+    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
     document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat && buttonsVisible ? 'block' : 'none';
+    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
     
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
@@ -733,7 +746,7 @@ function powerAttack() {
 
 function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
-    if (!monster) return;
+    if (!monster || gameState.monsterDying) return;
 
     playAttackSound();
 
@@ -754,20 +767,27 @@ function performAttack(isPowerAttack) {
         const damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus + damageBonus;
         monster.currentHp -= damage;
 
-        triggerMonsterHitEffect();
-
         let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.`;
         if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
 
         log(msg);
-        // showToast(isPowerAttack ? `Galingas! -${damage} HP` : `Pataikei! -${damage} HP`, "success");
-        combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
 
         document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
 
         if (monster.currentHp <= 0) {
-            winCombat(damage);
+            monster.currentHp = 0;
+            gameState.monsterDying = true;
+            triggerMonsterDeathEffect();
+            combatLogEl.innerHTML = `<p class='success'>${msg} <strong>Pabaisa nugalėta!</strong></p>`;
+            updateUI();
+            setTimeout(() => {
+                gameState.monsterDying = false;
+                winCombat(damage);
+            }, 850);
         } else {
+            triggerMonsterHitEffect();
+            // showToast(isPowerAttack ? `Galingas! -${damage} HP` : `Pataikei! -${damage} HP`, "success");
+            combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
             monsterAttack();
         }
     } else {
