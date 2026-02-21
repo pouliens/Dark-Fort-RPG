@@ -518,13 +518,14 @@ button:disabled {
 .monster-hit-flash { animation: flash-white 0.2s; }
 
 @keyframes monster-death {
-    0%   { background-color: #fff; filter: brightness(4); transform: scale(1.05) translateX(-4px); }
-    18%  { background-color: #ff6600; filter: brightness(2); transform: scale(1.03) translateX(4px); }
-    35%  { background-color: #fff; filter: brightness(3); transform: scale(1.04) translateX(-3px); }
-    52%  { background-color: #330000; filter: brightness(1.5); transform: scale(1.01) translateX(2px); }
-    68%  { background-color: #ff0000; filter: brightness(2) grayscale(0.3); transform: scale(1); }
-    84%  { filter: brightness(1) grayscale(0.7); transform: scale(0.98); }
-    100% { filter: brightness(0.4) grayscale(1); transform: scale(0.97); opacity: 0.5; }
+    0%   { filter: brightness(8) saturate(0); transform: scale(1.08) translateX(-5px); }
+    12%  { filter: brightness(1) saturate(1); transform: scale(1) translateX(5px); }
+    24%  { filter: brightness(6) saturate(0); transform: scale(1.06) translateX(-4px); }
+    36%  { filter: brightness(1) saturate(0.5); transform: scale(1) translateX(4px); }
+    50%  { filter: brightness(4) saturate(0); transform: scale(1.04) translateX(-2px); }
+    65%  { filter: brightness(1) saturate(0.2); transform: scale(1); }
+    80%  { filter: brightness(0.7) grayscale(0.8); transform: scale(0.99); }
+    100% { filter: brightness(0.3) grayscale(1); transform: scale(0.96); opacity: 0.4; }
 }
 .monster-death-flash { animation: monster-death 0.85s ease-out forwards; }
 
