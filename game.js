@@ -29,6 +29,7 @@ let gameState = {
     playerIsDead: false,
     canScavenge: false,
     challenges: {},
+    challengeLookup: {},
     map: [],
     totalSilverCollected: 0,
     monstersDefeated: 0,
@@ -67,6 +68,18 @@ function loadChallenges() {
             return acc;
         }, {});
     }
+
+    // Build Lookup
+    gameState.challengeLookup = {};
+    Object.values(gameState.challenges).forEach(challenge => {
+        if (!gameState.challengeLookup[challenge.type]) {
+            gameState.challengeLookup[challenge.type] = {};
+        }
+        if (!gameState.challengeLookup[challenge.type][challenge.targetName]) {
+            gameState.challengeLookup[challenge.type][challenge.targetName] = [];
+        }
+        gameState.challengeLookup[challenge.type][challenge.targetName].push(challenge);
+    });
 }
 
 function saveChallenges() {
@@ -74,8 +87,12 @@ function saveChallenges() {
 }
 
 function updateChallengeProgress(type, name, amount) {
-    Object.values(gameState.challenges).forEach(challenge => {
-        if (challenge.type === type && challenge.targetName === name && challenge.progress < challenge.targetValue) {
+    if (!gameState.challengeLookup || !gameState.challengeLookup[type] || !gameState.challengeLookup[type][name]) {
+        return;
+    }
+
+    gameState.challengeLookup[type][name].forEach(challenge => {
+        if (challenge.progress < challenge.targetValue) {
             const oldProgress = challenge.progress;
             challenge.progress = Math.min(challenge.targetValue, challenge.progress + amount);
 
@@ -1194,6 +1211,7 @@ function resetGame() {
         roomsExplored: 0,
         bossEncountered: false,
         playerIsDead: false,
+        challengeLookup: {},
         map: [],
         totalSilverCollected: 0,
         monstersDefeated: 0,

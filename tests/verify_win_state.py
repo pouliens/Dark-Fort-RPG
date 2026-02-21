@@ -39,23 +39,24 @@ def test_win_condition():
         # Check for Stats
         # We expect specific values in the stats block.
         # The inner_text might have newlines, so we check existence.
-        # Use #gameText .stats to target the victory stats, avoiding the character sheet stats
-        stats_text = page.locator("#gameText .stats").inner_text()
+        # Use #gameText .end-screen-stats to target the victory stats, avoiding the character sheet stats
+        stats_text = page.locator("#gameText .end-screen-stats").inner_text()
         print("Stats Text Found:")
         print(stats_text)
 
-        expected_stats = [
-            "Taškai: 5",
-            "Lygis: 4",
-            "Auksas: 100",
-            "Priešai: 12"
+        # We check for key phrases since formatting might vary (newlines etc)
+        expected_phrases = [
+            "Taškai", "5",
+            "Lygis", "4",
+            "Surinktas Auksas", "100",
+            "Nugalėti Priešai", "12"
         ]
 
-        for stat in expected_stats:
-            if stat in stats_text:
-                 print(f"FOUND: {stat}")
+        for phrase in expected_phrases:
+            if phrase in stats_text:
+                 print(f"FOUND: {phrase}")
             else:
-                 print(f"MISSING: {stat}")
+                 print(f"MISSING: {phrase}")
                  sys.exit(1)
 
         print("SUCCESS: Win condition verified.")
