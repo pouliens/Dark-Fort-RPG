@@ -566,11 +566,13 @@ function usePotion() {
 
         gameState.inventory.splice(potionIndex, 1);
         log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
-        // showToast(`Pasigydei: +${healing} HP`, "success");
+        showToast(`Pasigydei: +${healing} HP ❤`, "success");
 
         if (gameState.inCombat) {
             document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
             monsterAttack();
+        } else if (gameState.inShop) {
+            openShop(false, 'buy'); // Refresh shop so potion count updates — stay in shop
         } else {
             setGameText(`<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
         }
@@ -1039,12 +1041,12 @@ function toggleEquip(itemName, itemType) {
         // Unequip if clicking the same item
         gameState[slot] = null;
         log(`Nusiėmei ${itemName}.`);
-        // showToast(`Nusiėmei: ${itemName}`, "info");
+        showToast(`Nusiėmei: ${itemName}`, "info");
     } else {
         // Equip new item
         gameState[slot] = itemName;
         log(`Užsidėjai ${itemName}.`);
-        // showToast(`Užsidėjai: ${itemName}`, "success");
+        showToast(`Užsidėjai: ${itemName}`, "success");
     }
     recalculateStats();
 }
