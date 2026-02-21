@@ -247,6 +247,13 @@ function triggerMonsterHitEffect() {
  * Triggers a dramatic death animation on the killing blow.
  */
 function triggerMonsterDeathEffect() {
+    // Animate the monster image — most prominent element in battle
+    const monsterImg = document.querySelector('.battle-enemy-visual img');
+    if (monsterImg) {
+        monsterImg.classList.add('monster-death-flash');
+        setTimeout(() => monsterImg.classList.remove('monster-death-flash'), 900);
+    }
+    // Also dim the stats panel
     const monsterStatsEl = document.getElementById('monster-stats-display');
     if (monsterStatsEl) {
         monsterStatsEl.classList.remove('monster-hit-flash');
@@ -777,6 +784,10 @@ function performAttack(isPowerAttack) {
         if (monster.currentHp <= 0) {
             monster.currentHp = 0;
             gameState.monsterDying = true;
+            // Immediately zero the HP bar so the player sees it drop before victory screen
+            const hpBar = document.getElementById('battle-enemy-hp-bar');
+            if (hpBar) hpBar.style.width = '0%';
+            document.getElementById('monster-hp').textContent = '0';
             triggerMonsterDeathEffect();
             combatLogEl.innerHTML = `<p class='success'>${msg} <strong>Pabaisa nugalėta!</strong></p>`;
             updateUI();
