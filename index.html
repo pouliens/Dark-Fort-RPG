@@ -52,12 +52,6 @@
         <div class="inventory">
             <h4><span class="material-symbols-outlined">backpack</span> Inventorius:</h4>
             <div id="inventory">Tuščia</div>
-
-            <!-- Challenges -->
-            <div class="challenges">
-                <h4><span class="material-symbols-outlined">emoji_events</span> Iššūkiai:</h4>
-                <div id="challenges">Tuoj...</div>
-            </div>
         </div>
 
         <!-- Map Modal -->
@@ -71,10 +65,23 @@
             </div>
         </div>
 
-        <!-- Log -->
-        <div class="log">
-            <h4><span class="material-symbols-outlined">menu_book</span> Žurnalas:</h4>
-            <div id="log"></div>
+        <!-- Collapsible panels -->
+        <div class="side-panels">
+            <div class="challenges" id="challenges-panel">
+                <h4 class="collapsible-header" onclick="togglePanel('challenges-panel')">
+                    <span class="material-symbols-outlined">emoji_events</span> Iššūkiai
+                    <span class="collapse-arrow material-symbols-outlined">expand_more</span>
+                </h4>
+                <div class="collapsible-body" id="challenges">Tuoj...</div>
+            </div>
+
+            <div class="log" id="log-panel">
+                <h4 class="collapsible-header" onclick="togglePanel('log-panel')">
+                    <span class="material-symbols-outlined">menu_book</span> Žurnalas
+                    <span class="collapse-arrow material-symbols-outlined">expand_more</span>
+                </h4>
+                <div class="collapsible-body log-body" id="log"></div>
+            </div>
         </div>
         
     </div>

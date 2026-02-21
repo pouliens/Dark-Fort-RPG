@@ -291,11 +291,62 @@ button:disabled {
     opacity: 0.6;
 }
 
-/* Challenges */
+/* Collapsible panels (Challenges + Log) */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.collapsible-header:hover {
+    color: var(--accent-cyan);
+}
+
+.collapse-arrow {
+    margin-left: auto;
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+    color: var(--text-dim);
+}
+
+.expanded .collapse-arrow {
+    transform: rotate(180deg);
+}
+
+.collapsible-body {
+    display: none;
+    overflow: hidden;
+}
+
+.expanded .collapsible-body {
+    display: block;
+}
+
+/* Shared panel style for Challenges + Log */
+.challenges,
+.log {
+    background: #000;
+    border: 1px solid var(--text-dim);
+    padding: 6px 10px 10px;
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    border-radius: 5px;
+}
+
+.side-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
 .challenges {
-    margin-top: 20px;
-    border-top: 1px dashed var(--text-dim);
-    padding-top: 15px;
+    margin-top: 0;
 }
 
 .challenge {
@@ -312,42 +363,10 @@ button:disabled {
     text-decoration: line-through;
 }
 
-/* Log */
-.log {
-    background: #000;
-    border: 1px solid var(--text-dim);
-    padding: 10px;
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    max-height: 100px; /* Collapsed height */
-    overflow: hidden;
-    cursor: pointer;
-    position: relative;
-    border-radius: 5px;
-    transition: max-height 0.3s ease;
-}
-
-.log::after {
-    content: "▼ TAP TO EXPAND ▼";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    text-align: center;
-    background: rgba(0,0,0,0.8);
-    color: var(--accent-cyan);
-    font-size: 0.7rem;
-    padding: 2px;
-}
-
-.log.expanded {
+.log-body {
     max-height: 300px;
     overflow-y: auto;
-}
-
-.log.expanded::after {
-    display: none;
+    margin-top: 4px;
 }
 
 .log p {
@@ -885,6 +904,53 @@ body.in-combat .log {
     border-color: var(--accent-pink);
     color: var(--accent-pink);
     background: rgba(255, 0, 255, 0.1);
+}
+
+/* Auto-battle toggle row */
+.auto-battle-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 6px 12px 0;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.auto-battle-btn {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--text-dim);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: none;
+    clip-path: none;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    border-radius: 3px;
+}
+
+.auto-battle-btn .material-symbols-outlined {
+    font-size: 0.95rem;
+}
+
+.auto-battle-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.auto-battle-btn.active {
+    border-color: var(--accent-yellow);
+    color: var(--accent-yellow);
+    background: rgba(255, 200, 0, 0.1);
+    animation: auto-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes auto-pulse {
+    0%, 100% { box-shadow: 0 0 4px rgba(255, 200, 0, 0.3); }
+    50%       { box-shadow: 0 0 10px rgba(255, 200, 0, 0.6); }
 }
 
 /* Battle Log (Bottom) */

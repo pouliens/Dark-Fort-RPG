@@ -35,7 +35,8 @@ let gameState = {
     monstersDefeated: 0,
     gameWon: false,
     inVictory: false,
-    monsterDying: false
+    monsterDying: false,
+    autoBattle: false
 };
 
 // Data is now in game-data.js
@@ -144,9 +145,12 @@ function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 /** Enables or disables all interactive game buttons during dice animation. */
 function setActionsDisabled(disabled) {
     document.querySelectorAll(
-        '#gameActions button, .battle-actions button, #quick-items button, .inventory-item, .shop-item'
+        '#gameActions button, .battle-actions button, #quick-items button, #battle-quick-items button, .inventory-item, .shop-item'
     ).forEach(el => { el.disabled = disabled; el.style.pointerEvents = disabled ? 'none' : ''; });
 }
+
+/** True while any combat action (attack, potion, flee) is in progress. Prevents concurrent actions. */
+let combatActionBusy = false;
 
 /**
  * Shows an animated dice roll panel at the bottom of the screen.
@@ -700,8 +704,10 @@ async function exploreRoom() {
  * Uses a potion to heal the player.
  */
 async function usePotion() {
+    if (gameState.inCombat && combatActionBusy) return;
     const potionIndex = gameState.inventory.indexOf('Mikstūra');
     if (potionIndex > -1) {
+        if (gameState.inCombat) combatActionBusy = true;
         const roll1 = rollDie(6);
         const roll2 = rollDie(6);
         const healing = roll1 + roll2;
@@ -721,6 +727,7 @@ async function usePotion() {
         if (gameState.inCombat) {
             document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
             await monsterAttack();
+            combatActionBusy = false;
         } else if (gameState.inShop) {
             openShop(false, 'buy'); // Refresh shop so potion count updates — stay in shop
         } else {
@@ -864,6 +871,13 @@ function startCombat(monster) {
                 </div>
             </div>
 
+            <!-- Auto-battle toggle -->
+            <div class="auto-battle-row">
+                <button id="auto-battle-btn" class="auto-battle-btn" onclick="toggleAutoBattle()">
+                    <span class="material-symbols-outlined">play_arrow</span> Auto: OFF
+                </button>
+            </div>
+
             <!-- Combat Log (Bottom) -->
             <div id="combat-log" class="battle-log">
                 ${encounterText}
@@ -892,7 +906,8 @@ async function powerAttack() {
 
 async function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
-    if (!monster || gameState.monsterDying) return;
+    if (!monster || gameState.monsterDying || combatActionBusy) return;
+    combatActionBusy = true;
 
     playAttackSound();
 
@@ -959,14 +974,16 @@ async function performAttack(isPowerAttack) {
             }, 850);
         } else {
             triggerMonsterHitEffect();
+            // Dark Fort rule: enemy does NOT counter-attack when you land a hit
             combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
-            await monsterAttack();
         }
     } else {
+        // Dark Fort rule: enemy only attacks when you miss
         log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
         combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
         await monsterAttack();
     }
+    combatActionBusy = false;
     updateUI();
 }
 
@@ -974,6 +991,9 @@ async function performAttack(isPowerAttack) {
  * Flees from combat.
  */
 async function flee() {
+    if (combatActionBusy) return;
+    combatActionBusy = true;
+    gameState.autoBattle = false; // fleeing cancels auto-battle
     const combatLogEl = document.getElementById('combat-log');
     // d6 >= 4 = 50% chance to escape (3 of 6 values succeed)
     const fleeRoll = rollDie(6);
@@ -998,6 +1018,49 @@ async function flee() {
         log("Nepavyko pabėgti.");
         if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>Nepavyko pabėgti!</p>`);
         await monsterAttack();
+    }
+    combatActionBusy = false;
+}
+
+/**
+ * Toggles auto-battle mode on/off.
+ */
+function toggleAutoBattle() {
+    gameState.autoBattle = !gameState.autoBattle;
+    const btn = document.getElementById('auto-battle-btn');
+    if (btn) {
+        btn.classList.toggle('active', gameState.autoBattle);
+        btn.innerHTML = gameState.autoBattle
+            ? '<span class="material-symbols-outlined">pause</span> Auto: ON'
+            : '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
+    }
+    if (gameState.autoBattle) {
+        runAutoBattle();
+    }
+}
+
+/**
+ * Runs the auto-battle loop: attacks automatically each turn with a pause
+ * between turns so the player can follow the action (like Loop Hero).
+ */
+async function runAutoBattle() {
+    while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
+        if (gameState.monsterDying) {
+            await sleep(200);
+            continue;
+        }
+        await performAttack(false);
+        // Pause between turns so the player can see what happened
+        if (gameState.autoBattle && gameState.inCombat) {
+            await sleep(700);
+        }
+    }
+    // Combat ended — turn off auto-battle and update button
+    gameState.autoBattle = false;
+    const btn = document.getElementById('auto-battle-btn');
+    if (btn) {
+        btn.classList.remove('active');
+        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
     }
 }
 
@@ -1065,6 +1128,8 @@ function showVictoryScreen(monster, lootItems, xp, silver) {
 }
 
 function endCombatEncounter() {
+    gameState.autoBattle = false;
+    combatActionBusy = false;
     gameState.inVictory = false;
     gameState.inCombat = false;
     gameState.currentMonster = null;
@@ -1422,6 +1487,8 @@ function winGame() {
  * @param {string} reason - The reason for the game over.
  */
 function gameOver(reason) {
+    gameState.autoBattle = false;
+    combatActionBusy = false;
     gameState.playerIsDead = true;
     saveChallenges();
     document.body.classList.remove('in-combat');
@@ -1474,18 +1541,17 @@ function resetGame() {
 }
 
 
+/**
+ * Toggles a collapsible panel open/closed.
+ */
+function togglePanel(panelId) {
+    const panel = document.getElementById(panelId);
+    if (panel) panel.classList.toggle('expanded');
+}
+
 // --- INITIALIZE ---
 document.addEventListener('DOMContentLoaded', () => {
     gameTextEl = document.getElementById('gameText');
     logEl = document.getElementById('log');
-
-    // Make log expandable
-    const logContainerEl = document.querySelector('.log');
-    if (logContainerEl) {
-        logContainerEl.addEventListener('click', () => {
-            logContainerEl.classList.toggle('expanded');
-        });
-    }
-
     updateUI();
 });
