@@ -1074,3 +1074,217 @@ body.in-combat .log {
     gap: 8px;
     color: var(--text-dim);
 }
+
+/* =============================================================================
+   MOBILE COMPACT LAYOUT
+   ========================================================================== */
+
+@media (max-width: 600px) {
+    h1.cyber-glitch {
+        font-size: 2rem;
+        letter-spacing: 2px;
+        margin: 4px 0 10px 0;
+        padding-bottom: 6px;
+    }
+
+    .container {
+        padding: 12px;
+    }
+
+    .character-sheet {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+
+    .stats {
+        gap: 6px;
+    }
+
+    .stat {
+        padding: 5px 4px;
+        font-size: 0.95rem;
+    }
+
+    .main-content {
+        margin-bottom: 12px;
+    }
+
+    .game-area {
+        padding: 12px;
+        min-height: 100px;
+        margin-bottom: 12px;
+        font-size: 1rem;
+    }
+
+    .actions {
+        gap: 8px;
+    }
+
+    button {
+        padding: 11px 8px;
+        font-size: 0.88rem;
+    }
+
+    .inventory {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+
+    h3 {
+        font-size: 1rem;
+    }
+
+    h4 {
+        font-size: 0.88rem;
+        margin: 6px 0;
+    }
+
+    .battle-interface {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .battle-enemy-name {
+        font-size: 1.2rem;
+    }
+
+    .battle-log {
+        height: 70px;
+        font-size: 0.8rem;
+    }
+}
+
+/* =============================================================================
+   COMBAT BUTTON STYLING
+   ========================================================================== */
+
+/* Force 2-column layout during combat */
+body.in-combat .actions {
+    grid-template-columns: 1fr 1fr;
+}
+
+body.in-combat #fleeBtn {
+    grid-column: 1 / -1;
+}
+
+/* Attack button - cyan (accurate) */
+#attackBtn {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+#attackBtn:hover:not(:disabled) {
+    background: var(--accent-cyan);
+    color: var(--bg-main);
+    box-shadow: var(--glow-cyan);
+}
+
+/* Power Attack button - yellow (risky, high damage) */
+#powerAttackBtn {
+    border-color: var(--accent-yellow);
+    color: var(--accent-yellow);
+}
+
+#powerAttackBtn:hover:not(:disabled) {
+    background: var(--accent-yellow);
+    color: var(--bg-main);
+    box-shadow: var(--glow-yellow);
+}
+
+/* Flee button - muted (retreat option) */
+#fleeBtn {
+    border-color: var(--text-dim);
+    color: var(--text-dim);
+}
+
+#fleeBtn:hover:not(:disabled) {
+    background: var(--text-dim);
+    color: var(--bg-main);
+    box-shadow: none;
+}
+
+/* Button sub-label text */
+.btn-sublabel {
+    display: block;
+    font-size: 0.62rem;
+    opacity: 0.7;
+    text-transform: none;
+    font-family: var(--font-ui);
+    font-weight: normal;
+    margin-top: 3px;
+    letter-spacing: 0;
+}
+
+/* =============================================================================
+   BATTLE INTERFACE IMPROVEMENTS
+   ========================================================================== */
+
+/* Enemy row: image inline with stats */
+.battle-enemy-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.battle-enemy-row .battle-enemy-visual {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.battle-enemy-visual img {
+    max-width: 80px;
+    height: auto;
+    display: block;
+    image-rendering: pixelated;
+}
+
+.battle-enemy-row .battle-enemy-stats {
+    flex: 1;
+    text-align: left;
+}
+
+/* Left-align HP bar in inline layout */
+.battle-enemy-row .battle-hp-bar-container {
+    margin: 5px 0;
+}
+
+/* Difficulty badge */
+.battle-difficulty-badge {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-top: 4px;
+}
+
+/* Player HP bar */
+.battle-player-hp-bar-container {
+    width: 100%;
+    height: 6px;
+    background: #001a2e;
+    border: 1px solid var(--accent-cyan);
+    margin: 4px 0 6px;
+    overflow: hidden;
+}
+
+.battle-player-hp-bar-fill {
+    height: 100%;
+    background: var(--accent-cyan);
+    width: 100%;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 4px var(--accent-cyan);
+}
+
+.battle-player-hp-bar-fill.medium-hp {
+    background: var(--accent-yellow);
+    box-shadow: 0 0 4px var(--accent-yellow);
+}
+
+.battle-player-hp-bar-fill.low-hp {
+    background: var(--accent-red);
+    box-shadow: 0 0 4px var(--accent-red);
+}

@@ -266,6 +266,19 @@ function updateUI() {
             }
         }
 
+        // Player HP bar
+        const playerHpBarFill = document.getElementById('battle-player-hp-bar-fill');
+        if (playerHpBarFill) {
+            const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
+            playerHpBarFill.style.width = `${pct}%`;
+            playerHpBarFill.className = 'battle-player-hp-bar-fill';
+            if (pct <= 25) {
+                playerHpBarFill.classList.add('low-hp');
+            } else if (pct <= 50) {
+                playerHpBarFill.classList.add('medium-hp');
+            }
+        }
+
         // Quick Items (Potions & Weapons)
         const quickItemsEl = document.getElementById('battle-quick-items');
         if (quickItemsEl) {
@@ -592,23 +605,35 @@ function startCombat(monster) {
         <div class="battle-interface">
             <!-- Enemy Section (Top) -->
             <div class="battle-enemy">
-                <div class="battle-enemy-visual">
-                     <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
-                </div>
-                <div class="battle-enemy-stats" id="monster-stats-display">
-                    <h3 class="battle-enemy-name">${monster.name}</h3>
-                    <div class="battle-hp-bar-container">
-                        <div id="battle-enemy-hp-bar" class="battle-hp-bar-fill" style="width: 100%;"></div>
+                <div class="battle-enemy-row">
+                    <div class="battle-enemy-visual">
+                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
                     </div>
-                    <div class="battle-enemy-hp-text">
-                        HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp}
-                        <br>Žala: ${monster.damage}
+                    <div class="battle-enemy-stats" id="monster-stats-display">
+                        <h3 class="battle-enemy-name">${monster.name}</h3>
+                        <div class="battle-hp-bar-container">
+                            <div id="battle-enemy-hp-bar" class="battle-hp-bar-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="battle-enemy-hp-text">
+                            HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} &nbsp;|&nbsp; Žala: ${monster.damage}
+                        </div>
+                        <div class="battle-difficulty-badge">
+                            <span class="material-symbols-outlined" style="font-size:0.75rem;vertical-align:middle;">target</span>
+                            Pataikyti: ${monster.difficulty}+
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Player Section (Middle) -->
             <div class="battle-player">
+                <div class="battle-player-header">
+                    <span class="battle-player-name">${gameState.playerName}</span>
+                    <span class="battle-player-level">Lv.${gameState.level}</span>
+                </div>
+                <div class="battle-player-hp-bar-container">
+                    <div id="battle-player-hp-bar-fill" class="battle-player-hp-bar-fill" style="width: 100%;"></div>
+                </div>
                 <div class="battle-player-stats-row">
                     <div class="battle-stat hp">
                         <span class="material-symbols-outlined">favorite</span>
