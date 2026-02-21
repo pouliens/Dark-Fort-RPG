@@ -1300,3 +1300,210 @@ body.in-combat #fleeBtn {
     background: var(--accent-red);
     box-shadow: 0 0 4px var(--accent-red);
 }
+
+/* =============================================================================
+   DICE ROLL OVERLAY
+   ========================================================================== */
+
+.dice-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(calc(100% + 20px));
+    z-index: 600;
+    width: min(400px, 100vw);
+    padding: 0 12px 16px;
+    transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+    pointer-events: none;
+}
+
+.dice-overlay.visible {
+    transform: translateX(-50%) translateY(0);
+    pointer-events: all;
+}
+
+.dice-roll-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--accent-yellow);
+    border-radius: 14px;
+    padding: 14px 18px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-shadow:
+        0 0 0 1px rgba(242, 255, 0, 0.08),
+        0 0 30px rgba(242, 255, 0, 0.12),
+        0 -6px 24px rgba(0, 0, 0, 0.9);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Context label */
+.dice-roll-context {
+    font-family: var(--font-sub);
+    font-size: 0.65rem;
+    color: var(--accent-yellow);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    opacity: 0.9;
+}
+
+/* Main body row: dice faces + optional vs threshold */
+.dice-roll-body {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* Row of dice */
+.dice-faces-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Plus sign between dice (for 2d6 etc) */
+.dice-plus {
+    font-family: var(--font-sub);
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    line-height: 1;
+}
+
+/* Individual die face */
+.die-face {
+    width: 58px;
+    height: 58px;
+    border-radius: 10px;
+    border: 2px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    position: relative;
+    gap: 1px;
+}
+
+.die-face[data-type="d4"]  { border-color: var(--accent-pink);   box-shadow: 0 0 8px rgba(255,0,255,0.2); }
+.die-face[data-type="d6"]  { border-color: var(--accent-yellow); box-shadow: 0 0 8px rgba(242,255,0,0.2); }
+.die-face[data-type="d8"]  { border-color: var(--accent-cyan);   box-shadow: 0 0 8px rgba(0,255,255,0.2); }
+.die-face[data-type="d10"] { border-color: var(--accent-pink);   box-shadow: 0 0 8px rgba(255,0,255,0.2); }
+.die-face[data-type="d12"] { border-color: var(--accent-cyan);   box-shadow: 0 0 8px rgba(0,255,255,0.2); }
+
+/* Die type label */
+.die-type-label {
+    font-family: var(--font-ui);
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
+/* Die result number */
+.die-number {
+    font-family: var(--font-sub);
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.die-face[data-type="d4"]  .die-number { color: var(--accent-pink); }
+.die-face[data-type="d6"]  .die-number { color: var(--accent-yellow); }
+.die-face[data-type="d8"]  .die-number { color: var(--accent-cyan); }
+.die-face[data-type="d10"] .die-number { color: var(--accent-pink); }
+.die-face[data-type="d12"] .die-number { color: var(--accent-cyan); }
+
+/* Rolling flicker animation */
+@keyframes diceFlicker {
+    0%   { opacity: 1;   transform: scale(1); }
+    20%  { opacity: 0.2; transform: scale(0.85) translateY(-2px); }
+    50%  { opacity: 0.9; transform: scale(1.08) translateY(1px); }
+    80%  { opacity: 0.3; transform: scale(0.9) translateY(-1px); }
+    100% { opacity: 1;   transform: scale(1); }
+}
+
+.die-number.rolling {
+    animation: diceFlicker 0.12s ease-in-out infinite;
+}
+
+/* VS threshold block */
+.dice-vs-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.dice-vs-label {
+    font-family: var(--font-ui);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.dice-threshold-box {
+    width: 42px;
+    height: 42px;
+    border: 1px solid #3a3a40;
+    border-radius: 8px;
+    background: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sub);
+    font-size: 1.15rem;
+    color: var(--text-dim);
+}
+
+/* Optional detail line (modifier info) */
+.dice-detail {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+}
+
+/* Outcome result */
+.dice-roll-outcome {
+    font-family: var(--font-sub);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    min-height: 1.4rem;
+}
+
+.dice-roll-outcome.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.dice-roll-outcome.success {
+    color: var(--accent-yellow);
+    text-shadow: 0 0 16px rgba(242, 255, 0, 0.9), 0 0 32px rgba(242, 255, 0, 0.4);
+}
+
+.dice-roll-outcome.failure {
+    color: var(--accent-red);
+    text-shadow: 0 0 16px rgba(255, 51, 51, 0.9), 0 0 32px rgba(255, 51, 51, 0.4);
+}
+
+.dice-roll-outcome.neutral {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 16px rgba(0, 255, 255, 0.6);
+}
+
+/* Tap hint */
+.dice-tap-hint {
+    font-family: var(--font-ui);
+    font-size: 0.55rem;
+    color: #444;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}

@@ -134,6 +134,107 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+// -----------------------------------------------------------------------------
+// DICE ROLL UI
+// -----------------------------------------------------------------------------
+
+/** Resolves after `ms` milliseconds. */
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+/** Enables or disables all interactive game buttons during dice animation. */
+function setActionsDisabled(disabled) {
+    document.querySelectorAll(
+        '#gameActions button, .battle-actions button, #quick-items button, .inventory-item, .shop-item'
+    ).forEach(el => { el.disabled = disabled; el.style.pointerEvents = disabled ? 'none' : ''; });
+}
+
+/**
+ * Shows an animated dice roll panel at the bottom of the screen.
+ * @param {object} config
+ * @param {string} config.context     - Label (e.g. "Attack Roll")
+ * @param {{type:string, result:number}[]} config.dice - Dice to display
+ * @param {number} [config.threshold] - Optional vs. number shown on right
+ * @param {string} config.outcome     - Result text (e.g. "HIT!")
+ * @param {boolean|null} config.isSuccess - true=success style, false=failure, null=neutral
+ * @param {string} [config.detail]    - Optional small line (e.g. "+2 bonus")
+ * @returns {Promise<void>}
+ */
+async function showDiceRoll({ context, dice, threshold, outcome, isSuccess, detail = null }) {
+    const overlay   = document.getElementById('dice-overlay');
+    const contextEl = document.getElementById('dice-context');
+    const facesRow  = document.getElementById('dice-faces-row');
+    const vsWrap    = document.getElementById('dice-vs-wrap');
+    const detailEl  = document.getElementById('dice-detail');
+    const outcomeEl = document.getElementById('dice-outcome');
+
+    // Build dice face elements
+    facesRow.innerHTML = dice.map((d, i) =>
+        `<div class="die-face" data-type="${d.type}">
+            <span class="die-type-label">${d.type}</span>
+            <span class="die-number rolling" id="die-num-${i}">${d.result}</span>
+        </div>${i < dice.length - 1 ? '<span class="dice-plus">+</span>' : ''}`
+    ).join('');
+
+    contextEl.textContent = context;
+
+    if (threshold !== undefined && threshold !== null) {
+        vsWrap.style.display = 'flex';
+        document.getElementById('dice-threshold').textContent = threshold;
+    } else {
+        vsWrap.style.display = 'none';
+    }
+
+    if (detail) {
+        detailEl.textContent = detail;
+        detailEl.style.display = 'block';
+    } else {
+        detailEl.style.display = 'none';
+    }
+
+    outcomeEl.textContent = '';
+    outcomeEl.className = 'dice-roll-outcome';
+
+    // Show panel
+    overlay.classList.add('visible');
+    setActionsDisabled(true);
+
+    // Rolling phase – randomize displayed numbers
+    const intervals = dice.map((d, i) => {
+        const el = document.getElementById(`die-num-${i}`);
+        const sides = parseInt(d.type.slice(1), 10) || 6;
+        return setInterval(() => {
+            if (el) el.textContent = Math.floor(Math.random() * sides) + 1;
+        }, 80);
+    });
+
+    await sleep(500);
+
+    // Settle – show real result
+    intervals.forEach(clearInterval);
+    dice.forEach((d, i) => {
+        const el = document.getElementById(`die-num-${i}`);
+        if (el) { el.textContent = d.result; el.classList.remove('rolling'); }
+    });
+
+    // Reveal outcome
+    await sleep(80);
+    outcomeEl.textContent = outcome;
+    outcomeEl.classList.add(isSuccess === true ? 'success' : isSuccess === false ? 'failure' : 'neutral');
+    outcomeEl.classList.add('visible');
+
+    // Allow tap-to-dismiss after result is shown
+    let earlyResolve;
+    const earlyPromise = new Promise(r => { earlyResolve = r; });
+    overlay.addEventListener('click', earlyResolve, { once: true });
+
+    await Promise.race([earlyPromise, sleep(1300)]);
+
+    overlay.removeEventListener('click', earlyResolve);
+    overlay.classList.remove('visible');
+    await sleep(320);
+    setActionsDisabled(false);
+}
+
 /**
  * Rolls a die with a given number of sides.
  * @param {number} sides - The number of sides on the die.
@@ -489,7 +590,7 @@ function startGame() {
 /**
  * Explores a new room, triggering events like traps, monsters, or shops.
  */
-function exploreRoom() {
+async function exploreRoom() {
     gameState.canScavenge = false;
 
     if (gameState.level >= 2) {
@@ -504,7 +605,6 @@ function exploreRoom() {
         if (triggerBoss) {
             gameState.bossEncountered = true;
             log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
-            // showToast("BOSSAS!", "danger");
             startCombat(FORTRESS_LORD);
             return;
         }
@@ -514,6 +614,24 @@ function exploreRoom() {
     gameState.roomsExplored++;
     updateChallengeProgress('explore', 'room', 1);
     const roll = rollDie(6);
+
+    // Exploration outcome labels
+    const exploreOutcomes = {
+        1: { outcome: 'TUŠČIA MENĖ',    isSuccess: null  },
+        2: { outcome: 'TUŠČIA MENĖ',    isSuccess: null  },
+        3: { outcome: 'SPĄSTAI!',        isSuccess: false },
+        4: { outcome: 'PRIEŠAS!',        isSuccess: false },
+        5: { outcome: 'PAVOJINGAS!',     isSuccess: false },
+        6: { outcome: 'PARDUOTUVĖ!',     isSuccess: true  },
+    };
+    const eo = exploreOutcomes[roll];
+    await showDiceRoll({
+        context: 'Menės Tyrinėjimas',
+        dice: [{ type: 'd6', result: roll }],
+        outcome: eo.outcome,
+        isSuccess: eo.isSuccess
+    });
+
     let text = `<p><strong>Kambarys ${gameState.roomsExplored}:</strong></p>`;
     let roomEvent = { room: gameState.roomsExplored, type: 'Tuščias', details: '' };
 
@@ -531,40 +649,43 @@ function exploreRoom() {
                 text += "<p class='success'>Pastebėjai spąstus-duobę ir saugiai perėjai per ją virve.</p>";
                 log("Saugiai išvengta spąstų-duobės.");
                 roomEvent.details = 'Išvengta';
-                // showToast("Išvengta spąstų (Virvė)", "success");
             } else {
-                const damage = rollDie(4);
-                gameState.hp -= damage;
+                const trapRoll = rollDie(4);
+                await showDiceRoll({
+                    context: 'Spąstų Žala',
+                    dice: [{ type: 'd4', result: trapRoll }],
+                    outcome: `\u2212${trapRoll} HP`,
+                    isSuccess: false
+                });
+                gameState.hp -= trapRoll;
                 playPlayerHitSound();
                 triggerDamageEffect();
-                text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${damage} žalos!</p>`;
-                log(`Patyrė ${damage} žalos nuo spąstų.`);
-                roomEvent.details = `Patyrė ${damage} žalos`;
-                // showToast(`Spąstai! -${damage} HP`, "danger");
+                text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${trapRoll} žalos!</p>`;
+                log(`Patyrė ${trapRoll} žalos nuo spąstų.`);
+                roomEvent.details = `Patyrė ${trapRoll} žalos`;
             }
             break;
-        case 4: // Weak Monster
+        case 4: { // Weak Monster
             const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
             log(`Sutikai ${weakMonster.name}.`);
             gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: weakMonster.name });
-            // showToast(`Priešas: ${weakMonster.name}`, "warning");
             startCombat(weakMonster);
             return;
-        case 5: // Tough Monster
+        }
+        case 5: { // Tough Monster
             const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
             log(`Sutikai ${toughMonster.name}.`);
             gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: toughMonster.name });
-            // showToast(`Priešas: ${toughMonster.name}`, "danger");
             startCombat(toughMonster);
             return;
+        }
         case 6: // Shop
             log("Radai parduotuvę.");
             gameState.map.push({ room: gameState.roomsExplored, type: 'Parduotuvė', details: '' });
-            // showToast("Radai Parduotuvę", "info");
             openShop(true);
             return;
     }
-    
+
     gameState.map.push(roomEvent);
 
     setGameText(text);
@@ -578,19 +699,28 @@ function exploreRoom() {
 /**
  * Uses a potion to heal the player.
  */
-function usePotion() {
+async function usePotion() {
     const potionIndex = gameState.inventory.indexOf('Mikstūra');
     if (potionIndex > -1) {
-        const healing = rollDie(6) + rollDie(6);
-        gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
+        const roll1 = rollDie(6);
+        const roll2 = rollDie(6);
+        const healing = roll1 + roll2;
 
+        await showDiceRoll({
+            context: 'Mikstūros Gydymas',
+            dice: [{ type: 'd6', result: roll1 }, { type: 'd6', result: roll2 }],
+            outcome: `+${healing} HP`,
+            isSuccess: true,
+            detail: `${roll1} + ${roll2} = ${healing} gyvybės`
+        });
+
+        gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
         gameState.inventory.splice(potionIndex, 1);
         log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
-        showToast(`Pasigydei: +${healing} HP ❤`, "success");
 
         if (gameState.inCombat) {
             document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
-            monsterAttack();
+            await monsterAttack();
         } else if (gameState.inShop) {
             openShop(false, 'buy'); // Refresh shop so potion count updates — stay in shop
         } else {
@@ -621,21 +751,31 @@ function swapWeaponInBattle(itemName) {
 /**
  * Scavenge the current room for resources.
  */
-function scavenge() {
+async function scavenge() {
     gameState.canScavenge = false;
     const roll = rollDie(6);
+
+    let scavengeOutcome, scavengeSuccess;
+    if (roll <= 2)      { scavengeOutcome = 'PASALA!'; scavengeSuccess = false; }
+    else if (roll <= 4) { scavengeOutcome = 'NIEKO';   scavengeSuccess = null;  }
+    else                { scavengeOutcome = 'LOBIS!';  scavengeSuccess = true;  }
+
+    await showDiceRoll({
+        context: 'Paieška',
+        dice: [{ type: 'd6', result: roll }],
+        outcome: scavengeOutcome,
+        isSuccess: scavengeSuccess
+    });
 
     if (roll <= 2) {
         // Ambush!
         const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
         log(`Ieškodamas sukėlei triukšmą ir prisišaukei ${weakMonster.name}!`);
-        // showToast("PASALA!", "danger");
         setGameText(`<p class="warning">Besirausdamas griuvėsiuose pažadinai ${weakMonster.name}!</p>`);
         startCombat(weakMonster);
     } else if (roll <= 4) {
         // Nothing
         log("Nieko neradai.");
-        // showToast("Nieko neradai", "info");
         setGameText("<p>Nieko naudingo neradai.</p>");
         updateUI();
     } else {
@@ -645,7 +785,6 @@ function scavenge() {
         gameState.totalSilverCollected += silver;
         updateChallengeProgress('collect', 'silver', silver);
         log(`Radai ${silver} sidabro!`);
-        // showToast(`Radai: ${silver} sidabro`, "success");
         setGameText(`<p class="success">Tarp šiukšlių radai paslėptą kapšą su ${silver} sidabro!</p>`);
         updateUI();
     }
@@ -740,18 +879,18 @@ function startCombat(monster) {
 /**
  * Player attacks the current monster.
  */
-function attack() {
-    performAttack(false);
+async function attack() {
+    await performAttack(false);
 }
 
 /**
  * Player performs a power attack.
  */
-function powerAttack() {
-    performAttack(true);
+async function powerAttack() {
+    await performAttack(true);
 }
 
-function performAttack(isPowerAttack) {
+async function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
     if (!monster || gameState.monsterDying) return;
 
@@ -770,9 +909,32 @@ function performAttack(isPowerAttack) {
         log("Bandai galingą smūgį...");
     }
 
-    if (attackRoll + hitBonus >= monster.difficulty) {
-        const damage = rollDamage(gameState.playerDamage) + gameState.playerDamageBonus + damageBonus;
+    const hit = attackRoll + hitBonus >= monster.difficulty;
+
+    // Show attack roll
+    await showDiceRoll({
+        context: isPowerAttack ? 'Galingas Smūgis' : 'Smūgio Metimas',
+        dice: [{ type: 'd6', result: attackRoll }],
+        threshold: monster.difficulty,
+        outcome: hit ? 'PATAIKYTA!' : 'NEPATAIKYTA',
+        isSuccess: hit,
+        detail: hitBonus !== 0 ? `Modifikatorius: ${hitBonus > 0 ? '+' : ''}${hitBonus}` : null
+    });
+
+    if (hit) {
+        const damageRoll = rollDamage(gameState.playerDamage);
+        const totalBonus = gameState.playerDamageBonus + damageBonus;
+        const damage = damageRoll + totalBonus;
         monster.currentHp -= damage;
+
+        // Show damage roll
+        await showDiceRoll({
+            context: 'Žala',
+            dice: [{ type: gameState.playerDamage, result: damageRoll }],
+            outcome: `\u2212${damage} HP`,
+            isSuccess: null,
+            detail: totalBonus !== 0 ? `${damageRoll} + ${totalBonus} bonus = ${damage}` : null
+        });
 
         let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.`;
         if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
@@ -797,15 +959,13 @@ function performAttack(isPowerAttack) {
             }, 850);
         } else {
             triggerMonsterHitEffect();
-            // showToast(isPowerAttack ? `Galingas! -${damage} HP` : `Pataikei! -${damage} HP`, "success");
             combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
-            monsterAttack();
+            await monsterAttack();
         }
     } else {
         log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
-        // showToast(isPowerAttack ? "Nepavyko!" : "Nepataikei!", "danger");
         combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
-        monsterAttack();
+        await monsterAttack();
     }
     updateUI();
 }
@@ -813,10 +973,21 @@ function performAttack(isPowerAttack) {
 /**
  * Flees from combat.
  */
-function flee() {
+async function flee() {
     const combatLogEl = document.getElementById('combat-log');
+    // d6 >= 4 = 50% chance to escape (3 of 6 values succeed)
+    const fleeRoll = rollDie(6);
+    const escaped = fleeRoll >= 4;
 
-    if (Math.random() < 0.5) { // 50% chance to flee
+    await showDiceRoll({
+        context: 'Pabėgimo Bandymas',
+        dice: [{ type: 'd6', result: fleeRoll }],
+        threshold: 4,
+        outcome: escaped ? 'PABĖGTA!' : 'SUGAUTAS!',
+        isSuccess: escaped
+    });
+
+    if (escaped) {
         gameState.inCombat = false;
         gameState.currentMonster = null;
         document.body.classList.remove('in-combat');
@@ -826,28 +997,36 @@ function flee() {
     } else {
         log("Nepavyko pabėgti.");
         if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>Nepavyko pabėgti!</p>`);
-        monsterAttack();
+        await monsterAttack();
     }
 }
 
 /**
  * The current monster attacks the player.
  */
-function monsterAttack() {
+async function monsterAttack() {
     const monster = gameState.currentMonster;
-    let damage = Math.max(0, rollDamage(monster.damage) - gameState.playerDefense);
+    const damageRoll = rollDamage(monster.damage);
+    const defense = gameState.playerDefense;
+    const damage = Math.max(0, damageRoll - defense);
+
+    // Show monster damage roll
+    await showDiceRoll({
+        context: `${monster.name} Puola`,
+        dice: [{ type: monster.damage, result: damageRoll }],
+        outcome: damage === 0 ? 'BLOKUOTA!' : `\u2212${damage} HP`,
+        isSuccess: damage === 0,
+        detail: defense > 0 ? `Apsauga: \u2212${defense}` : null
+    });
 
     if (damage > 0) {
         gameState.hp -= damage;
         playPlayerHitSound();
         triggerDamageEffect();
-        // showToast(`Gavai smūgį! -${damage} HP`, "danger");
-    } else {
-        // showToast("Blokavai smūgį!", "info");
     }
 
     log(`${monster.name} tau smogė ir padarė ${damage} žalos.`);
-    
+
     const combatLogEl = document.getElementById('combat-log');
     if(combatLogEl) {
         combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`);
