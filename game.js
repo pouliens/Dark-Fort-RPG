@@ -1256,6 +1256,11 @@ function openShop(isFirstTime = false, tab = 'buy') {
         if (sellableInventory.length === 0) {
             shopItems.push("<p>Neturi nieko parduoti.</p>");
         } else {
+            const inventoryCounts = gameState.inventory.reduce((acc, name) => {
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+            }, {});
+
             sellableInventory.forEach(itemName => {
                 let itemDetails = ITEM_LOOKUP[itemName];
 
@@ -1264,7 +1269,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
                     itemDetails = { name: itemName, type: 'misc', description: 'Paprastas daiktas.', price: 2 };
                 }
 
-                const count = gameState.inventory.filter(i => i === itemName).length;
+                const count = inventoryCounts[itemName];
                 shopItems.push(createShopItemHTML(itemDetails, false, count));
             });
         }
