@@ -1180,9 +1180,9 @@ function winCombat(killingBlowDamage) {
 function openShop(isFirstTime = false, tab = 'buy') {
     gameState.inShop = true;
 
-    let shopText = isFirstTime ? "<p class='success'>Atsiranda paslaptingas prekeivis, siūlantis savo prekes.</p>" : "";
+    const intro = isFirstTime ? "<p class='success'>Atsiranda paslaptingas prekeivis, siūlantis savo prekes.</p>" : "";
 
-    shopText += `
+    const tabs = `
         <div class="shop-tabs">
             <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Pirkti</button>
             <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Parduoti</button>
@@ -1243,20 +1243,18 @@ function openShop(isFirstTime = false, tab = 'buy') {
         </div>`;
     };
 
-    let shopItems = [];
+    let content = "";
     if (tab === 'buy') {
-        shopItems.push("<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>");
-        SHOP_ITEMS.forEach(item => {
-            shopItems.push(createShopItemHTML(item, true));
-        });
+        const items = SHOP_ITEMS.map(item => createShopItemHTML(item, true)).join('');
+        content = `<h4><span class="material-symbols-outlined">storefront</span> Prekeivio Prekės</h4>${items}`;
     } else { // Sell tab
-        shopItems.push("<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>");
         const sellableInventory = [...new Set(gameState.inventory)];
 
+        let items = "";
         if (sellableInventory.length === 0) {
-            shopItems.push("<p>Neturi nieko parduoti.</p>");
+            items = "<p>Neturi nieko parduoti.</p>";
         } else {
-            sellableInventory.forEach(itemName => {
+            items = sellableInventory.map(itemName => {
                 let itemDetails = ITEM_LOOKUP[itemName];
 
                 // Fallback if item details missing
@@ -1265,15 +1263,14 @@ function openShop(isFirstTime = false, tab = 'buy') {
                 }
 
                 const count = gameState.inventory.filter(i => i === itemName).length;
-                shopItems.push(createShopItemHTML(itemDetails, false, count));
-            });
+                return createShopItemHTML(itemDetails, false, count);
+            }).join('');
         }
+        content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4>${items}`;
     }
 
-    shopText += shopItems.join('');
-
-    shopText += `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
-    setGameText(shopText);
+    const footer = `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
+    setGameText(intro + tabs + content + footer);
     updateUI();
 }
 

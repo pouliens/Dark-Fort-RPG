@@ -74,7 +74,7 @@ function benchmarkStringConcat(iterations) {
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
         let shopText = "";
-        const tab = (i % 2 === 0) ? 'buy' : 'sell'; // Alternate tabs
+        const tab = (i % 2 === 0) ? 'buy' : 'sell';
 
         if (tab === 'buy') {
             shopText += "<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>";
@@ -103,11 +103,11 @@ function benchmarkStringConcat(iterations) {
     return end - start;
 }
 
-function benchmarkArrayJoin(iterations) {
+function benchmarkArrayPushJoin(iterations) {
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
         let shopItems = [];
-        let shopText = ""; // Mocking the main string
+        let shopText = "";
         const tab = (i % 2 === 0) ? 'buy' : 'sell';
 
         if (tab === 'buy') {
@@ -138,13 +138,52 @@ function benchmarkArrayJoin(iterations) {
     return end - start;
 }
 
+function benchmarkArrayMapJoin(iterations) {
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        let shopText = "";
+        const tab = (i % 2 === 0) ? 'buy' : 'sell';
+
+        if (tab === 'buy') {
+            const header = "<h4><span class=\"material-symbols-outlined\">storefront</span> Prekeivio Prekės</h4>";
+            const items = SHOP_ITEMS.map(item => createShopItemHTML(item, true)).join('');
+            shopText += header + items;
+        } else { // Sell tab
+            const header = "<h4><span class=\"material-symbols-outlined\">backpack</span> Tavo Prekės</h4>";
+            const sellableInventory = [...new Set(gameState.inventory)];
+
+            let items = "";
+            if (sellableInventory.length === 0) {
+                items = "<p>Neturi nieko parduoti.</p>";
+            } else {
+                items = sellableInventory.map(itemName => {
+                    let itemDetails = ITEM_LOOKUP[itemName];
+                    if (!itemDetails) {
+                        itemDetails = { name: itemName, type: 'misc', description: 'Paprastas daiktas.', price: 2 };
+                    }
+                    const count = gameState.inventory.filter(item => item === itemName).length;
+                    return createShopItemHTML(itemDetails, false, count);
+                }).join('');
+            }
+            shopText += header + items;
+        }
+    }
+    const end = performance.now();
+    return end - start;
+}
+
 const ITERATIONS = 100000;
 console.log(`Running benchmark with ${ITERATIONS} iterations...`);
+
 const time1 = benchmarkStringConcat(ITERATIONS);
 console.log(`String Concatenation: ${time1.toFixed(2)}ms`);
 
-const time2 = benchmarkArrayJoin(ITERATIONS);
+const time2 = benchmarkArrayPushJoin(ITERATIONS);
 console.log(`Array Push/Join:      ${time2.toFixed(2)}ms`);
 
-console.log(`Difference:           ${(time1 - time2).toFixed(2)}ms`);
-console.log(`Improvement:          ${((time1 - time2) / time1 * 100).toFixed(2)}%`);
+const time3 = benchmarkArrayMapJoin(ITERATIONS);
+console.log(`Array Map/Join:       ${time3.toFixed(2)}ms`);
+
+console.log(`\nImprovement (Push/Join vs Concat): ${((time1 - time2) / time1 * 100).toFixed(2)}%`);
+console.log(`Improvement (Map/Join vs Concat):  ${((time1 - time3) / time1 * 100).toFixed(2)}%`);
+console.log(`Improvement (Map/Join vs Push/Join): ${((time2 - time3) / time2 * 100).toFixed(2)}%`);
