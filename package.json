@@ -1,0 +1,27 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "**Dark Fort RPG** is a solo dungeon crawler web game inspired by the precursor to MÖRK BORG. Explore a cursed catacomb, battle monsters, collect treasures, and see how long you can survive!",
+  "main": "benchmark_final.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pouliens/Dark-Fort-RPG.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pouliens/Dark-Fort-RPG/issues"
+  },
+  "homepage": "https://github.com/pouliens/Dark-Fort-RPG#readme",
+  "dependencies": {
+    "jsdom": "^29.0.1"
+  }
+}
