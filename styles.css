@@ -791,6 +791,106 @@ body.in-combat .log {
 .battle-turn-pill strong { color: var(--accent-yellow); }
 .battle-speed-pill strong { color: var(--accent-cyan); }
 
+.battle-turn-state {
+    text-align: center;
+    font-family: var(--font-sub);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 8px;
+    border-bottom: 1px dashed rgba(255,255,255,0.15);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.battle-turn-state.player-turn { color: var(--accent-cyan); }
+.battle-turn-state.enemy-turn { color: var(--accent-red); }
+
+.battle-duel-stage {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.15));
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.battle-actor {
+    position: relative;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.45);
+    padding: 8px 6px;
+    min-height: 74px;
+}
+
+.battle-actor.player { border-color: rgba(0,255,255,0.4); }
+.battle-actor.enemy { border-color: rgba(255,51,51,0.45); }
+.battle-actor.active-turn { box-shadow: 0 0 14px rgba(255,255,255,0.12); }
+
+.battle-actor-label {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.battle-actor-sprite .material-symbols-outlined {
+    font-size: 1.5rem;
+}
+
+.battle-actor.player .battle-actor-sprite { color: var(--accent-cyan); }
+.battle-actor.enemy .battle-actor-sprite { color: var(--accent-red); }
+
+.battle-versus {
+    font-family: var(--font-sub);
+    color: var(--accent-yellow);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+}
+
+@keyframes lunge-right {
+    0% { transform: translateX(0); }
+    40% { transform: translateX(8px) scale(1.03); }
+    100% { transform: translateX(0); }
+}
+
+@keyframes lunge-left {
+    0% { transform: translateX(0); }
+    40% { transform: translateX(-8px) scale(1.03); }
+    100% { transform: translateX(0); }
+}
+
+.attack-lunge-right { animation: lunge-right 0.25s ease-out; }
+.attack-lunge-left { animation: lunge-left 0.25s ease-out; }
+
+@keyframes float-combat {
+    0% { opacity: 0; transform: translateY(0) scale(0.9); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-28px) scale(1.05); }
+}
+
+.floating-combat-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-sub);
+    font-size: 0.8rem;
+    font-weight: bold;
+    pointer-events: none;
+    text-shadow: 0 0 10px currentColor;
+    animation: float-combat 0.85s ease-out forwards;
+    z-index: 3;
+}
+
+.floating-combat-text.damage { color: var(--accent-red); }
+.floating-combat-text.heal { color: #6eff8f; }
+.floating-combat-text.crit {
+    color: var(--accent-yellow);
+    font-size: 0.88rem;
+}
+
 .battle-enemy {
     display: flex;
     flex-direction: column;
@@ -1041,6 +1141,20 @@ body.in-combat .log {
 }
 
 @media (max-width: 480px) {
+    .battle-duel-stage {
+        gap: 4px;
+        padding: 8px 6px;
+    }
+
+    .battle-actor {
+        min-height: 66px;
+        padding: 6px 4px;
+    }
+
+    .battle-actor-label {
+        font-size: 0.66rem;
+    }
+
     .battle-enemy-name {
         font-size: 1.25rem;
     }
