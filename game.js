@@ -6,41 +6,45 @@
 // ŽAIDIMO BŪSENOS INICIALIZACIJA
 // -----------------------------------------------------------------------------
 
-let gameState = {
-    hp: 20,
-    maxHp: 20,
-    silver: 0,
-    points: 0,
-    level: 1,
-    playerName: '',
-    playerProfession: '',
-    playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
-    playerDamageBonus: 0,
-    playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
-    inventory: [],
-    equippedWeapon: null,
-    equippedArmor: null,
-    currentMonster: null,
-    inCombat: false,
-    inShop: false,
-    gameStarted: false,
-    roomsExplored: 0,
-    bossEncountered: false,
-    playerIsDead: false,
-    canScavenge: false,
-    challenges: {},
-    challengeLookup: {},
-    map: [],
-    totalSilverCollected: 0,
-    monstersDefeated: 0,
-    gameWon: false,
-    inVictory: false,
-    monsterDying: false,
-    autoBattle: false,
-    autoBattleDelay: 700,
-    combatTurn: 1,
-    combatFeed: []
-};
+function createInitialGameState() {
+    return {
+        hp: 20,
+        maxHp: 20,
+        silver: 0,
+        points: 0,
+        level: 1,
+        playerName: '',
+        playerProfession: '',
+        playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
+        playerDamageBonus: 0,
+        playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
+        inventory: [],
+        equippedWeapon: null,
+        equippedArmor: null,
+        currentMonster: null,
+        inCombat: false,
+        inShop: false,
+        gameStarted: false,
+        roomsExplored: 0,
+        bossEncountered: false,
+        playerIsDead: false,
+        canScavenge: false,
+        challenges: {},
+        challengeLookup: {},
+        map: [],
+        totalSilverCollected: 0,
+        monstersDefeated: 0,
+        gameWon: false,
+        inVictory: false,
+        monsterDying: false,
+        autoBattle: false,
+        autoBattleDelay: 700,
+        combatTurn: 1,
+        combatFeed: []
+    };
+}
+
+let gameState = createInitialGameState();
 
 // Data is now in game-data.js
 
@@ -1622,6 +1626,7 @@ function winGame() {
     showToast("PERGALĖ!", "success");
     saveChallenges();
     gameState.inCombat = false;
+    document.body.classList.remove('in-combat');
     showEndGameScreen(true, "Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!");
     updateUI();
 }
@@ -1650,34 +1655,7 @@ function resetGame() {
     const titleEl = document.querySelector('h1.cyber-glitch');
     if (titleEl) titleEl.style.display = 'block';
 
-    gameState = {
-        hp: 20,
-        maxHp: 20,
-        silver: 0,
-        points: 0,
-        level: 1,
-        playerName: '',
-        playerProfession: '',
-        playerDamage: 'd4',
-        playerDamageBonus: 0,
-        playerDefense: 0,
-        inventory: [],
-        equippedWeapon: null,
-        equippedArmor: null,
-        currentMonster: null,
-        inCombat: false,
-        inShop: false,
-        gameStarted: false,
-        roomsExplored: 0,
-        bossEncountered: false,
-        playerIsDead: false,
-        challengeLookup: {},
-        map: [],
-        totalSilverCollected: 0,
-        monstersDefeated: 0,
-        gameWon: false,
-        inVictory: false
-    };
+    gameState = createInitialGameState();
     document.body.classList.remove('in-combat');
     logEl.innerHTML = "";
     setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
