@@ -6,41 +6,45 @@
 // ŽAIDIMO BŪSENOS INICIALIZACIJA
 // -----------------------------------------------------------------------------
 
-let gameState = {
-    hp: 20,
-    maxHp: 20,
-    silver: 0,
-    points: 0,
-    level: 1,
-    playerName: '',
-    playerProfession: '',
-    playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
-    playerDamageBonus: 0,
-    playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
-    inventory: [],
-    equippedWeapon: null,
-    equippedArmor: null,
-    currentMonster: null,
-    inCombat: false,
-    inShop: false,
-    gameStarted: false,
-    roomsExplored: 0,
-    bossEncountered: false,
-    playerIsDead: false,
-    canScavenge: false,
-    challenges: {},
-    challengeLookup: {},
-    map: [],
-    totalSilverCollected: 0,
-    monstersDefeated: 0,
-    gameWon: false,
-    inVictory: false,
-    monsterDying: false,
-    autoBattle: false,
-    autoBattleDelay: 700,
-    combatTurn: 1,
-    combatFeed: []
-};
+function createInitialGameState() {
+    return {
+        hp: 20,
+        maxHp: 20,
+        silver: 0,
+        points: 0,
+        level: 1,
+        playerName: '',
+        playerProfession: '',
+        playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
+        playerDamageBonus: 0,
+        playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
+        inventory: [],
+        equippedWeapon: null,
+        equippedArmor: null,
+        currentMonster: null,
+        inCombat: false,
+        inShop: false,
+        gameStarted: false,
+        roomsExplored: 0,
+        bossEncountered: false,
+        playerIsDead: false,
+        canScavenge: false,
+        challenges: {},
+        challengeLookup: {},
+        map: [],
+        totalSilverCollected: 0,
+        monstersDefeated: 0,
+        gameWon: false,
+        inVictory: false,
+        monsterDying: false,
+        autoBattle: false,
+        autoBattleDelay: 700,
+        combatTurn: 1,
+        combatFeed: []
+    };
+}
+
+let gameState = createInitialGameState();
 
 // Data is now in game-data.js
 
@@ -261,6 +265,11 @@ function rollDamage(diceString) {
     return match ? rollDie(parseInt(match[1], 10)) : 1;
 }
 
+function getDieSides(diceString) {
+    const match = diceString.match(/d(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
 /**
  * Gets the numerical value of a damage die string.
  * @param {string} diceString - The dice string (e.g., 'd6').
@@ -327,6 +336,47 @@ function setGameText(html) {
     if (gameTextEl) {
         gameTextEl.innerHTML = html;
     }
+}
+
+function setTurnIndicator(turn) {
+    const indicator = document.getElementById('battle-turn-state');
+    const playerActor = document.getElementById('battle-player-actor');
+    const enemyActor = document.getElementById('battle-enemy-actor');
+    if (!indicator) return;
+
+    indicator.className = 'battle-turn-state';
+    if (playerActor) playerActor.classList.remove('active-turn');
+    if (enemyActor) enemyActor.classList.remove('active-turn');
+
+    if (turn === 'player') {
+        indicator.classList.add('player-turn');
+        indicator.textContent = 'Tavo ėjimas';
+        if (playerActor) playerActor.classList.add('active-turn');
+    } else if (turn === 'enemy') {
+        indicator.classList.add('enemy-turn');
+        indicator.textContent = 'Priešo ėjimas';
+        if (enemyActor) enemyActor.classList.add('active-turn');
+    } else {
+        indicator.textContent = 'Kova vyksta';
+    }
+}
+
+function animateBattleAttack(attacker) {
+    const actorEl = document.getElementById(attacker === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    if (!actorEl) return;
+    actorEl.classList.add(attacker === 'player' ? 'attack-lunge-right' : 'attack-lunge-left');
+    setTimeout(() => actorEl.classList.remove('attack-lunge-right', 'attack-lunge-left'), 260);
+}
+
+function showFloatingCombatText(target, amount, { crit = false, heal = false } = {}) {
+    const targetEl = document.getElementById(target === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    if (!targetEl) return;
+
+    const float = document.createElement('div');
+    float.className = `floating-combat-text ${crit ? 'crit' : ''} ${heal ? 'heal' : 'damage'}`.trim();
+    float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
+    targetEl.appendChild(float);
+    setTimeout(() => float.remove(), 850);
 }
 
 function pushCombatFeed(type, text) {
@@ -871,6 +921,25 @@ function startCombat(monster) {
                     Auto greitis: <strong id="auto-battle-speed-label">x1</strong>
                 </div>
             </div>
+
+            <div class="battle-turn-state player-turn" id="battle-turn-state">Tavo ėjimas</div>
+
+            <div class="battle-duel-stage">
+                <div class="battle-actor player active-turn" id="battle-player-actor">
+                    <div class="battle-actor-label">${gameState.playerName}</div>
+                    <div class="battle-actor-sprite">
+                        <span class="material-symbols-outlined">swords</span>
+                    </div>
+                </div>
+                <div class="battle-versus">VS</div>
+                <div class="battle-actor enemy" id="battle-enemy-actor">
+                    <div class="battle-actor-label">${monster.name}</div>
+                    <div class="battle-actor-sprite">
+                        <span class="material-symbols-outlined">skull</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Enemy Section (Top) -->
             <div class="battle-enemy">
                 <div class="battle-enemy-row">
@@ -963,8 +1032,10 @@ async function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
     if (!monster || gameState.monsterDying || combatActionBusy) return;
     combatActionBusy = true;
+    setTurnIndicator('player');
 
     playAttackSound();
+    animateBattleAttack('player');
 
     const combatLogEl = document.getElementById('combat-log');
     combatLogEl.innerHTML = ''; // Clear previous log
@@ -994,8 +1065,11 @@ async function performAttack(isPowerAttack) {
     if (hit) {
         const damageRoll = rollDamage(gameState.playerDamage);
         const totalBonus = gameState.playerDamageBonus + damageBonus;
-        const damage = damageRoll + totalBonus;
+        const crit = attackRoll === 6;
+        const critBonus = crit ? 2 : 0;
+        const damage = damageRoll + totalBonus + critBonus;
         monster.currentHp -= damage;
+        showFloatingCombatText('enemy', damage, { crit });
 
         // Show damage roll
         await showDiceRoll({
@@ -1003,10 +1077,10 @@ async function performAttack(isPowerAttack) {
             dice: [{ type: gameState.playerDamage, result: damageRoll }],
             outcome: `\u2212${damage} HP`,
             isSuccess: null,
-            detail: totalBonus !== 0 ? `${damageRoll} + ${totalBonus} bonus = ${damage}` : null
+            detail: `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`
         });
 
-        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.`;
+        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.${crit ? ' Kritinis smūgis!' : ''}`;
         if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
 
         log(msg);
@@ -1137,9 +1211,13 @@ async function runAutoBattle() {
  */
 async function monsterAttack() {
     const monster = gameState.currentMonster;
+    setTurnIndicator('enemy');
+    animateBattleAttack('enemy');
     const damageRoll = rollDamage(monster.damage);
     const defense = gameState.playerDefense;
-    const damage = Math.max(0, damageRoll - defense);
+    const isCrit = damageRoll === getDieSides(monster.damage);
+    const critBonus = isCrit ? 1 : 0;
+    const damage = Math.max(0, damageRoll + critBonus - defense);
 
     // Show monster damage roll
     await showDiceRoll({
@@ -1147,16 +1225,17 @@ async function monsterAttack() {
         dice: [{ type: monster.damage, result: damageRoll }],
         outcome: damage === 0 ? 'BLOKUOTA!' : `\u2212${damage} HP`,
         isSuccess: damage === 0,
-        detail: defense > 0 ? `Apsauga: \u2212${defense}` : null
+        detail: `${isCrit ? 'Kritinis smūgis! ' : ''}${defense > 0 ? `Apsauga: \u2212${defense}` : ''}`.trim() || null
     });
 
     if (damage > 0) {
         gameState.hp -= damage;
+        showFloatingCombatText('player', damage, { crit: isCrit });
         playPlayerHitSound();
         triggerDamageEffect();
     }
 
-    log(`${monster.name} tau smogė ir padarė ${damage} žalos.`);
+    log(`${monster.name} tau smogė ir padarė ${damage} žalos.${isCrit ? ' Kritinis smūgis!' : ''}`);
     pushCombatFeed(damage > 0 ? 'enemy' : 'info', `${monster.name}: -${damage} HP tau`);
 
     const combatLogEl = document.getElementById('combat-log');
@@ -1168,6 +1247,7 @@ async function monsterAttack() {
         gameOver(`Tave nužudė ${monster.name}.`);
     } else {
         gameState.combatTurn++;
+        setTurnIndicator('player');
     }
     updateUI();
 }
@@ -1552,6 +1632,7 @@ function winGame() {
     showToast("PERGALĖ!", "success");
     saveChallenges();
     gameState.inCombat = false;
+    document.body.classList.remove('in-combat');
     showEndGameScreen(true, "Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!");
     updateUI();
 }
@@ -1580,34 +1661,7 @@ function resetGame() {
     const titleEl = document.querySelector('h1.cyber-glitch');
     if (titleEl) titleEl.style.display = 'block';
 
-    gameState = {
-        hp: 20,
-        maxHp: 20,
-        silver: 0,
-        points: 0,
-        level: 1,
-        playerName: '',
-        playerProfession: '',
-        playerDamage: 'd4',
-        playerDamageBonus: 0,
-        playerDefense: 0,
-        inventory: [],
-        equippedWeapon: null,
-        equippedArmor: null,
-        currentMonster: null,
-        inCombat: false,
-        inShop: false,
-        gameStarted: false,
-        roomsExplored: 0,
-        bossEncountered: false,
-        playerIsDead: false,
-        challengeLookup: {},
-        map: [],
-        totalSilverCollected: 0,
-        monstersDefeated: 0,
-        gameWon: false,
-        inVictory: false
-    };
+    gameState = createInitialGameState();
     document.body.classList.remove('in-combat');
     logEl.innerHTML = "";
     setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
