@@ -36,7 +36,10 @@ let gameState = {
     gameWon: false,
     inVictory: false,
     monsterDying: false,
-    autoBattle: false
+    autoBattle: false,
+    autoBattleDelay: 700,
+    combatTurn: 1,
+    combatFeed: []
 };
 
 // Data is now in game-data.js
@@ -258,6 +261,11 @@ function rollDamage(diceString) {
     return match ? rollDie(parseInt(match[1], 10)) : 1;
 }
 
+function getDieSides(diceString) {
+    const match = diceString.match(/d(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
 /**
  * Gets the numerical value of a damage die string.
  * @param {string} diceString - The dice string (e.g., 'd6').
@@ -324,6 +332,69 @@ function setGameText(html) {
     if (gameTextEl) {
         gameTextEl.innerHTML = html;
     }
+}
+
+function setTurnIndicator(turn) {
+    const indicator = document.getElementById('battle-turn-state');
+    const playerActor = document.getElementById('battle-player-actor');
+    const enemyActor = document.getElementById('battle-enemy-actor');
+    if (!indicator) return;
+
+    indicator.className = 'battle-turn-state';
+    if (playerActor) playerActor.classList.remove('active-turn');
+    if (enemyActor) enemyActor.classList.remove('active-turn');
+
+    if (turn === 'player') {
+        indicator.classList.add('player-turn');
+        indicator.textContent = 'Tavo ėjimas';
+        if (playerActor) playerActor.classList.add('active-turn');
+    } else if (turn === 'enemy') {
+        indicator.classList.add('enemy-turn');
+        indicator.textContent = 'Priešo ėjimas';
+        if (enemyActor) enemyActor.classList.add('active-turn');
+    } else {
+        indicator.textContent = 'Kova vyksta';
+    }
+}
+
+function animateBattleAttack(attacker) {
+    const actorEl = document.getElementById(attacker === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    if (!actorEl) return;
+    actorEl.classList.add(attacker === 'player' ? 'attack-lunge-right' : 'attack-lunge-left');
+    setTimeout(() => actorEl.classList.remove('attack-lunge-right', 'attack-lunge-left'), 260);
+}
+
+function showFloatingCombatText(target, amount, { crit = false, heal = false } = {}) {
+    const targetEl = document.getElementById(target === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    if (!targetEl) return;
+
+    const float = document.createElement('div');
+    float.className = `floating-combat-text ${crit ? 'crit' : ''} ${heal ? 'heal' : 'damage'}`.trim();
+    float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
+    targetEl.appendChild(float);
+    setTimeout(() => float.remove(), 850);
+}
+
+function pushCombatFeed(type, text) {
+    if (!gameState.inCombat) return;
+    const entry = {
+        type,
+        text,
+        turn: gameState.combatTurn
+    };
+    gameState.combatFeed.unshift(entry);
+    if (gameState.combatFeed.length > 5) {
+        gameState.combatFeed.length = 5;
+    }
+
+    const feedEl = document.getElementById('battle-feed');
+    if (!feedEl) return;
+    feedEl.innerHTML = gameState.combatFeed.map(item => `
+        <div class="battle-feed-item ${item.type}">
+            <span class="battle-feed-turn">#${item.turn}</span>
+            <span class="battle-feed-text">${item.text}</span>
+        </div>
+    `).join('');
 }
 
 /**
@@ -469,6 +540,10 @@ function updateUI() {
                 const pct = Math.max(0, (gameState.currentMonster.currentHp / gameState.currentMonster.hp) * 100);
                 hpBar.style.width = `${pct}%`;
             }
+            const monsterHpTextEl = document.getElementById('monster-hp');
+            if (monsterHpTextEl) {
+                monsterHpTextEl.textContent = Math.max(0, gameState.currentMonster.currentHp);
+            }
         }
 
         // Player HP bar
@@ -508,6 +583,16 @@ function updateUI() {
             });
 
             quickItemsEl.innerHTML = buttonsHtml;
+        }
+
+        const turnEl = document.getElementById('battle-turn-counter');
+        if (turnEl) {
+            turnEl.textContent = gameState.combatTurn;
+        }
+
+        const speedLabelEl = document.getElementById('auto-battle-speed-label');
+        if (speedLabelEl) {
+            speedLabelEl.textContent = gameState.autoBattleDelay <= 350 ? 'x2' : gameState.autoBattleDelay <= 500 ? 'x1.5' : 'x1';
         }
     }
 
@@ -809,6 +894,10 @@ async function scavenge() {
 function startCombat(monster) {
     gameState.inCombat = true;
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
+    gameState.combatTurn = 1;
+    gameState.combatFeed = [];
+    gameState.autoBattle = false;
+    gameState.autoBattleDelay = 700;
     document.body.classList.add('in-combat');
 
     let encounterText = monster.name === FORTRESS_LORD.name
@@ -822,6 +911,31 @@ function startCombat(monster) {
 
     let text = `
         <div class="battle-interface">
+            <div class="battle-top-bar">
+                <div class="battle-turn-pill">Raundas <strong id="battle-turn-counter">${gameState.combatTurn}</strong></div>
+                <div class="battle-speed-pill">
+                    Auto greitis: <strong id="auto-battle-speed-label">x1</strong>
+                </div>
+            </div>
+
+            <div class="battle-turn-state player-turn" id="battle-turn-state">Tavo ėjimas</div>
+
+            <div class="battle-duel-stage">
+                <div class="battle-actor player active-turn" id="battle-player-actor">
+                    <div class="battle-actor-label">${gameState.playerName}</div>
+                    <div class="battle-actor-sprite">
+                        <span class="material-symbols-outlined">swords</span>
+                    </div>
+                </div>
+                <div class="battle-versus">VS</div>
+                <div class="battle-actor enemy" id="battle-enemy-actor">
+                    <div class="battle-actor-label">${monster.name}</div>
+                    <div class="battle-actor-sprite">
+                        <span class="material-symbols-outlined">skull</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Enemy Section (Top) -->
             <div class="battle-enemy">
                 <div class="battle-enemy-row">
@@ -876,7 +990,12 @@ function startCombat(monster) {
                 <button id="auto-battle-btn" class="auto-battle-btn" onclick="toggleAutoBattle()">
                     <span class="material-symbols-outlined">play_arrow</span> Auto: OFF
                 </button>
+                <button id="auto-speed-btn" class="auto-battle-btn auto-speed-btn" onclick="cycleAutoBattleSpeed()">
+                    <span class="material-symbols-outlined">bolt</span> Greitis
+                </button>
             </div>
+
+            <div id="battle-feed" class="battle-feed"></div>
 
             <!-- Combat Log (Bottom) -->
             <div id="combat-log" class="battle-log">
@@ -887,6 +1006,7 @@ function startCombat(monster) {
     `;
 
     setGameText(text);
+    pushCombatFeed('info', `${monster.name} stoja į kovą.`);
     updateUI();
 }
 
@@ -908,8 +1028,10 @@ async function performAttack(isPowerAttack) {
     const monster = gameState.currentMonster;
     if (!monster || gameState.monsterDying || combatActionBusy) return;
     combatActionBusy = true;
+    setTurnIndicator('player');
 
     playAttackSound();
+    animateBattleAttack('player');
 
     const combatLogEl = document.getElementById('combat-log');
     combatLogEl.innerHTML = ''; // Clear previous log
@@ -939,8 +1061,11 @@ async function performAttack(isPowerAttack) {
     if (hit) {
         const damageRoll = rollDamage(gameState.playerDamage);
         const totalBonus = gameState.playerDamageBonus + damageBonus;
-        const damage = damageRoll + totalBonus;
+        const crit = attackRoll === 6;
+        const critBonus = crit ? 2 : 0;
+        const damage = damageRoll + totalBonus + critBonus;
         monster.currentHp -= damage;
+        showFloatingCombatText('enemy', damage, { crit });
 
         // Show damage roll
         await showDiceRoll({
@@ -948,13 +1073,14 @@ async function performAttack(isPowerAttack) {
             dice: [{ type: gameState.playerDamage, result: damageRoll }],
             outcome: `\u2212${damage} HP`,
             isSuccess: null,
-            detail: totalBonus !== 0 ? `${damageRoll} + ${totalBonus} bonus = ${damage}` : null
+            detail: `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`
         });
 
-        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.`;
+        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.${crit ? ' Kritinis smūgis!' : ''}`;
         if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
 
         log(msg);
+        pushCombatFeed('player', `Tu: -${damage} HP ${monster.name}`);
 
         document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
 
@@ -976,11 +1102,13 @@ async function performAttack(isPowerAttack) {
             triggerMonsterHitEffect();
             // Dark Fort rule: enemy does NOT counter-attack when you land a hit
             combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
+            gameState.combatTurn++;
         }
     } else {
         // Dark Fort rule: enemy only attacks when you miss
         log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
         combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
+        pushCombatFeed('warning', `Nepataikei į ${monster.name}.`);
         await monsterAttack();
     }
     combatActionBusy = false;
@@ -1035,8 +1163,18 @@ function toggleAutoBattle() {
             : '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
     }
     if (gameState.autoBattle) {
+        pushCombatFeed('info', 'Auto kova įjungta.');
         runAutoBattle();
+    } else {
+        pushCombatFeed('info', 'Auto kova išjungta.');
     }
+}
+
+function cycleAutoBattleSpeed() {
+    if (gameState.autoBattleDelay === 700) gameState.autoBattleDelay = 500;
+    else if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 350;
+    else gameState.autoBattleDelay = 700;
+    updateUI();
 }
 
 /**
@@ -1052,7 +1190,7 @@ async function runAutoBattle() {
         await performAttack(false);
         // Pause between turns so the player can see what happened
         if (gameState.autoBattle && gameState.inCombat) {
-            await sleep(700);
+            await sleep(gameState.autoBattleDelay);
         }
     }
     // Combat ended — turn off auto-battle and update button
@@ -1069,9 +1207,13 @@ async function runAutoBattle() {
  */
 async function monsterAttack() {
     const monster = gameState.currentMonster;
+    setTurnIndicator('enemy');
+    animateBattleAttack('enemy');
     const damageRoll = rollDamage(monster.damage);
     const defense = gameState.playerDefense;
-    const damage = Math.max(0, damageRoll - defense);
+    const isCrit = damageRoll === getDieSides(monster.damage);
+    const critBonus = isCrit ? 1 : 0;
+    const damage = Math.max(0, damageRoll + critBonus - defense);
 
     // Show monster damage roll
     await showDiceRoll({
@@ -1079,16 +1221,18 @@ async function monsterAttack() {
         dice: [{ type: monster.damage, result: damageRoll }],
         outcome: damage === 0 ? 'BLOKUOTA!' : `\u2212${damage} HP`,
         isSuccess: damage === 0,
-        detail: defense > 0 ? `Apsauga: \u2212${defense}` : null
+        detail: `${isCrit ? 'Kritinis smūgis! ' : ''}${defense > 0 ? `Apsauga: \u2212${defense}` : ''}`.trim() || null
     });
 
     if (damage > 0) {
         gameState.hp -= damage;
+        showFloatingCombatText('player', damage, { crit: isCrit });
         playPlayerHitSound();
         triggerDamageEffect();
     }
 
-    log(`${monster.name} tau smogė ir padarė ${damage} žalos.`);
+    log(`${monster.name} tau smogė ir padarė ${damage} žalos.${isCrit ? ' Kritinis smūgis!' : ''}`);
+    pushCombatFeed(damage > 0 ? 'enemy' : 'info', `${monster.name}: -${damage} HP tau`);
 
     const combatLogEl = document.getElementById('combat-log');
     if(combatLogEl) {
@@ -1097,6 +1241,9 @@ async function monsterAttack() {
 
     if (gameState.hp <= 0) {
         gameOver(`Tave nužudė ${monster.name}.`);
+    } else {
+        gameState.combatTurn++;
+        setTurnIndicator('player');
     }
     updateUI();
 }
