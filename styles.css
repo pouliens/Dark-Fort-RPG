@@ -778,7 +778,7 @@ body.in-combat .log {
     background:
         radial-gradient(ellipse at center bottom, rgba(255,255,255,0.03) 0%, transparent 70%),
         linear-gradient(180deg, #080810, #0a0a12);
-    min-height: 160px;
+    min-height: 140px;
     position: relative;
 }
 
@@ -787,8 +787,9 @@ body.in-combat .log {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     position: relative;
+    min-width: 0; /* prevent grid blowout */
 }
 
 .arena-name {
@@ -801,6 +802,7 @@ body.in-combat .log {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    text-align: center;
 }
 
 .player-side .arena-name { color: var(--accent-cyan); }
@@ -816,7 +818,9 @@ body.in-combat .log {
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.5);
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .player-side .arena-sprite {
@@ -840,8 +844,9 @@ body.in-combat .log {
 }
 
 .enemy-side .arena-sprite img {
-    max-width: 64px;
-    max-height: 64px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     image-rendering: pixelated;
     display: block;
 }
@@ -852,25 +857,19 @@ body.in-combat .log {
 }
 
 .enemy-side.boss .arena-sprite {
-    width: 84px;
-    height: 84px;
+    width: 88px;
+    height: 88px;
     border-color: rgba(242,255,0,0.3);
     box-shadow: 0 0 16px rgba(242,255,0,0.12);
 }
 
-.enemy-side.boss .arena-sprite img {
-    max-width: 76px;
-    max-height: 76px;
-}
-
 /* HP bars under sprites */
 .arena-hp-bar {
-    width: 100%;
-    max-width: 80px;
-    height: 5px;
-    background: rgba(255,255,255,0.08);
+    width: 80px;
+    height: 6px;
+    background: rgba(255,255,255,0.12);
     overflow: hidden;
-    border-radius: 1px;
+    border-radius: 3px;
 }
 
 .arena-hp-fill {
@@ -972,25 +971,28 @@ body.in-combat .log {
 .battle-stats-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 6px 12px;
+    gap: 10px;
+    padding: 7px 12px;
     background: rgba(0,0,0,0.4);
     border-top: 1px solid rgba(255,255,255,0.06);
     border-bottom: 1px solid rgba(255,255,255,0.06);
     font-family: var(--font-ui);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-dim);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
 }
 
 .battle-stat-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .battle-stat-item .material-symbols-outlined {
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .battle-stat-item:nth-child(1) { color: var(--accent-red); }   /* damage */
@@ -998,8 +1000,10 @@ body.in-combat .log {
 .battle-stat-item.target { color: var(--text-dim); }
 
 /* Quick items inline in stats bar */
-.battle-stat-item .battle-item-btn {
-    margin: 0;
+#battle-quick-items {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
 }
 
 .battle-item-btn {
@@ -1126,27 +1130,36 @@ body.in-combat .log {
 /* --- Mobile adjustments --- */
 @media (max-width: 480px) {
     .battle-arena {
-        padding: 12px 8px 8px;
-        min-height: 140px;
+        padding: 12px 6px 8px;
+        min-height: 120px;
     }
 
     .arena-sprite {
-        width: 60px;
-        height: 60px;
+        width: 56px;
+        height: 56px;
     }
 
     .enemy-side.boss .arena-sprite {
-        width: 70px;
-        height: 70px;
+        width: 68px;
+        height: 68px;
     }
 
     .arena-name {
-        font-size: 0.62rem;
+        font-size: 0.6rem;
+    }
+
+    .arena-center {
+        padding: 0 6px;
+    }
+
+    .arena-hp-bar {
+        width: 60px;
     }
 
     .battle-stats-bar {
         gap: 8px;
-        font-size: 0.7rem;
+        font-size: 0.72rem;
+        padding: 6px 8px;
     }
 
     .battle-feed-item {
