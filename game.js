@@ -339,26 +339,11 @@ function setGameText(html) {
 }
 
 function setTurnIndicator(turn) {
-    const indicator = document.getElementById('battle-turn-state');
     const playerActor = document.getElementById('battle-player-actor');
     const enemyActor = document.getElementById('battle-enemy-actor');
-    if (!indicator) return;
 
-    indicator.className = 'battle-turn-state';
-    if (playerActor) playerActor.classList.remove('active-turn');
-    if (enemyActor) enemyActor.classList.remove('active-turn');
-
-    if (turn === 'player') {
-        indicator.classList.add('player-turn');
-        indicator.textContent = 'Tavo ėjimas';
-        if (playerActor) playerActor.classList.add('active-turn');
-    } else if (turn === 'enemy') {
-        indicator.classList.add('enemy-turn');
-        indicator.textContent = 'Priešo ėjimas';
-        if (enemyActor) enemyActor.classList.add('active-turn');
-    } else {
-        indicator.textContent = 'Kova vyksta';
-    }
+    if (playerActor) playerActor.classList.toggle('active-turn', turn === 'player');
+    if (enemyActor) enemyActor.classList.toggle('active-turn', turn === 'enemy');
 }
 
 function animateBattleAttack(attacker) {
@@ -428,7 +413,7 @@ function triggerMonsterHitEffect() {
  */
 function triggerMonsterDeathEffect() {
     // Animate the monster image — most prominent element in battle
-    const monsterImg = document.querySelector('.battle-enemy-visual img');
+    const monsterImg = document.querySelector('.enemy-side img, .enemy-side .arena-sprite');
     if (monsterImg) {
         monsterImg.classList.add('monster-death-flash');
         setTimeout(() => monsterImg.classList.remove('monster-death-flash'), 900);
@@ -555,7 +540,7 @@ function updateUI() {
         if (playerHpBarFill) {
             const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
             playerHpBarFill.style.width = `${pct}%`;
-            playerHpBarFill.className = 'battle-player-hp-bar-fill';
+            playerHpBarFill.className = 'arena-hp-fill player-hp';
             if (pct <= 25) {
                 playerHpBarFill.classList.add('low-hp');
             } else if (pct <= 50) {
@@ -563,7 +548,7 @@ function updateUI() {
             }
         }
 
-        // Quick Items (Potions & Weapons)
+        // Quick Items (Potions & Weapons) — compact inline
         const quickItemsEl = document.getElementById('battle-quick-items');
         if (quickItemsEl) {
             let buttonsHtml = '';
@@ -571,7 +556,7 @@ function updateUI() {
             const potions = gameState.inventory.filter(i => i === 'Mikstūra');
             if (potions.length > 0) {
                 buttonsHtml += `<button class="battle-item-btn" onclick="usePotion()">
-                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> Gydytis (${potions.length})
+                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> ${potions.length}
                 </button>`;
             }
 
@@ -582,7 +567,7 @@ function updateUI() {
 
             weapons.forEach(weapon => {
                 buttonsHtml += `<button class="battle-item-btn" onclick="swapWeaponInBattle('${weapon}')">
-                   <span class="material-symbols-outlined icon-small">flash_on</span> ${weapon}
+                   <span class="material-symbols-outlined icon-small">swap_horiz</span> ${weapon}
                </button>`;
             });
 
@@ -592,11 +577,6 @@ function updateUI() {
         const turnEl = document.getElementById('battle-turn-counter');
         if (turnEl) {
             turnEl.textContent = gameState.combatTurn;
-        }
-
-        const speedLabelEl = document.getElementById('auto-battle-speed-label');
-        if (speedLabelEl) {
-            speedLabelEl.textContent = gameState.autoBattleDelay <= 350 ? 'x2' : gameState.autoBattleDelay <= 500 ? 'x1.5' : 'x1';
         }
     }
 
@@ -609,10 +589,12 @@ function updateUI() {
 
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('attackBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
-    document.getElementById('powerAttackBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
+    // Only show manual combat buttons when auto-battle is OFF
+    const showManualCombat = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible && !gameState.autoBattle;
+    document.getElementById('attackBtn').style.display = showManualCombat ? 'block' : 'none';
+    document.getElementById('powerAttackBtn').style.display = showManualCombat ? 'block' : 'none';
     document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('fleeBtn').style.display = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible ? 'block' : 'none';
+    document.getElementById('fleeBtn').style.display = showManualCombat ? 'block' : 'none';
     
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
@@ -900,118 +882,92 @@ function startCombat(monster) {
     gameState.currentMonster = { ...monster, currentHp: monster.hp };
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
-    gameState.autoBattle = false;
-    gameState.autoBattleDelay = 700;
+    gameState.autoBattle = true;
+    gameState.autoBattleDelay = 500;
     document.body.classList.add('in-combat');
-
-    let encounterText = monster.name === FORTRESS_LORD.name
-        ? `<p><strong>Paskutinė menė:</strong></p><p class='warning'>Didžiuliai paskutinės menės vartai girgždėdami atsidaro, atidengdami <strong>${FORTRESS_LORD.name}</strong> savo soste!</p>`
-        : TOUGH_MONSTERS.some(m => m.name === monster.name)
-            ? `<p class='warning'>Bauginantis ${monster.name} pastoja tau kelią!</p>`
-            : `<p class='warning'>Pasirodo ${monster.name}!</p>`;
 
     let damageString = gameState.playerDamage;
     if (gameState.playerDamageBonus > 0) damageString += `+${gameState.playerDamageBonus}`;
 
+    const isBoss = monster.name === FORTRESS_LORD.name;
+    const isTough = TOUGH_MONSTERS.some(m => m.name === monster.name);
+    const threatClass = isBoss ? 'boss' : isTough ? 'tough' : 'weak';
+
     let text = `
         <div class="battle-interface">
-            <div class="battle-top-bar">
-                <div class="battle-turn-pill">Raundas <strong id="battle-turn-counter">${gameState.combatTurn}</strong></div>
-                <div class="battle-speed-pill">
-                    Auto greitis: <strong id="auto-battle-speed-label">x1</strong>
-                </div>
-            </div>
-
-            <div class="battle-turn-state player-turn" id="battle-turn-state">Tavo ėjimas</div>
-
-            <div class="battle-duel-stage">
-                <div class="battle-actor player active-turn" id="battle-player-actor">
-                    <div class="battle-actor-label">${gameState.playerName}</div>
-                    <div class="battle-actor-sprite">
+            <!-- Arena: Loop Hero style - characters facing each other -->
+            <div class="battle-arena">
+                <!-- Player side -->
+                <div class="arena-combatant player-side">
+                    <div class="arena-name">${gameState.playerName}</div>
+                    <div class="arena-sprite" id="battle-player-actor">
                         <span class="material-symbols-outlined">swords</span>
                     </div>
-                </div>
-                <div class="battle-versus">VS</div>
-                <div class="battle-actor enemy" id="battle-enemy-actor">
-                    <div class="battle-actor-label">${monster.name}</div>
-                    <div class="battle-actor-sprite">
-                        <span class="material-symbols-outlined">skull</span>
+                    <div class="arena-hp-bar">
+                        <div id="battle-player-hp-bar-fill" class="arena-hp-fill player-hp" style="width: 100%;"></div>
                     </div>
+                    <div class="arena-hp-text"><span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span></div>
+                </div>
+
+                <!-- Center info -->
+                <div class="arena-center">
+                    <div class="arena-round" id="battle-turn-counter">${gameState.combatTurn}</div>
+                    <div class="arena-vs">VS</div>
+                </div>
+
+                <!-- Enemy side -->
+                <div class="arena-combatant enemy-side ${threatClass}">
+                    <div class="arena-name">${monster.name}</div>
+                    <div class="arena-sprite" id="battle-enemy-actor">
+                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${monster.name}" id="monster-stats-display">
+                    </div>
+                    <div class="arena-hp-bar">
+                        <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width: 100%;"></div>
+                    </div>
+                    <div class="arena-hp-text"><span id="monster-hp">${monster.hp}</span>/${monster.hp}</div>
                 </div>
             </div>
 
-            <!-- Enemy Section (Top) -->
-            <div class="battle-enemy">
-                <div class="battle-enemy-row">
-                    <div class="battle-enemy-visual">
-                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" class="enemy-gif" alt="${monster.name}">
-                    </div>
-                    <div class="battle-enemy-stats" id="monster-stats-display">
-                        <h3 class="battle-enemy-name">${monster.name}</h3>
-                        <div class="battle-hp-bar-container">
-                            <div id="battle-enemy-hp-bar" class="battle-hp-bar-fill" style="width: 100%;"></div>
-                        </div>
-                        <div class="battle-enemy-hp-text">
-                            HP: <span id="monster-hp">${monster.hp}</span> / ${monster.hp} &nbsp;|&nbsp; Žala: ${monster.damage}
-                        </div>
-                        <div class="battle-difficulty-badge">
-                            <span class="material-symbols-outlined" style="font-size:0.75rem;vertical-align:middle;">target</span>
-                            Pataikyti: ${monster.difficulty}+
-                        </div>
-                    </div>
+            <!-- Compact stats bar -->
+            <div class="battle-stats-bar">
+                <div class="battle-stat-item">
+                    <span class="material-symbols-outlined">flash_on</span>
+                    <span id="battle-player-damage">${damageString}</span>
                 </div>
-            </div>
-
-            <!-- Player Section (Middle) -->
-            <div class="battle-player">
-                <div class="battle-player-header">
-                    <span class="battle-player-name">${gameState.playerName}</span>
-                    <span class="battle-player-level">Lv.${gameState.level}</span>
+                <div class="battle-stat-item">
+                    <span class="material-symbols-outlined">shield</span>
+                    <span id="battle-player-defense">${gameState.playerDefense}</span>
                 </div>
-                <div class="battle-player-hp-bar-container">
-                    <div id="battle-player-hp-bar-fill" class="battle-player-hp-bar-fill" style="width: 100%;"></div>
+                <div class="battle-stat-item target">
+                    <span class="material-symbols-outlined">target</span>
+                    ${monster.difficulty}+
                 </div>
-                <div class="battle-player-stats-row">
-                    <div class="battle-stat hp">
-                        <span class="material-symbols-outlined">favorite</span>
-                        <span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span>
-                    </div>
-                    <div class="battle-stat damage">
-                        <span class="material-symbols-outlined">flash_on</span> <span id="battle-player-damage">${damageString}</span>
-                    </div>
-                    <div class="battle-stat defense">
-                         <span class="material-symbols-outlined">shield</span> <span id="battle-player-defense">${gameState.playerDefense}</span>
-                    </div>
-                </div>
-                <!-- Quick Items (Potions & Weapons) -->
-                <div id="battle-quick-items" class="battle-quick-items">
+                <div class="battle-stat-item" id="battle-quick-items">
                     <!-- Populated by updateUI -->
                 </div>
             </div>
 
-            <!-- Auto-battle toggle -->
+            <!-- Auto-battle controls -->
             <div class="auto-battle-row">
-                <button id="auto-battle-btn" class="auto-battle-btn" onclick="toggleAutoBattle()">
-                    <span class="material-symbols-outlined">play_arrow</span> Auto: OFF
+                <button id="auto-battle-btn" class="auto-battle-btn active" onclick="toggleAutoBattle()">
+                    <span class="material-symbols-outlined">pause</span> Auto: ON
                 </button>
                 <button id="auto-speed-btn" class="auto-battle-btn auto-speed-btn" onclick="cycleAutoBattleSpeed()">
-                    <span class="material-symbols-outlined">bolt</span> Greitis
+                    <span class="material-symbols-outlined">bolt</span> <span id="auto-battle-speed-label">x1.5</span>
                 </button>
             </div>
 
+            <!-- Unified battle feed -->
             <div id="battle-feed" class="battle-feed"></div>
-
-            <!-- Combat Log (Bottom) -->
-            <div id="combat-log" class="battle-log">
-                ${encounterText}
-                <div class="turn-separator">KOVA PRASIDEDA</div>
-            </div>
+            <div id="combat-log" class="battle-log"></div>
         </div>
     `;
 
     setGameText(text);
-    pushCombatFeed('info', `${monster.name} stoja į kovą.`);
+    pushCombatFeed('info', `${monster.name} stoja į kovą!`);
     updateUI();
+    // Auto-battle starts immediately
+    runAutoBattle();
 }
 
 /**
@@ -1167,23 +1123,50 @@ function toggleAutoBattle() {
             : '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
     }
     if (gameState.autoBattle) {
-        pushCombatFeed('info', 'Auto kova įjungta.');
         runAutoBattle();
-    } else {
-        pushCombatFeed('info', 'Auto kova išjungta.');
     }
 }
 
 function cycleAutoBattleSpeed() {
-    if (gameState.autoBattleDelay === 700) gameState.autoBattleDelay = 500;
-    else if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 350;
-    else gameState.autoBattleDelay = 700;
-    updateUI();
+    if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 350;
+    else if (gameState.autoBattleDelay === 350) gameState.autoBattleDelay = 200;
+    else gameState.autoBattleDelay = 500;
+
+    const label = document.getElementById('auto-battle-speed-label');
+    if (label) {
+        label.textContent = gameState.autoBattleDelay <= 200 ? 'x3' : gameState.autoBattleDelay <= 350 ? 'x2' : 'x1.5';
+    }
 }
 
 /**
- * Runs the auto-battle loop: attacks automatically each turn with a pause
- * between turns so the player can follow the action (like Loop Hero).
+ * Picks the best auto-battle action based on simple tactics:
+ * - Use potion if HP <= 30% and has potions
+ * - Power attack if enemy HP is low (1-2 hits from death)
+ * - Normal attack otherwise
+ */
+function pickAutoBattleAction() {
+    const monster = gameState.currentMonster;
+    const hpPct = gameState.hp / gameState.maxHp;
+
+    // Tactic: heal when HP is low
+    if (hpPct <= 0.3 && gameState.inventory.includes('Mikstūra')) {
+        return 'potion';
+    }
+
+    // Tactic: power attack when enemy is almost dead (within one good hit)
+    if (monster) {
+        const avgDamage = getDieSides(gameState.playerDamage) / 2 + gameState.playerDamageBonus;
+        if (monster.currentHp <= avgDamage + 2) {
+            return 'power';
+        }
+    }
+
+    return 'attack';
+}
+
+/**
+ * Runs the auto-battle loop with smart tactics.
+ * Like Loop Hero — battles resolve automatically, player watches.
  */
 async function runAutoBattle() {
     while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
@@ -1191,8 +1174,16 @@ async function runAutoBattle() {
             await sleep(200);
             continue;
         }
-        await performAttack(false);
-        // Pause between turns so the player can see what happened
+
+        const action = pickAutoBattleAction();
+        if (action === 'potion') {
+            await usePotion();
+        } else if (action === 'power') {
+            await performAttack(true);
+        } else {
+            await performAttack(false);
+        }
+
         if (gameState.autoBattle && gameState.inCombat) {
             await sleep(gameState.autoBattleDelay);
         }
