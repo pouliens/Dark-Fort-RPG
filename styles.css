@@ -749,138 +749,214 @@ body.in-combat .log {
     display: none !important;
 }
 
-/* Battle Interface Container */
+/* =============================================================================
+   BATTLE INTERFACE - Loop Hero inspired minimal arena
+   ========================================================================== */
+
 .battle-interface {
     display: flex;
     flex-direction: column;
-    gap: 0;
     background: var(--bg-surface);
-    animation: battle-start 0.5s ease-out;
+    animation: battle-start 0.4s ease-out;
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(0, 255, 255, 0.4);
-    box-shadow: 0 0 24px rgba(0, 255, 255, 0.08), inset 0 0 40px rgba(255, 0, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @keyframes battle-start {
-    from { transform: scale(0.95); opacity: 0; filter: blur(5px); }
-    to { transform: scale(1); opacity: 1; filter: blur(0); }
+    from { transform: scale(0.97); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
-/* Enemy Section (Top) */
-.battle-top-bar {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 10px;
-    background: linear-gradient(90deg, rgba(0,255,255,0.1), rgba(255,0,255,0.08));
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-family: var(--font-ui);
-    font-size: 0.75rem;
-    letter-spacing: 0.04em;
-}
-
-.battle-turn-pill,
-.battle-speed-pill {
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    padding: 4px 8px;
-    border-radius: 999px;
-}
-
-.battle-turn-pill strong { color: var(--accent-yellow); }
-.battle-speed-pill strong { color: var(--accent-cyan); }
-
-.battle-turn-state {
-    text-align: center;
-    font-family: var(--font-sub);
-    font-size: 0.8rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 6px 8px;
-    border-bottom: 1px dashed rgba(255,255,255,0.15);
-    background: rgba(0, 0, 0, 0.45);
-}
-
-.battle-turn-state.player-turn { color: var(--accent-cyan); }
-.battle-turn-state.enemy-turn { color: var(--accent-red); }
-
-.battle-duel-stage {
+/* --- Arena: two combatants facing each other --- */
+.battle-arena {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    gap: 8px;
-    align-items: center;
-    padding: 10px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.15));
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-
-.battle-actor {
+    gap: 0;
+    align-items: end;
+    padding: 16px 12px 10px;
+    background:
+        radial-gradient(ellipse at center bottom, rgba(255,255,255,0.03) 0%, transparent 70%),
+        linear-gradient(180deg, #080810, #0a0a12);
+    min-height: 160px;
     position: relative;
-    text-align: center;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(0,0,0,0.45);
-    padding: 8px 6px;
-    min-height: 74px;
 }
 
-.battle-actor.player { border-color: rgba(0,255,255,0.4); }
-.battle-actor.enemy { border-color: rgba(255,51,51,0.45); }
-.battle-actor.active-turn { box-shadow: 0 0 14px rgba(255,255,255,0.12); }
+/* Each combatant column */
+.arena-combatant {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+}
 
-.battle-actor-label {
+.arena-name {
     font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text-main);
-    margin-bottom: 4px;
-}
-
-.battle-actor-sprite .material-symbols-outlined {
-    font-size: 1.5rem;
-}
-
-.battle-actor.player .battle-actor-sprite { color: var(--accent-cyan); }
-.battle-actor.enemy .battle-actor-sprite { color: var(--accent-red); }
-
-.battle-versus {
-    font-family: var(--font-sub);
-    color: var(--accent-yellow);
-    font-size: 0.8rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
     letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
+.player-side .arena-name { color: var(--accent-cyan); }
+.enemy-side .arena-name { color: var(--accent-red); }
+.enemy-side.boss .arena-name { color: var(--accent-yellow); }
+
+/* Sprites */
+.arena-sprite {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.5);
+}
+
+.player-side .arena-sprite {
+    border-color: rgba(0,255,255,0.25);
+    box-shadow: 0 0 12px rgba(0,255,255,0.08);
+}
+
+.player-side .arena-sprite .material-symbols-outlined {
+    font-size: 2rem;
+    color: var(--accent-cyan);
+}
+
+.player-side .arena-sprite.active-turn {
+    box-shadow: 0 0 18px rgba(0,255,255,0.25);
+    border-color: rgba(0,255,255,0.5);
+}
+
+.enemy-side .arena-sprite {
+    border-color: rgba(255,51,51,0.25);
+    box-shadow: 0 0 12px rgba(255,51,51,0.08);
+}
+
+.enemy-side .arena-sprite img {
+    max-width: 64px;
+    max-height: 64px;
+    image-rendering: pixelated;
+    display: block;
+}
+
+.enemy-side .arena-sprite.active-turn {
+    box-shadow: 0 0 18px rgba(255,51,51,0.25);
+    border-color: rgba(255,51,51,0.5);
+}
+
+.enemy-side.boss .arena-sprite {
+    width: 84px;
+    height: 84px;
+    border-color: rgba(242,255,0,0.3);
+    box-shadow: 0 0 16px rgba(242,255,0,0.12);
+}
+
+.enemy-side.boss .arena-sprite img {
+    max-width: 76px;
+    max-height: 76px;
+}
+
+/* HP bars under sprites */
+.arena-hp-bar {
+    width: 100%;
+    max-width: 80px;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+    border-radius: 1px;
+}
+
+.arena-hp-fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease-out;
+}
+
+.arena-hp-fill.player-hp { background: var(--accent-cyan); }
+.arena-hp-fill.player-hp.medium-hp { background: var(--accent-yellow); }
+.arena-hp-fill.player-hp.low-hp { background: var(--accent-red); }
+.arena-hp-fill.enemy-hp { background: var(--accent-red); }
+.enemy-side.boss .arena-hp-fill.enemy-hp { background: var(--accent-yellow); }
+
+.arena-hp-text {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+/* Center VS / round counter */
+.arena-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 10px;
+    align-self: center;
+}
+
+.arena-round {
+    font-family: var(--font-sub);
+    font-size: 0.65rem;
+    color: var(--accent-yellow);
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(242,255,0,0.2);
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.arena-vs {
+    font-family: var(--font-sub);
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.1em;
+}
+
+/* Attack lunge animations */
 @keyframes lunge-right {
     0% { transform: translateX(0); }
-    40% { transform: translateX(8px) scale(1.03); }
+    40% { transform: translateX(12px) scale(1.05); }
     100% { transform: translateX(0); }
 }
 
 @keyframes lunge-left {
     0% { transform: translateX(0); }
-    40% { transform: translateX(-8px) scale(1.03); }
+    40% { transform: translateX(-12px) scale(1.05); }
     100% { transform: translateX(0); }
 }
 
-.attack-lunge-right { animation: lunge-right 0.25s ease-out; }
-.attack-lunge-left { animation: lunge-left 0.25s ease-out; }
+.attack-lunge-right { animation: lunge-right 0.22s ease-out; }
+.attack-lunge-left { animation: lunge-left 0.22s ease-out; }
 
+/* Floating damage numbers - the key Loop Hero feel */
 @keyframes float-combat {
-    0% { opacity: 0; transform: translateY(0) scale(0.9); }
-    15% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-28px) scale(1.05); }
+    0% { opacity: 0; transform: translateY(0) scale(0.8); }
+    15% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0; transform: translateY(-32px) scale(0.95); }
 }
 
 .floating-combat-text {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 30%;
     transform: translate(-50%, -50%);
     font-family: var(--font-sub);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: bold;
     pointer-events: none;
-    text-shadow: 0 0 10px currentColor;
-    animation: float-combat 0.85s ease-out forwards;
+    text-shadow: 0 0 12px currentColor, 0 1px 4px rgba(0,0,0,0.8);
+    animation: float-combat 0.8s ease-out forwards;
     z-index: 3;
 }
 
@@ -888,144 +964,59 @@ body.in-combat .log {
 .floating-combat-text.heal { color: #6eff8f; }
 .floating-combat-text.crit {
     color: var(--accent-yellow);
-    font-size: 0.88rem;
+    font-size: 1.05rem;
+    text-shadow: 0 0 16px var(--accent-yellow), 0 1px 4px rgba(0,0,0,0.8);
 }
 
-.battle-enemy {
+/* --- Compact stats bar --- */
+.battle-stats-bar {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    padding: 15px 15px 12px;
-    position: relative;
-}
-
-.battle-enemy-visual {
-    margin-bottom: 10px;
-    background: #000;
-    padding: 5px;
-    border: 1px solid rgba(255, 0, 0, 0.4);
-    box-shadow: 0 0 18px rgba(255, 51, 51, 0.2);
-}
-
-.battle-enemy-visual img {
-    max-width: 150px;
-    height: auto;
-    display: block;
-    image-rendering: pixelated;
-}
-
-.battle-enemy-stats {
-    width: 100%;
-    text-align: center;
-}
-
-.battle-enemy-name {
-    font-family: var(--font-header);
-    color: var(--accent-red);
-    font-size: 1.5rem;
-    margin: 0;
-    text-transform: uppercase;
-    text-shadow: 0 0 5px var(--accent-red);
-}
-
-.battle-hp-bar-container {
-    width: 100%;
-    max-width: 300px;
-    height: 8px;
-    background: #220000;
-    margin: 6px auto;
-    position: relative;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.battle-hp-bar-fill {
-    height: 100%;
-    background: var(--accent-red);
-    width: 100%;
-    transition: width 0.3s ease-out;
-}
-
-.battle-enemy-hp-text {
-    font-family: var(--font-ui);
-    color: var(--text-dim);
-    font-size: 0.9rem;
-}
-
-/* Player Section (Middle) */
-.battle-player {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 15px;
-    background: rgba(0, 255, 255, 0.04);
+    gap: 12px;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.4);
     border-top: 1px solid rgba(255,255,255,0.06);
     border-bottom: 1px solid rgba(255,255,255,0.06);
-    backdrop-filter: blur(2px);
-}
-
-.battle-player-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 4px;
-}
-
-.battle-player-name {
-    font-family: var(--font-sub);
-    color: var(--accent-cyan);
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-.battle-player-level {
     font-family: var(--font-ui);
-    color: var(--accent-yellow);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+}
+
+.battle-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.battle-stat-item .material-symbols-outlined {
     font-size: 0.9rem;
 }
 
-.battle-player-stats-row {
-    display: flex;
-    justify-content: space-around; /* Distribute evenly */
-    align-items: center;
-    gap: 10px;
-    font-family: var(--font-ui);
-    font-size: 1rem;
-}
+.battle-stat-item:nth-child(1) { color: var(--accent-red); }   /* damage */
+.battle-stat-item:nth-child(2) { color: var(--accent-cyan); }  /* defense */
+.battle-stat-item.target { color: var(--text-dim); }
 
-.battle-stat {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.battle-stat.hp { color: var(--accent-pink); font-weight: bold; font-size: 1.2rem; }
-.battle-stat.damage { color: var(--accent-red); }
-.battle-stat.defense { color: var(--accent-cyan); }
-
-/* Quick Items / Consumables in Battle */
-.battle-quick-items {
-    display: flex;
-    gap: 10px;
-    margin-top: 5px;
-    flex-wrap: wrap;
-    justify-content: center;
+/* Quick items inline in stats bar */
+.battle-stat-item .battle-item-btn {
+    margin: 0;
 }
 
 .battle-item-btn {
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid var(--text-dim);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.12);
     color: var(--text-main);
-    padding: 5px 10px;
-    font-size: 0.8rem;
+    padding: 2px 8px;
+    font-size: 0.7rem;
     font-family: var(--font-ui);
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.2s;
-    text-transform: none; /* Override general button styles */
-    clip-path: none; /* Override general button styles */
+    gap: 3px;
+    transition: all 0.15s;
+    text-transform: none;
+    clip-path: none;
+    border-radius: 2px;
 }
 
 .battle-item-btn:hover {
@@ -1034,35 +1025,39 @@ body.in-combat .log {
     background: rgba(255, 0, 255, 0.1);
 }
 
-/* Auto-battle toggle row */
+.battle-item-btn .material-symbols-outlined {
+    font-size: 0.8rem;
+}
+
+/* --- Auto-battle controls --- */
 .auto-battle-row {
     display: flex;
-    justify-content: flex-end;
-    padding: 6px 12px 0;
-    background: rgba(0, 0, 0, 0.3);
-    gap: 8px;
+    justify-content: center;
+    padding: 5px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    gap: 6px;
 }
 
 .auto-battle-btn {
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid var(--text-dim);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.12);
     color: var(--text-dim);
-    padding: 4px 12px;
-    font-size: 0.75rem;
+    padding: 3px 10px;
+    font-size: 0.7rem;
     font-family: var(--font-ui);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     text-transform: none;
     clip-path: none;
     letter-spacing: 0.05em;
-    transition: all 0.2s;
-    border-radius: 3px;
+    transition: all 0.15s;
+    border-radius: 2px;
 }
 
 .auto-battle-btn .material-symbols-outlined {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .auto-battle-btn:hover {
@@ -1073,18 +1068,12 @@ body.in-combat .log {
 .auto-battle-btn.active {
     border-color: var(--accent-yellow);
     color: var(--accent-yellow);
-    background: rgba(255, 200, 0, 0.1);
-    animation: auto-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes auto-pulse {
-    0%, 100% { box-shadow: 0 0 4px rgba(255, 200, 0, 0.3); }
-    50%       { box-shadow: 0 0 10px rgba(255, 200, 0, 0.6); }
+    background: rgba(255, 200, 0, 0.08);
 }
 
 .auto-speed-btn {
-    color: var(--accent-pink);
-    border-color: rgba(255, 0, 255, 0.5);
+    color: var(--text-dim);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .auto-speed-btn:hover {
@@ -1092,103 +1081,82 @@ body.in-combat .log {
     border-color: var(--accent-pink);
 }
 
-/* Battle feed for fast readability */
+/* --- Battle feed: compact action log --- */
 .battle-feed {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    padding: 8px 12px;
-    background: rgba(10, 10, 14, 0.8);
-    border-top: 1px dashed rgba(255,255,255,0.14);
-    border-bottom: 1px dashed rgba(255,255,255,0.14);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    max-height: 90px;
+    overflow-y: auto;
 }
 
 .battle-feed-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-family: var(--font-ui);
-    font-size: 0.78rem;
-    padding: 5px 6px;
-    background: rgba(255, 255, 255, 0.04);
-    border-left: 3px solid var(--text-dim);
+    font-size: 0.7rem;
+    padding: 3px 5px;
+    border-left: 2px solid var(--text-dim);
+    opacity: 0.9;
 }
 
 .battle-feed-item.player { border-left-color: var(--accent-cyan); }
 .battle-feed-item.enemy { border-left-color: var(--accent-red); }
 .battle-feed-item.warning { border-left-color: var(--accent-yellow); }
-.battle-feed-item.info { border-left-color: var(--accent-pink); }
+.battle-feed-item.info { border-left-color: rgba(255,255,255,0.2); }
 
 .battle-feed-turn {
-    color: var(--text-dim);
-    min-width: 28px;
+    color: rgba(255,255,255,0.3);
+    min-width: 22px;
+    font-size: 0.65rem;
 }
 
 .battle-feed-text {
     color: var(--text-main);
 }
 
-/* Battle Log (Bottom) */
+/* Hidden battle log - kept for compatibility */
 .battle-log {
-    min-height: 70px;
-    max-height: 100px;
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 10px 15px;
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
-    color: var(--text-dim);
+    display: none;
 }
 
+/* --- Mobile adjustments --- */
 @media (max-width: 480px) {
-    .battle-duel-stage {
-        gap: 4px;
-        padding: 8px 6px;
+    .battle-arena {
+        padding: 12px 8px 8px;
+        min-height: 140px;
     }
 
-    .battle-actor {
-        min-height: 66px;
-        padding: 6px 4px;
+    .arena-sprite {
+        width: 60px;
+        height: 60px;
     }
 
-    .battle-actor-label {
-        font-size: 0.66rem;
+    .enemy-side.boss .arena-sprite {
+        width: 70px;
+        height: 70px;
     }
 
-    .battle-enemy-name {
-        font-size: 1.25rem;
+    .arena-name {
+        font-size: 0.62rem;
     }
 
-    .battle-player-stats-row {
-        font-size: 0.88rem;
-        gap: 6px;
-    }
-
-    .battle-stat.hp {
-        font-size: 1rem;
+    .battle-stats-bar {
+        gap: 8px;
+        font-size: 0.7rem;
     }
 
     .battle-feed-item {
-        font-size: 0.72rem;
+        font-size: 0.65rem;
     }
 
     .auto-battle-btn {
-        font-size: 0.7rem;
-        padding: 4px 8px;
+        font-size: 0.65rem;
+        padding: 3px 6px;
     }
-}
-
-.battle-log p {
-    margin: 3px 0;
-}
-
-.battle-log .turn-separator {
-    border-top: 1px dashed #444;
-    margin-top: 5px;
-    padding-top: 5px;
-    color: #666;
-    font-size: 0.7rem;
-    text-align: center;
 }
 
 /* Victory Screen */
@@ -1421,23 +1389,6 @@ body.in-combat .log {
     .battle-interface {
         gap: 0;
     }
-
-    .battle-enemy {
-        padding: 12px 12px 10px;
-    }
-
-    .battle-player {
-        padding: 10px 12px;
-    }
-
-    .battle-log {
-        padding: 8px 12px;
-        font-size: 0.8rem;
-    }
-
-    .battle-enemy-name {
-        font-size: 1.2rem;
-    }
 }
 
 /* =============================================================================
@@ -1501,74 +1452,7 @@ body.in-combat #fleeBtn {
     letter-spacing: 0;
 }
 
-/* =============================================================================
-   BATTLE INTERFACE IMPROVEMENTS
-   ========================================================================== */
-
-/* Enemy row: image inline with stats */
-.battle-enemy-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.battle-enemy-row .battle-enemy-visual {
-    margin-bottom: 0;
-    flex-shrink: 0;
-}
-
-.battle-enemy-visual img {
-    max-width: 80px;
-    height: auto;
-    display: block;
-    image-rendering: pixelated;
-}
-
-.battle-enemy-row .battle-enemy-stats {
-    flex: 1;
-    text-align: left;
-}
-
-/* Left-align HP bar in inline layout */
-.battle-enemy-row .battle-hp-bar-container {
-    margin: 5px 0;
-}
-
-/* Difficulty badge */
-.battle-difficulty-badge {
-    display: inline-block;
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    padding: 2px 0;
-    margin-top: 3px;
-    opacity: 0.7;
-}
-
-/* Player HP bar */
-.battle-player-hp-bar-container {
-    width: 100%;
-    height: 5px;
-    background: #001a2e;
-    margin: 2px 0 6px;
-    overflow: hidden;
-    border-radius: 2px;
-}
-
-.battle-player-hp-bar-fill {
-    height: 100%;
-    background: var(--accent-cyan);
-    width: 100%;
-    transition: width 0.3s ease-out;
-}
-
-.battle-player-hp-bar-fill.medium-hp {
-    background: var(--accent-yellow);
-}
-
-.battle-player-hp-bar-fill.low-hp {
-    background: var(--accent-red);
-}
+/* (Old battle interface sections removed — replaced by arena layout above) */
 
 /* =============================================================================
    DICE ROLL OVERLAY
