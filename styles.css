@@ -758,6 +758,8 @@ body.in-combat .log {
     animation: battle-start 0.5s ease-out;
     position: relative;
     overflow: hidden;
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 24px rgba(0, 255, 255, 0.08), inset 0 0 40px rgba(255, 0, 255, 0.05);
 }
 
 @keyframes battle-start {
@@ -766,6 +768,29 @@ body.in-combat .log {
 }
 
 /* Enemy Section (Top) */
+.battle-top-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    background: linear-gradient(90deg, rgba(0,255,255,0.1), rgba(255,0,255,0.08));
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+}
+
+.battle-turn-pill,
+.battle-speed-pill {
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+
+.battle-turn-pill strong { color: var(--accent-yellow); }
+.battle-speed-pill strong { color: var(--accent-cyan); }
+
 .battle-enemy {
     display: flex;
     flex-direction: column;
@@ -778,6 +803,8 @@ body.in-combat .log {
     margin-bottom: 10px;
     background: #000;
     padding: 5px;
+    border: 1px solid rgba(255, 0, 0, 0.4);
+    box-shadow: 0 0 18px rgba(255, 51, 51, 0.2);
 }
 
 .battle-enemy-visual img {
@@ -834,6 +861,7 @@ body.in-combat .log {
     background: rgba(0, 255, 255, 0.04);
     border-top: 1px solid rgba(255,255,255,0.06);
     border-bottom: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(2px);
 }
 
 .battle-player-header {
@@ -912,6 +940,7 @@ body.in-combat .log {
     justify-content: flex-end;
     padding: 6px 12px 0;
     background: rgba(0, 0, 0, 0.3);
+    gap: 8px;
 }
 
 .auto-battle-btn {
@@ -953,6 +982,52 @@ body.in-combat .log {
     50%       { box-shadow: 0 0 10px rgba(255, 200, 0, 0.6); }
 }
 
+.auto-speed-btn {
+    color: var(--accent-pink);
+    border-color: rgba(255, 0, 255, 0.5);
+}
+
+.auto-speed-btn:hover {
+    color: var(--accent-pink);
+    border-color: var(--accent-pink);
+}
+
+/* Battle feed for fast readability */
+.battle-feed {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(10, 10, 14, 0.8);
+    border-top: 1px dashed rgba(255,255,255,0.14);
+    border-bottom: 1px dashed rgba(255,255,255,0.14);
+}
+
+.battle-feed-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    padding: 5px 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border-left: 3px solid var(--text-dim);
+}
+
+.battle-feed-item.player { border-left-color: var(--accent-cyan); }
+.battle-feed-item.enemy { border-left-color: var(--accent-red); }
+.battle-feed-item.warning { border-left-color: var(--accent-yellow); }
+.battle-feed-item.info { border-left-color: var(--accent-pink); }
+
+.battle-feed-turn {
+    color: var(--text-dim);
+    min-width: 28px;
+}
+
+.battle-feed-text {
+    color: var(--text-main);
+}
+
 /* Battle Log (Bottom) */
 .battle-log {
     min-height: 70px;
@@ -963,6 +1038,30 @@ body.in-combat .log {
     font-family: var(--font-ui);
     font-size: 0.85rem;
     color: var(--text-dim);
+}
+
+@media (max-width: 480px) {
+    .battle-enemy-name {
+        font-size: 1.25rem;
+    }
+
+    .battle-player-stats-row {
+        font-size: 0.88rem;
+        gap: 6px;
+    }
+
+    .battle-stat.hp {
+        font-size: 1rem;
+    }
+
+    .battle-feed-item {
+        font-size: 0.72rem;
+    }
+
+    .auto-battle-btn {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
 }
 
 .battle-log p {
