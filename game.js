@@ -1443,22 +1443,28 @@ function openMap() {
     const mapGridEl = document.getElementById('mapGrid');
     const mapModalEl = document.getElementById('mapModal');
 
-    mapGridEl.innerHTML = ''; // Clear previous map
+    const currentRenderedCount = mapGridEl.children.length;
 
-    const fragment = document.createDocumentFragment();
+    // If the map has been reset (e.g. new game) or shrunk, clear the grid
+    if (currentRenderedCount > gameState.map.length) {
+        mapGridEl.innerHTML = '';
+    }
 
-    gameState.map.forEach(room => {
-        const roomEl = document.createElement('div');
-        roomEl.className = 'map-cell';
-        roomEl.innerHTML = `
+    const startIndex = mapGridEl.children.length;
+
+    if (startIndex < gameState.map.length) {
+        let newRoomsHtml = '';
+        for (let i = startIndex; i < gameState.map.length; i++) {
+            const room = gameState.map[i];
+            newRoomsHtml += `
+        <div class="map-cell">
             <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
             <div class="map-cell-room-number">${room.room}</div>
             <div class="map-cell-details">${room.details}</div>
-        `;
-        fragment.appendChild(roomEl);
-    });
-
-    mapGridEl.appendChild(fragment);
+        </div>`;
+        }
+        mapGridEl.insertAdjacentHTML('beforeend', newRoomsHtml);
+    }
 
     mapModalEl.style.display = 'block';
 }
