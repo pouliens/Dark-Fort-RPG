@@ -30,6 +30,13 @@
 
         <!-- Game Content -->
         <div class="main-content">
+            <!-- Dungeon Path Tracker -->
+            <div class="dungeon-tracker-container" id="dungeonTrackerContainer" style="display: none;">
+                <div class="dungeon-tracker" id="dungeonTracker">
+                    <!-- Tracker nodes injected here -->
+                </div>
+            </div>
+
             <div class="game-area">
                 <div id="gameText">
                     <p>Sveikas atvykęs į Tamsiąją Tvirtovę, drąsusis Karguntai!</p>
@@ -40,6 +47,7 @@
             <div class="actions" id="gameActions">
                 <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Pradėti Nuotykį</button>
                 <button id="exploreBtn" onclick="exploreRoom()" style="display: none;"><span class="material-symbols-outlined">search</span> Tyrinėti<small class="btn-sublabel">Nauja menė</small></button>
+                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small></button>
                 <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Pulti<small class="btn-sublabel">Tikslus smūgis</small></button>
                 <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">gavel</span> Galingas Smūgis<small class="btn-sublabel">-2 pataikyti · +2 žala</small></button>
                 <button id="scavengeBtn" onclick="scavenge()" style="display: none;"><span class="material-symbols-outlined">manage_search</span> Ieškoti<small class="btn-sublabel">Ieškoti lobio</small></button>
