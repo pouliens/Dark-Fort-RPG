@@ -358,8 +358,13 @@ function showFloatingCombatText(target, amount, { crit = false, heal = false } =
     if (!targetEl) return;
 
     const float = document.createElement('div');
-    float.className = `floating-combat-text ${crit ? 'crit' : ''} ${heal ? 'heal' : 'damage'}`.trim();
-    float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
+    if (amount === 0 && target === 'player') {
+        float.className = 'floating-combat-text block';
+        float.textContent = 'BLOKUOTA';
+    } else {
+        float.className = `floating-combat-text ${crit ? 'crit' : ''} ${heal ? 'heal' : 'damage'}`.trim();
+        float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
+    }
     targetEl.appendChild(float);
     setTimeout(() => float.remove(), 850);
 }
@@ -783,20 +788,29 @@ async function usePotion() {
         const roll2 = rollDie(6);
         const healing = roll1 + roll2;
 
-        await showDiceRoll({
-            context: 'Mikstūros Gydymas',
-            dice: [{ type: 'd6', result: roll1 }, { type: 'd6', result: roll2 }],
-            outcome: `+${healing} HP`,
-            isSuccess: true,
-            detail: `${roll1} + ${roll2} = ${healing} gyvybės`
-        });
+        if (gameState.inCombat) {
+            await sleep(150);
+            const combatLogEl = document.getElementById('combat-log');
+            if (combatLogEl) {
+                combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-pink)">Mikstūros Gydymas: ${roll1} + ${roll2} = ${healing}</p>`);
+            }
+        } else {
+            await showDiceRoll({
+                context: 'Mikstūros Gydymas',
+                dice: [{ type: 'd6', result: roll1 }, { type: 'd6', result: roll2 }],
+                outcome: `+${healing} HP`,
+                isSuccess: true,
+                detail: `${roll1} + ${roll2} = ${healing} gyvybės`
+            });
+        }
 
         gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
         gameState.inventory.splice(potionIndex, 1);
         log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
 
         if (gameState.inCombat) {
-            document.getElementById('combat-log').innerHTML = `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`;
+            const combatLogEl = document.getElementById('combat-log');
+            if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
             await monsterAttack();
             combatActionBusy = false;
         } else if (gameState.inShop) {
@@ -1008,15 +1022,10 @@ async function performAttack(isPowerAttack) {
 
     const hit = attackRoll + hitBonus >= monster.difficulty;
 
-    // Show attack roll
-    await showDiceRoll({
-        context: isPowerAttack ? 'Galingas Smūgis' : 'Smūgio Metimas',
-        dice: [{ type: 'd6', result: attackRoll }],
-        threshold: monster.difficulty,
-        outcome: hit ? 'PATAIKYTA!' : 'NEPATAIKYTA',
-        isSuccess: hit,
-        detail: hitBonus !== 0 ? `Modifikatorius: ${hitBonus > 0 ? '+' : ''}${hitBonus}` : null
-    });
+    await sleep(150);
+    const attackContext = isPowerAttack ? 'Galingas Smūgis' : 'Smūgio Metimas';
+    const hitBonusStr = hitBonus !== 0 ? ` (${hitBonus > 0 ? '+' : ''}${hitBonus})` : '';
+    combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">${attackContext}: [${attackRoll}]${hitBonusStr} vs ${monster.difficulty}</p>`);
 
     if (hit) {
         const damageRoll = rollDamage(gameState.playerDamage);
@@ -1027,19 +1036,14 @@ async function performAttack(isPowerAttack) {
         monster.currentHp -= damage;
         showFloatingCombatText('enemy', damage, { crit });
 
-        // Show damage roll
-        await showDiceRoll({
-            context: 'Žala',
-            dice: [{ type: gameState.playerDamage, result: damageRoll }],
-            outcome: `\u2212${damage} HP`,
-            isSuccess: null,
-            detail: `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`
-        });
+        await sleep(150);
+        const dmgDetail = `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`;
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">Žala: ${dmgDetail}</p>`);
 
-        let msg = `Pataikei ${monster.name} ir padarei ${damage} žalos.${crit ? ' Kritinis smūgis!' : ''}`;
+        let msg = `Pataikei į ${monster.name} ir padarei ${damage} žalos.${crit ? ' Kritinis smūgis!' : ''}`;
         if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
 
-        log(msg);
+        log(`${attackContext}: [${attackRoll}]${hitBonusStr} vs ${monster.difficulty}. ${msg}`);
         pushCombatFeed('player', `Tu: -${damage} HP ${monster.name}`);
 
         document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
@@ -1087,13 +1091,8 @@ async function flee() {
     const fleeRoll = rollDie(6);
     const escaped = fleeRoll >= 4;
 
-    await showDiceRoll({
-        context: 'Pabėgimo Bandymas',
-        dice: [{ type: 'd6', result: fleeRoll }],
-        threshold: 4,
-        outcome: escaped ? 'PABĖGTA!' : 'SUGAUTAS!',
-        isSuccess: escaped
-    });
+    await sleep(150);
+    if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">Pabėgimo Bandymas: [${fleeRoll}] vs 4</p>`);
 
     if (escaped) {
         gameState.inCombat = false;
@@ -1210,28 +1209,31 @@ async function monsterAttack() {
     const critBonus = isCrit ? 1 : 0;
     const damage = Math.max(0, damageRoll + critBonus - defense);
 
-    // Show monster damage roll
-    await showDiceRoll({
-        context: `${monster.name} Puola`,
-        dice: [{ type: monster.damage, result: damageRoll }],
-        outcome: damage === 0 ? 'BLOKUOTA!' : `\u2212${damage} HP`,
-        isSuccess: damage === 0,
-        detail: `${isCrit ? 'Kritinis smūgis! ' : ''}${defense > 0 ? `Apsauga: \u2212${defense}` : ''}`.trim() || null
-    });
+    await sleep(150);
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) {
+        const detailStr = `${isCrit ? 'Kritinis smūgis! ' : ''}${defense > 0 ? `Apsauga: \u2212${defense}` : ''}`.trim();
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-red)">${monster.name} Puola: [${damageRoll}] ${detailStr ? `(${detailStr})` : ''}</p>`);
+    }
 
     if (damage > 0) {
         gameState.hp -= damage;
         showFloatingCombatText('player', damage, { crit: isCrit });
         playPlayerHitSound();
         triggerDamageEffect();
+    } else {
+        showFloatingCombatText('player', 0);
     }
 
     log(`${monster.name} tau smogė ir padarė ${damage} žalos.${isCrit ? ' Kritinis smūgis!' : ''}`);
     pushCombatFeed(damage > 0 ? 'enemy' : 'info', `${monster.name}: -${damage} HP tau`);
 
-    const combatLogEl = document.getElementById('combat-log');
     if(combatLogEl) {
-        combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`);
+        if (damage > 0) {
+            combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`);
+        } else {
+            combatLogEl.insertAdjacentHTML('beforeend', `<p class='success'>${monster.name} smūgis blokuotas!</p>`);
+        }
     }
 
     if (gameState.hp <= 0) {
