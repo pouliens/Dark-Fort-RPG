@@ -971,6 +971,11 @@ body.in-combat .log {
     font-size: 1.05rem;
     text-shadow: 0 0 16px var(--accent-yellow), 0 1px 4px rgba(0,0,0,0.8);
 }
+.floating-combat-text.block {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-shadow: 0 0 12px currentColor, 0 1px 4px rgba(0,0,0,0.8);
+}
 
 /* --- Compact stats bar --- */
 .battle-stats-bar {
@@ -1418,14 +1423,46 @@ body.in-combat #fleeBtn {
     grid-column: 1 / -1;
 }
 
+/* Start & Explore buttons */
+#startBtn, #exploreBtn {
+    color: var(--accent-cyan);
+    border-color: rgba(0, 255, 255, 0.4);
+}
+#startBtn:hover:not(:disabled), #exploreBtn:hover:not(:disabled) {
+    background: rgba(0, 255, 255, 0.1);
+}
+
 /* Attack button */
 #attackBtn {
-    color: var(--text-main);
+    color: var(--accent-red);
+    border-color: rgba(255, 51, 51, 0.4);
+}
+#attackBtn:hover:not(:disabled) {
+    background: rgba(255, 51, 51, 0.1);
+    color: var(--accent-red);
+    border-color: var(--accent-red);
 }
 
 /* Power Attack button */
 #powerAttackBtn {
-    color: var(--text-main);
+    color: var(--accent-yellow);
+    border-color: rgba(242, 255, 0, 0.4);
+}
+#powerAttackBtn:hover:not(:disabled) {
+    background: rgba(242, 255, 0, 0.1);
+    color: var(--accent-yellow);
+    border-color: var(--accent-yellow);
+}
+
+/* Scavenge button */
+#scavengeBtn {
+    color: var(--accent-pink);
+    border-color: rgba(255, 0, 255, 0.4);
+}
+#scavengeBtn:hover:not(:disabled) {
+    background: rgba(255, 0, 255, 0.1);
+    color: var(--accent-pink);
+    border-color: var(--accent-pink);
 }
 
 /* Flee button - muted */
