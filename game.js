@@ -18,6 +18,9 @@ function createInitialGameState() {
         playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
         playerDamageBonus: 0,
         playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
+        metaDamageBonus: 0,
+        metaDefenseBonus: 0,
+        metaMaxHpBonus: 0,
         inventory: [],
         equippedWeapon: null,
         equippedArmor: null,
@@ -90,6 +93,22 @@ function loadChallenges() {
             gameState.challengeLookup[challenge.type][challenge.targetName] = [];
         }
         gameState.challengeLookup[challenge.type][challenge.targetName].push(challenge);
+    });
+
+    applyMetaProgression();
+}
+
+function applyMetaProgression() {
+    gameState.metaMaxHpBonus = 0;
+    gameState.metaDamageBonus = 0;
+    gameState.metaDefenseBonus = 0;
+
+    Object.values(gameState.challenges).forEach(challenge => {
+        if (challenge.progress >= challenge.targetValue && challenge.reward) {
+            if (challenge.reward.stat === 'metaMaxHpBonus') gameState.metaMaxHpBonus += challenge.reward.value;
+            if (challenge.reward.stat === 'metaDamageBonus') gameState.metaDamageBonus += challenge.reward.value;
+            if (challenge.reward.stat === 'metaDefenseBonus') gameState.metaDefenseBonus += challenge.reward.value;
+        }
     });
 }
 
@@ -756,6 +775,11 @@ function startGame() {
 
     loadChallenges();
     gameState.gameStarted = true;
+
+    // Apply HP meta-progression
+    gameState.maxHp += gameState.metaMaxHpBonus;
+    gameState.hp = gameState.maxHp;
+
     const startingSilver = 25 + rollDie(6);
     gameState.silver = startingSilver;
     gameState.totalSilverCollected += startingSilver;
@@ -795,7 +819,7 @@ function startGame() {
 async function exploreRoom() {
     gameState.canScavenge = false;
 
-    if (gameState.level >= 2) {
+    if (gameState.level >= 5) {
         let triggerBoss = false;
 
         if (!gameState.bossEncountered) {
@@ -1015,7 +1039,14 @@ async function scavenge() {
  */
 function startCombat(monster) {
     gameState.inCombat = true;
-    gameState.currentMonster = { ...monster, currentHp: monster.hp };
+
+    // Scale monster based on player level
+    let scaledHp = monster.hp + (gameState.level - 1) * 2;
+    let scaledDifficulty = Math.min(6, monster.difficulty + Math.floor((gameState.level - 1) / 2));
+
+    let scaledMonster = { ...monster, hp: scaledHp, currentHp: scaledHp, difficulty: scaledDifficulty };
+
+    gameState.currentMonster = scaledMonster;
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
     gameState.autoBattle = true;
@@ -1053,14 +1084,14 @@ function startCombat(monster) {
 
                 <!-- Enemy side -->
                 <div class="arena-combatant enemy-side ${threatClass}">
-                    <div class="arena-name">${monster.name}</div>
+                    <div class="arena-name">${scaledMonster.name}</div>
                     <div class="arena-sprite" id="battle-enemy-actor">
-                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${monster.name}" id="monster-stats-display">
+                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${scaledMonster.name}" id="monster-stats-display">
                     </div>
                     <div class="arena-hp-bar">
                         <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width: 100%;"></div>
                     </div>
-                    <div class="arena-hp-text"><span id="monster-hp">${monster.hp}</span>/${monster.hp}</div>
+                    <div class="arena-hp-text"><span id="monster-hp">${scaledMonster.hp}</span>/${scaledMonster.hp}</div>
                 </div>
             </div>
 
@@ -1076,7 +1107,7 @@ function startCombat(monster) {
                 </div>
                 <div class="battle-stat-item target">
                     <span class="material-symbols-outlined">target</span>
-                    ${monster.difficulty}+
+                    ${scaledMonster.difficulty}+
                 </div>
                 <div class="battle-stat-item" id="battle-quick-items">
                     <!-- Populated by updateUI -->
@@ -1414,6 +1445,7 @@ function winCombat(killingBlowDamage) {
     gameState.monstersDefeated++;
     gameState.points += monster.points;
     updateChallengeProgress('slay', monster.name, 1);
+    updateChallengeProgress('slayAny', 'monster', 1);
     
     const silverFound = rollDie(6) + monster.difficulty;
     gameState.silver += silverFound;
@@ -1617,6 +1649,10 @@ function recalculateStats() {
         if (armorDetails) gameState.playerDefense += armorDetails.value;
     }
 
+    // Apply meta-progression and level bonus
+    gameState.playerDamageBonus = gameState.metaDamageBonus + (gameState.level - 1);
+    gameState.playerDefense += gameState.metaDefenseBonus;
+
     updateUI();
 }
 
@@ -1691,7 +1727,8 @@ function levelUp() {
     
     gameState.level++;
     gameState.points -= 10;
-    gameState.playerDamageBonus++; // This is a direct damage add, separate from die type
+
+    updateChallengeProgress('level', 'player', 1);
 
     log(`PASIEKEI NAUJĄ LYGĮ! Dabar esi ${gameState.level} lygio!`);
     // showToast(`LYGIS PAKILO! (${gameState.level})`, "success");

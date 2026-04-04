@@ -48,8 +48,10 @@ const PLAYER_PROFESSIONS = [
 ];
 
 const CHALLENGES = [
-    { id: 'collectGold', description: 'Surinkti 100 sidabro', type: 'collect', targetName: 'silver', targetValue: 100, progress: 0 },
-    { id: 'slayGoblins', description: 'Nužudyti 3 goblinus', type: 'slay', targetName: 'Goblinas', targetValue: 3, progress: 0 },
-    { id: 'slayBoss', description: 'Nužudyti Tvirtovės Valdovą', type: 'slay', targetName: 'Tvirtovės Valdovas', targetValue: 1, progress: 0 },
-    { id: 'exploreRooms', description: 'Ištirti 25 kambarius', type: 'explore', targetName: 'room', targetValue: 25, progress: 0 }
+    { id: 'collectGold', description: 'Surinkti 100 sidabro', type: 'collect', targetName: 'silver', targetValue: 100, progress: 0, reward: { stat: 'metaMaxHpBonus', value: 5, description: '+5 Max HP' } },
+    { id: 'slayGoblins', description: 'Nužudyti 3 goblinus', type: 'slay', targetName: 'Goblinas', targetValue: 3, progress: 0, reward: { stat: 'metaDamageBonus', value: 1, description: '+1 Damage' } },
+    { id: 'slayBoss', description: 'Nužudyti Tvirtovės Valdovą', type: 'slay', targetName: 'Tvirtovės Valdovas', targetValue: 1, progress: 0, reward: { stat: 'metaDefenseBonus', value: 1, description: '+1 Defense' } },
+    { id: 'exploreRooms', description: 'Ištirti 25 kambarius', type: 'explore', targetName: 'room', targetValue: 25, progress: 0, reward: { stat: 'metaMaxHpBonus', value: 5, description: '+5 Max HP' } },
+    { id: 'levelUp', description: 'Pasiekti 4 lygį', type: 'level', targetName: 'player', targetValue: 3, progress: 0, reward: { stat: 'metaDamageBonus', value: 1, description: '+1 Damage' } },
+    { id: 'slayMonsters', description: 'Nužudyti 10 monstrų', type: 'slayAny', targetName: 'monster', targetValue: 10, progress: 0, reward: { stat: 'metaDefenseBonus', value: 1, description: '+1 Defense' } }
 ];
