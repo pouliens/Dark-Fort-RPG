@@ -187,6 +187,95 @@ h4 {
     margin-bottom: 20px;
 }
 
+/* Dungeon Tracker */
+.dungeon-tracker-container {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 16px;
+    overflow-x: auto; /* Allow scrolling if path gets long */
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-dim) var(--bg-panel);
+}
+
+.dungeon-tracker-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.dungeon-tracker-container::-webkit-scrollbar-track {
+    background: var(--bg-panel);
+}
+
+.dungeon-tracker-container::-webkit-scrollbar-thumb {
+    background-color: var(--text-dim);
+    border-radius: 3px;
+}
+
+.dungeon-tracker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: min-content;
+}
+
+.tracker-node-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tracker-line {
+    width: 20px;
+    height: 2px;
+    background: var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.tracker-node {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--text-dim);
+    border-radius: 5px;
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.tracker-node.active {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: var(--glow-cyan);
+    background: rgba(0, 255, 255, 0.05);
+    transform: scale(1.1);
+}
+
+.tracker-node.enemy { color: var(--accent-red); border-color: rgba(255, 51, 51, 0.5); }
+.tracker-node.trap { color: var(--accent-yellow); border-color: rgba(242, 255, 0, 0.5); }
+.tracker-node.shop { color: var(--accent-pink); border-color: rgba(255, 0, 255, 0.5); }
+.tracker-node.empty { color: var(--text-main); border-color: rgba(200, 200, 200, 0.5); }
+.tracker-node.unknown { border-style: dashed; }
+
+.tracker-node-label {
+    position: absolute;
+    bottom: -16px;
+    font-size: 0.6rem;
+    font-family: var(--font-ui);
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.tracker-node.active .tracker-node-label {
+    color: var(--accent-cyan);
+}
+
 .game-area {
     background: var(--bg-panel);
     border: 1px solid var(--border-subtle);

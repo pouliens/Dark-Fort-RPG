@@ -39,6 +39,8 @@ function createInitialGameState() {
         monsterDying: false,
         autoBattle: false,
         autoBattleDelay: 700,
+        autoExplore: false,
+        autoExploreDelay: 800,
         combatTurn: 1,
         combatFeed: []
     };
@@ -247,6 +249,47 @@ async function showDiceRoll({ context, dice, threshold, outcome, isSuccess, deta
 }
 
 /**
+ * Toggles auto-explore mode on/off.
+ */
+function toggleAutoExplore() {
+    gameState.autoExplore = !gameState.autoExplore;
+    updateAutoExploreButton();
+
+    if (gameState.autoExplore) {
+        runAutoExplore();
+    }
+}
+
+function updateAutoExploreButton() {
+    const btn = document.getElementById('autoExploreBtn');
+    if (!btn) return;
+
+    if (gameState.autoExplore) {
+        btn.innerHTML = '<span class="material-symbols-outlined">pause</span> Auto<small class="btn-sublabel">Sustabdyti</small>';
+        btn.style.color = 'var(--accent-yellow)';
+        btn.style.borderColor = 'rgba(242, 255, 0, 0.4)';
+    } else {
+        btn.innerHTML = '<span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small>';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+    }
+}
+
+/**
+ * Runs the auto-explore loop.
+ */
+async function runAutoExplore() {
+    while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory) {
+        await sleep(gameState.autoExploreDelay);
+
+        // Double check conditions after sleeping
+        if (gameState.autoExplore && !gameState.inCombat && !gameState.inShop && !gameState.playerIsDead && !gameState.inVictory) {
+            await exploreRoom();
+        }
+    }
+}
+
+/**
  * Rolls a die with a given number of sides.
  * @param {number} sides - The number of sides on the die.
  * @returns {number} The result of the roll.
@@ -311,6 +354,76 @@ function handleInventoryClick(itemName) {
     }
 }
 
+
+// -----------------------------------------------------------------------------
+// DUNGEON TRACKER UI
+// -----------------------------------------------------------------------------
+
+/**
+ * Updates the visual dungeon path tracker based on gameState.map
+ */
+function updateDungeonTracker() {
+    const containerEl = document.getElementById('dungeonTrackerContainer');
+    const trackerEl = document.getElementById('dungeonTracker');
+    if (!containerEl || !trackerEl) return;
+
+    if (!gameState.gameStarted || gameState.map.length === 0) {
+        containerEl.style.display = 'none';
+        return;
+    }
+
+    containerEl.style.display = 'block';
+
+    const maxRoomsToShow = 5;
+    const startIndex = Math.max(0, gameState.map.length - maxRoomsToShow);
+    const visibleRooms = gameState.map.slice(startIndex);
+
+    let html = '';
+
+    visibleRooms.forEach((room, index) => {
+        const isCurrent = index === visibleRooms.length - 1;
+        let icon = 'help';
+        let cssClass = '';
+
+        switch (room.type) {
+            case 'Priešas': icon = 'skull'; cssClass = 'enemy'; break;
+            case 'Spąstai': icon = 'warning'; cssClass = 'trap'; break;
+            case 'Parduotuvė': icon = 'storefront'; cssClass = 'shop'; break;
+            case 'Lobis': icon = 'diamond'; cssClass = 'empty'; break; // Treat loot visually like a safe room but with diamond
+            case 'Tuščias': icon = 'door_front'; cssClass = 'empty'; break;
+        }
+
+        const nodeHtml = `
+            <div class="tracker-node ${cssClass} ${isCurrent ? 'active' : ''}" title="Kambarys ${room.room}: ${room.type}">
+                <span class="material-symbols-outlined">${icon}</span>
+                <span class="tracker-node-label">${room.room}</span>
+            </div>
+        `;
+
+        // If it's not the first element in the loop, add a line before it
+        if (index > 0 || startIndex > 0) {
+            html += `<div class="tracker-line"></div>`;
+        }
+
+        html += `<div class="tracker-node-wrap">${nodeHtml}</div>`;
+    });
+
+    // Add the "Next" unknown node
+    html += `
+        <div class="tracker-line"></div>
+        <div class="tracker-node-wrap">
+            <div class="tracker-node unknown" title="Kitas kambarys">
+                <span class="material-symbols-outlined">question_mark</span>
+                <span class="tracker-node-label">?</span>
+            </div>
+        </div>
+    `;
+
+    trackerEl.innerHTML = html;
+
+    // Auto-scroll to the end
+    containerEl.scrollLeft = containerEl.scrollWidth;
+}
 
 // -----------------------------------------------------------------------------
 // UI FUNCTIONS
@@ -594,6 +707,8 @@ function updateUI() {
 
     document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
     document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
+    document.getElementById('autoExploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
+
     // Only show manual combat buttons when auto-battle is OFF
     const showManualCombat = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible && !gameState.autoBattle;
     document.getElementById('attackBtn').style.display = showManualCombat ? 'block' : 'none';
@@ -603,6 +718,9 @@ function updateUI() {
     
     const canLevelUp = gameState.points >= 10;
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
+
+    // Update Dungeon Tracker
+    updateDungeonTracker();
 
     // Update Challenges
     const challengesEl = document.getElementById('challenges');
@@ -657,6 +775,10 @@ function startGame() {
         gameState.equippedWeapon = 'Kardas';
     }
     
+    // Reset autoExplore just in case
+    gameState.autoExplore = false;
+    updateAutoExploreButton();
+
     log(`Tavo vardas yra ${gameState.playerName}, tu esi ${gameState.playerProfession}.`);
     log(`Nuotykis prasideda! Radai ${startingSilver} sidabro.`);
     log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
@@ -1281,6 +1403,10 @@ function endCombatEncounter() {
 
     setGameText("<p>Kova baigta. Aplink tyla. Ką darysi toliau?</p>");
     updateUI();
+
+    if (gameState.autoExplore) {
+        runAutoExplore();
+    }
 }
 
 function winCombat(killingBlowDamage) {
@@ -1498,6 +1624,10 @@ function closeShop() {
     gameState.inShop = false;
     setGameText("<p>Palieki prekeivį ir toliau keliauji į tamsą.</p>");
     updateUI();
+
+    if (gameState.autoExplore) {
+        runAutoExplore();
+    }
 }
 
 
