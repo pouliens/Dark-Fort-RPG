@@ -1339,13 +1339,14 @@ function openShop(isFirstTime = false, tab = 'buy') {
         let statInfo = '';
         let price = 0;
         let action = '';
-        let disabled = '';
+        let disabledClass = '';
         let btnText = '';
 
         if (isBuying) {
             price = item.price;
-            action = `onclick="buyItem('${item.name}')"`;
-            disabled = gameState.silver < price ? 'disabled' : '';
+            const canAfford = gameState.silver >= price;
+            action = canAfford ? `onclick="buyItem('${item.name}')"` : '';
+            disabledClass = canAfford ? '' : 'disabled';
             btnText = `${price} <span class="material-symbols-outlined icon-small">paid</span>`;
         } else {
             price = Math.floor((item.price || 5) / 2);
@@ -1370,7 +1371,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
 
         const nameDisplay = isBuying ? item.name : `${item.name} ${count > 1 ? `(x${count})` : ''}`;
 
-        return `<div class="shop-item">
+        return `<div class="shop-item ${disabledClass}" ${action}>
             <div class="shop-item-info">
                 <span class="material-symbols-outlined item-icon">${icon}</span>
                 <div class="item-details">
@@ -1381,9 +1382,9 @@ function openShop(isFirstTime = false, tab = 'buy') {
                     <div class="item-desc">${item.description || 'Nėra aprašymo.'}</div>
                 </div>
             </div>
-            <button class="buy-btn" ${action} ${disabled}>
+            <div class="shop-item-price">
                 ${btnText}
-            </button>
+            </div>
         </div>`;
     };
 
@@ -1392,13 +1393,16 @@ function openShop(isFirstTime = false, tab = 'buy') {
         const items = SHOP_ITEMS.map(item => createShopItemHTML(item, true)).join('');
         content = `<h4><span class="material-symbols-outlined">storefront</span> Prekeivio Prekės</h4>${items}`;
     } else { // Sell tab
-        const sellableInventory = [...new Set(gameState.inventory)];
-
-        let items = "";
-        if (sellableInventory.length === 0) {
-            items = "<p>Neturi nieko parduoti.</p>";
+        if (gameState.inventory.length === 0) {
+            content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4><p>Neturi nieko parduoti.</p>`;
         } else {
-            items = sellableInventory.map(itemName => {
+            // Count item frequencies in a single pass O(N)
+            const itemCounts = gameState.inventory.reduce((acc, itemName) => {
+                acc[itemName] = (acc[itemName] || 0) + 1;
+                return acc;
+            }, {});
+
+            const items = Object.entries(itemCounts).map(([itemName, count]) => {
                 let itemDetails = ITEM_LOOKUP[itemName];
 
                 // Fallback if item details missing
@@ -1406,11 +1410,11 @@ function openShop(isFirstTime = false, tab = 'buy') {
                     itemDetails = { name: itemName, type: 'misc', description: 'Paprastas daiktas.', price: 2 };
                 }
 
-                const count = gameState.inventory.filter(i => i === itemName).length;
                 return createShopItemHTML(itemDetails, false, count);
             }).join('');
+
+            content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4>${items}`;
         }
-        content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4>${items}`;
     }
 
     const footer = `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
