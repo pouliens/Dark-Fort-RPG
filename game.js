@@ -318,18 +318,40 @@ function rollDie(sides) {
 }
 
 /**
+ * Fast parser for dice strings (e.g., 'd6') to extract the number of sides.
+ * Avoids regex for performance in tight loops.
+ * @param {string} diceString - The dice string.
+ * @returns {number} The number of sides, or 0 if invalid.
+ */
+function fastParseDice(diceString) {
+    if (!diceString || typeof diceString !== 'string') return 0;
+    const len = diceString.length;
+    if (len < 2 || diceString[0] !== 'd') return 0;
+
+    let sides = 0;
+    for (let i = 1; i < len; i++) {
+        const charCode = diceString.charCodeAt(i);
+        if (charCode >= 48 && charCode <= 57) { // '0' to '9'
+            sides = sides * 10 + (charCode - 48);
+        } else if (sides > 0) {
+            break; // Stop at first non-digit after digits
+        }
+    }
+    return sides;
+}
+
+/**
  * Calculates damage based on a dice string (e.g., 'd6').
  * @param {string} diceString - The dice string.
  * @returns {number} The calculated damage.
  */
 function rollDamage(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? rollDie(parseInt(match[1], 10)) : 1;
+    const sides = fastParseDice(diceString);
+    return sides > 0 ? rollDie(sides) : 1;
 }
 
 function getDieSides(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
+    return fastParseDice(diceString);
 }
 
 /**
@@ -338,8 +360,7 @@ function getDieSides(diceString) {
  * @returns {number} The max roll of the die.
  */
 function getDamageValue(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
+    return fastParseDice(diceString);
 }
 
 /**
