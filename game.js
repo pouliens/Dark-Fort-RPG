@@ -690,19 +690,28 @@ function updateUI() {
         if (quickItemsEl) {
             let buttonsHtml = '';
 
-            const potions = gameState.inventory.filter(i => i === 'Mikstūra');
-            if (potions.length > 0) {
+            let potionCount = 0;
+            const uniqueWeapons = new Set();
+
+            for (let i = 0; i < gameState.inventory.length; i++) {
+                const item = gameState.inventory[i];
+                if (item === 'Mikstūra') {
+                    potionCount++;
+                } else {
+                    const details = ITEM_LOOKUP[item];
+                    if (details && details.type === 'weapon' && item !== gameState.equippedWeapon) {
+                        uniqueWeapons.add(item);
+                    }
+                }
+            }
+
+            if (potionCount > 0) {
                 buttonsHtml += `<button class="battle-item-btn" onclick="usePotion()">
-                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> ${potions.length}
+                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> ${potionCount}
                 </button>`;
             }
 
-            const weapons = [...new Set(gameState.inventory)].filter(item => {
-                const details = ITEM_LOOKUP[item];
-                return details && details.type === 'weapon' && item !== gameState.equippedWeapon;
-            });
-
-            weapons.forEach(weapon => {
+            uniqueWeapons.forEach(weapon => {
                 buttonsHtml += `<button class="battle-item-btn" onclick="swapWeaponInBattle('${weapon}')">
                    <span class="material-symbols-outlined icon-small">swap_horiz</span> ${weapon}
                </button>`;
