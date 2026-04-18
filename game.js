@@ -751,18 +751,29 @@ function updateUI() {
 
     // Update Challenges
     const challengesEl = document.getElementById('challenges');
-    if (gameState.challenges && Object.keys(gameState.challenges).length > 0) {
-        challengesEl.innerHTML = Object.values(gameState.challenges).map(challenge => {
+    let hasChallenges = false;
+    if (gameState.challenges) {
+        for (const _ in gameState.challenges) {
+            hasChallenges = true;
+            break;
+        }
+    }
+
+    if (hasChallenges) {
+        let html = '';
+        for (const key in gameState.challenges) {
+            const challenge = gameState.challenges[key];
             const progress = Math.min(challenge.progress, challenge.targetValue);
             const isComplete = progress >= challenge.targetValue;
             const progressText = isComplete ? 'Įvykdyta!' : `${progress} / ${challenge.targetValue}`;
-            return `
+            html += `
                 <div class="challenge ${isComplete ? 'complete' : ''}">
                     <span class="challenge-desc">${challenge.description}</span>
                     <span class="challenge-progress">${progressText}</span>
                 </div>
             `;
-        }).join('');
+        }
+        challengesEl.innerHTML = html;
     } else {
         challengesEl.innerHTML = 'Nėra iššūkių.';
     }
