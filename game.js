@@ -1589,7 +1589,7 @@ function openShop(isFirstTime = false, tab = 'buy') {
 }
 
 function buyItem(itemName) {
-    const item = SHOP_ITEMS.find(i => i.name === itemName);
+    const item = ITEM_LOOKUP[itemName];
     if (item && gameState.silver >= item.price) {
         playBuySound();
         gameState.silver -= item.price;
