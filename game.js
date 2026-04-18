@@ -464,6 +464,9 @@ function log(message) {
  * Sets the main game text.
  * @param {string} html - The HTML content to set.
  */
+let cachedPlayerActor = null;
+let cachedEnemyActor = null;
+
 function setGameText(html) {
     if (gameTextEl) {
         gameTextEl.innerHTML = html;
@@ -471,22 +474,22 @@ function setGameText(html) {
 }
 
 function setTurnIndicator(turn) {
-    const playerActor = document.getElementById('battle-player-actor');
-    const enemyActor = document.getElementById('battle-enemy-actor');
+    const playerActor = cachedPlayerActor || document.getElementById('battle-player-actor');
+    const enemyActor = cachedEnemyActor || document.getElementById('battle-enemy-actor');
 
     if (playerActor) playerActor.classList.toggle('active-turn', turn === 'player');
     if (enemyActor) enemyActor.classList.toggle('active-turn', turn === 'enemy');
 }
 
 function animateBattleAttack(attacker) {
-    const actorEl = document.getElementById(attacker === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    const actorEl = attacker === 'player' ? (cachedPlayerActor || document.getElementById('battle-player-actor')) : (cachedEnemyActor || document.getElementById('battle-enemy-actor'));
     if (!actorEl) return;
     actorEl.classList.add(attacker === 'player' ? 'attack-lunge-right' : 'attack-lunge-left');
     setTimeout(() => actorEl.classList.remove('attack-lunge-right', 'attack-lunge-left'), 260);
 }
 
 function showFloatingCombatText(target, amount, { crit = false, heal = false } = {}) {
-    const targetEl = document.getElementById(target === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
+    const targetEl = target === 'player' ? (cachedPlayerActor || document.getElementById('battle-player-actor')) : (cachedEnemyActor || document.getElementById('battle-enemy-actor'));
     if (!targetEl) return;
 
     const float = document.createElement('div');
@@ -1139,6 +1142,11 @@ function startCombat(monster) {
     `;
 
     setGameText(text);
+
+    // Cache the actor elements for combat animations
+    cachedPlayerActor = document.getElementById('battle-player-actor');
+    cachedEnemyActor = document.getElementById('battle-enemy-actor');
+
     pushCombatFeed('info', `${monster.name} stoja į kovą!`);
     updateUI();
     // Auto-battle starts immediately
@@ -1439,6 +1447,10 @@ function endCombatEncounter() {
     gameState.inCombat = false;
     gameState.currentMonster = null;
     document.body.classList.remove('in-combat');
+
+    // Clear DOM cache when combat ends
+    cachedPlayerActor = null;
+    cachedEnemyActor = null;
 
     setGameText("<p>Kova baigta. Aplink tyla. Ką darysi toliau?</p>");
     updateUI();
@@ -1835,6 +1847,9 @@ function resetGame() {
 
     gameState = createInitialGameState();
     document.body.classList.remove('in-combat');
+
+    cachedPlayerActor = null;
+    cachedEnemyActor = null;
     logEl.innerHTML = "";
     setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
     updateUI();
