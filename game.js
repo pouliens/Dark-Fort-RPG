@@ -485,12 +485,15 @@ function animateBattleAttack(attacker) {
     setTimeout(() => actorEl.classList.remove('attack-lunge-right', 'attack-lunge-left'), 260);
 }
 
-function showFloatingCombatText(target, amount, { crit = false, heal = false } = {}) {
+function showFloatingCombatText(target, amount, { crit = false, heal = false, miss = false } = {}) {
     const targetEl = document.getElementById(target === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
     if (!targetEl) return;
 
     const float = document.createElement('div');
-    if (amount === 0 && target === 'player') {
+    if (miss) {
+        float.className = 'floating-combat-text miss';
+        float.textContent = 'PRASLYDO';
+    } else if (amount === 0 && target === 'player') {
         float.className = 'floating-combat-text block';
         float.textContent = 'BLOKUOTA';
     } else {
@@ -498,14 +501,34 @@ function showFloatingCombatText(target, amount, { crit = false, heal = false } =
         float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
     }
     targetEl.appendChild(float);
-    setTimeout(() => float.remove(), 850);
+    setTimeout(() => float.remove(), 900);
 }
 
-function pushCombatFeed(type, text) {
+/**
+ * Briefly shakes the battle interface for player-damage impact feedback.
+ */
+function shakeBattleScreen() {
+    const el = document.getElementById('battle-interface');
+    if (!el) return;
+    el.classList.remove('battle-shake');
+    // Force reflow so the animation restarts even on repeat hits
+    void el.offsetWidth;
+    el.classList.add('battle-shake');
+    setTimeout(() => el.classList.remove('battle-shake'), 320);
+}
+
+function pushCombatFeed(type, text, iconOverride) {
     if (!gameState.inCombat) return;
+    const iconByType = {
+        player: 'swords',
+        enemy: 'skull',
+        warning: 'priority_high',
+        info: 'info'
+    };
     const entry = {
         type,
         text,
+        icon: iconOverride || iconByType[type] || 'info',
         turn: gameState.combatTurn
     };
     gameState.combatFeed.unshift(entry);
@@ -517,6 +540,7 @@ function pushCombatFeed(type, text) {
     if (!feedEl) return;
     feedEl.innerHTML = gameState.combatFeed.map(item => `
         <div class="battle-feed-item ${item.type}">
+            <span class="battle-feed-icon"><span class="material-symbols-outlined">${item.icon}</span></span>
             <span class="battle-feed-turn">#${item.turn}</span>
             <span class="battle-feed-text">${item.text}</span>
         </div>
@@ -532,6 +556,7 @@ function triggerDamageEffect() {
         characterSheetEl.classList.add('player-damage-flash');
         setTimeout(() => characterSheetEl.classList.remove('player-damage-flash'), 400);
     }
+    shakeBattleScreen();
 }
 
 /**
@@ -662,21 +687,33 @@ function updateUI() {
 
         if (gameState.currentMonster) {
             const hpBar = document.getElementById('battle-enemy-hp-bar');
+            const hpGhost = document.getElementById('battle-enemy-hp-ghost');
             if (hpBar) {
                 const pct = Math.max(0, (gameState.currentMonster.currentHp / gameState.currentMonster.hp) * 100);
                 hpBar.style.width = `${pct}%`;
+                // Ghost bar drains after a short delay so the damage reads as "lost HP"
+                if (hpGhost) hpGhost.style.width = `${pct}%`;
             }
             const monsterHpTextEl = document.getElementById('monster-hp');
             if (monsterHpTextEl) {
                 monsterHpTextEl.textContent = Math.max(0, gameState.currentMonster.currentHp);
             }
+
+            // Hit chance = ((7 - difficulty) / 6) * 100; updates if player swaps weapons mid-fight (no hit bonus yet but future-proof)
+            const hitEl = document.getElementById('battle-hit-chance');
+            if (hitEl) {
+                const chance = Math.max(0, Math.min(100, Math.round(((7 - gameState.currentMonster.difficulty) / 6) * 100)));
+                hitEl.textContent = `${chance}%`;
+            }
         }
 
         // Player HP bar
         const playerHpBarFill = document.getElementById('battle-player-hp-bar-fill');
+        const playerHpGhost = document.getElementById('battle-player-hp-ghost');
         if (playerHpBarFill) {
             const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
             playerHpBarFill.style.width = `${pct}%`;
+            if (playerHpGhost) playerHpGhost.style.width = `${pct}%`;
             playerHpBarFill.className = 'arena-hp-fill player-hp';
             if (pct <= 25) {
                 playerHpBarFill.classList.add('low-hp');
@@ -684,6 +721,9 @@ function updateUI() {
                 playerHpBarFill.classList.add('medium-hp');
             }
         }
+
+        // Next-action intent hint for auto-battle
+        updateBattleIntent();
 
         // Quick Items (Potions & Weapons) — compact inline
         const quickItemsEl = document.getElementById('battle-quick-items');
@@ -1058,7 +1098,7 @@ function startCombat(monster) {
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
     gameState.autoBattle = true;
-    gameState.autoBattleDelay = 500;
+    gameState.autoBattleDelay = 350;
     document.body.classList.add('in-combat');
 
     let damageString = gameState.playerDamage;
@@ -1067,69 +1107,105 @@ function startCombat(monster) {
     const isBoss = monster.name === FORTRESS_LORD.name;
     const isTough = TOUGH_MONSTERS.some(m => m.name === monster.name);
     const threatClass = isBoss ? 'boss' : isTough ? 'tough' : 'weak';
+    const threatPipCount = isBoss ? 3 : isTough ? 2 : 1;
+    const threatPips = '<span class="material-symbols-outlined">skull</span>'.repeat(threatPipCount);
+
+    // Hit chance % from d6 vs difficulty: (7 - difficulty) / 6
+    const hitChance = Math.max(0, Math.min(100, Math.round(((7 - scaledMonster.difficulty) / 6) * 100)));
 
     let text = `
-        <div class="battle-interface">
-            <!-- Arena: Loop Hero style - characters facing each other -->
+        <div class="battle-interface" id="battle-interface">
+            <!-- Header ribbon: round + boss tag -->
+            <div class="battle-header">
+                <span class="battle-header-title">
+                    ${isBoss ? '<span class="boss-tag">BOSS</span>' : '<span class="material-symbols-outlined" style="font-size:0.95rem;">swords</span> Kova'}
+                </span>
+                <span class="round-chip">Raundas <span id="battle-turn-counter">${gameState.combatTurn}</span></span>
+            </div>
+
+            <!-- Arena: two combatants facing each other -->
             <div class="battle-arena">
                 <!-- Player side -->
                 <div class="arena-combatant player-side">
                     <div class="arena-name">${gameState.playerName}</div>
                     <div class="arena-sprite" id="battle-player-actor">
-                        <span class="material-symbols-outlined">swords</span>
+                        <span class="material-symbols-outlined">person</span>
                     </div>
-                    <div class="arena-hp-bar">
-                        <div id="battle-player-hp-bar-fill" class="arena-hp-fill player-hp" style="width: 100%;"></div>
+                    <div class="arena-hp-wrap">
+                        <div class="arena-hp-bar">
+                            <div class="arena-hp-ghost" id="battle-player-hp-ghost" style="width: 100%;"></div>
+                            <div id="battle-player-hp-bar-fill" class="arena-hp-fill player-hp" style="width: 100%;"></div>
+                            <div class="arena-hp-text"><span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span></div>
+                        </div>
                     </div>
-                    <div class="arena-hp-text"><span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span></div>
                 </div>
 
-                <!-- Center info -->
+                <!-- Center VS -->
                 <div class="arena-center">
-                    <div class="arena-round" id="battle-turn-counter">${gameState.combatTurn}</div>
                     <div class="arena-vs">VS</div>
                 </div>
 
                 <!-- Enemy side -->
                 <div class="arena-combatant enemy-side ${threatClass}">
-                    <div class="arena-name">${scaledMonster.name}</div>
+                    <div class="arena-name">
+                        ${scaledMonster.name}
+                        <span class="threat-pips" aria-hidden="true">${threatPips}</span>
+                    </div>
                     <div class="arena-sprite" id="battle-enemy-actor">
                         <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${scaledMonster.name}" id="monster-stats-display">
                     </div>
-                    <div class="arena-hp-bar">
-                        <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width: 100%;"></div>
+                    <div class="arena-hp-wrap">
+                        <div class="arena-hp-bar">
+                            <div class="arena-hp-ghost" id="battle-enemy-hp-ghost" style="width: 100%;"></div>
+                            <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width: 100%;"></div>
+                            <div class="arena-hp-segments"></div>
+                            <div class="arena-hp-text"><span id="monster-hp">${scaledMonster.hp}</span>/${scaledMonster.hp}</div>
+                        </div>
                     </div>
-                    <div class="arena-hp-text"><span id="monster-hp">${scaledMonster.hp}</span>/${scaledMonster.hp}</div>
                 </div>
             </div>
 
-            <!-- Compact stats bar -->
+            <!-- Split stats bar: YOU (left) | HIT% (center) | THREAT (right) -->
             <div class="battle-stats-bar">
-                <div class="battle-stat-item">
-                    <span class="material-symbols-outlined">flash_on</span>
-                    <span id="battle-player-damage">${damageString}</span>
+                <div class="stat-card you">
+                    <div class="battle-stat-item dmg" title="Žala">
+                        <span class="material-symbols-outlined">flash_on</span>
+                        <span id="battle-player-damage">${damageString}</span>
+                    </div>
+                    <div class="battle-stat-item def" title="Apsauga">
+                        <span class="material-symbols-outlined">shield</span>
+                        <span id="battle-player-defense">${gameState.playerDefense}</span>
+                    </div>
                 </div>
-                <div class="battle-stat-item">
-                    <span class="material-symbols-outlined">shield</span>
-                    <span id="battle-player-defense">${gameState.playerDefense}</span>
+                <div class="stat-card" style="background: rgba(242,255,0,0.05); border-color: rgba(242,255,0,0.2);">
+                    <div class="battle-stat-item hit" title="Pataikymo tikimybė">
+                        <span class="material-symbols-outlined">my_location</span>
+                        <span id="battle-hit-chance">${hitChance}%</span>
+                    </div>
                 </div>
-                <div class="battle-stat-item target">
-                    <span class="material-symbols-outlined">target</span>
-                    ${scaledMonster.difficulty}+
-                </div>
-                <div class="battle-stat-item" id="battle-quick-items">
-                    <!-- Populated by updateUI -->
+                <div class="stat-card enemy ${isBoss ? 'boss' : ''}">
+                    <div class="battle-stat-item threat" title="Priešo žala">
+                        <span class="material-symbols-outlined">swords</span>
+                        <span>${scaledMonster.damage}</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Auto-battle controls -->
+            <!-- Quick items tray (potions, weapon swaps) -->
+            <div id="battle-quick-items" class="battle-quick-items-row"></div>
+
+            <!-- Auto-battle controls + intent hint -->
             <div class="auto-battle-row">
                 <button id="auto-battle-btn" class="auto-battle-btn active" onclick="toggleAutoBattle()">
-                    <span class="material-symbols-outlined">pause</span> Auto: ON
+                    <span class="material-symbols-outlined">pause</span> <span>Auto</span>
                 </button>
                 <button id="auto-speed-btn" class="auto-battle-btn auto-speed-btn" onclick="cycleAutoBattleSpeed()">
-                    <span class="material-symbols-outlined">bolt</span> <span id="auto-battle-speed-label">x1.5</span>
+                    <span class="material-symbols-outlined">bolt</span> <span id="auto-battle-speed-label">x2</span>
                 </button>
+                <div class="battle-intent" id="battle-intent">
+                    <span class="intent-label">Toliau:</span>
+                    <span class="intent-value" id="battle-intent-value">Pulti</span>
+                </div>
             </div>
 
             <!-- Unified battle feed -->
@@ -1231,6 +1307,7 @@ async function performAttack(isPowerAttack) {
         }
     } else {
         // Dark Fort rule: enemy only attacks when you miss
+        showFloatingCombatText('enemy', 0, { miss: true });
         log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
         combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
         pushCombatFeed('warning', `Nepataikei į ${monster.name}.`);
@@ -1279,9 +1356,11 @@ function toggleAutoBattle() {
     if (btn) {
         btn.classList.toggle('active', gameState.autoBattle);
         btn.innerHTML = gameState.autoBattle
-            ? '<span class="material-symbols-outlined">pause</span> Auto: ON'
-            : '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
+            ? '<span class="material-symbols-outlined">pause</span> <span>Auto</span>'
+            : '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
     }
+    updateBattleIntent();
+    updateUI();
     if (gameState.autoBattle) {
         runAutoBattle();
     }
@@ -1290,11 +1369,38 @@ function toggleAutoBattle() {
 function cycleAutoBattleSpeed() {
     if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 350;
     else if (gameState.autoBattleDelay === 350) gameState.autoBattleDelay = 200;
+    else if (gameState.autoBattleDelay === 200) gameState.autoBattleDelay = 100;
     else gameState.autoBattleDelay = 500;
 
     const label = document.getElementById('auto-battle-speed-label');
     if (label) {
-        label.textContent = gameState.autoBattleDelay <= 200 ? 'x3' : gameState.autoBattleDelay <= 350 ? 'x2' : 'x1.5';
+        label.textContent = gameState.autoBattleDelay <= 100 ? 'x4' : gameState.autoBattleDelay <= 200 ? 'x3' : gameState.autoBattleDelay <= 350 ? 'x2' : 'x1.5';
+    }
+}
+
+/**
+ * Refreshes the "Next: ..." intent hint so the player can predict the
+ * auto-battle's next move (Unicorn Overlord style).
+ */
+function updateBattleIntent() {
+    const intentEl = document.getElementById('battle-intent');
+    const valueEl = document.getElementById('battle-intent-value');
+    if (!intentEl || !valueEl) return;
+    if (!gameState.inCombat || !gameState.autoBattle || gameState.monsterDying) {
+        intentEl.classList.add('hidden');
+        return;
+    }
+    intentEl.classList.remove('hidden');
+    const action = pickAutoBattleAction();
+    valueEl.className = 'intent-value';
+    if (action === 'potion') {
+        valueEl.textContent = 'Mikstūra';
+        valueEl.classList.add('potion');
+    } else if (action === 'power') {
+        valueEl.textContent = 'Galingas';
+        valueEl.classList.add('power');
+    } else {
+        valueEl.textContent = 'Pulti';
     }
 }
 
@@ -1353,7 +1459,7 @@ async function runAutoBattle() {
     const btn = document.getElementById('auto-battle-btn');
     if (btn) {
         btn.classList.remove('active');
-        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Auto: OFF';
+        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
     }
 }
 
