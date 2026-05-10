@@ -6,14 +6,13 @@
     <title>Tamsioji Tvirtovė - Solo RPG</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@100..900&family=Orbitron:wght@400..900&family=Share+Tech+Mono&family=Special+Elite&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Pirata+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="crt-overlay"></div>
     <div class="container">
-        <h1 class="cyber-glitch" data-text="TAMSIOJI TVIRTOVĖ">TAMSIOJI TVIRTOVĖ</h1>
+        <h1 class="cyber-glitch game-title">TAMSIOJI TVIRTOVĖ</h1>
         
         <!-- Character Stats -->
         <div class="character-sheet">
@@ -46,13 +45,13 @@
 
             <div class="actions" id="gameActions">
                 <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Pradėti Nuotykį</button>
-                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;"><span class="material-symbols-outlined">search</span> Tyrinėti<small class="btn-sublabel">Nauja menė</small></button>
-                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small></button>
+                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;" title="Tyrinėti naują menę"><span class="material-symbols-outlined">search</span> Tyrinėti<small class="btn-sublabel">Nauja menė</small></button>
+                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;" title="Automatinis tyrinėjimas"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small></button>
                 <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Pulti<small class="btn-sublabel">Tikslus smūgis</small></button>
                 <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">gavel</span> Galingas Smūgis<small class="btn-sublabel">-2 pataikyti · +2 žala</small></button>
-                <button id="scavengeBtn" onclick="scavenge()" style="display: none;"><span class="material-symbols-outlined">manage_search</span> Ieškoti<small class="btn-sublabel">Ieškoti lobio</small></button>
+                <button id="scavengeBtn" onclick="scavenge()" style="display: none;" title="Ieškoti lobio griuvėsiuose"><span class="material-symbols-outlined">manage_search</span> Ieškoti<small class="btn-sublabel">Ieškoti lobio</small></button>
                 <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Bėgti<small class="btn-sublabel">50% šansas pabėgti</small></button>
-                <button id="levelUpBtn" onclick="levelUp()" style="display: none;"><span class="material-symbols-outlined">upgrade</span> Kelti Lygį!<small class="btn-sublabel">Kainuoja 10 taškų</small></button>
+                <button id="levelUpBtn" onclick="levelUp()" style="display: none;" title="Kelti lygį (kainuoja 10 taškų)"><span class="material-symbols-outlined">upgrade</span> Kelti Lygį!<small class="btn-sublabel">Kainuoja 10 taškų</small></button>
             </div>
         </div>
         

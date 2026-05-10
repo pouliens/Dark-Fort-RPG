@@ -45,7 +45,8 @@ function createInitialGameState() {
         autoExplore: false,
         autoExploreDelay: 800,
         combatTurn: 1,
-        combatFeed: []
+        combatFeed: [],
+        combo: 0
     };
 }
 
@@ -506,15 +507,144 @@ function showFloatingCombatText(target, amount, { crit = false, heal = false, mi
 
 /**
  * Briefly shakes the battle interface for player-damage impact feedback.
+ * @param {'normal'|'hard'} intensity — 'hard' for crits / kills.
  */
-function shakeBattleScreen() {
+function shakeBattleScreen(intensity = 'normal') {
     const el = document.getElementById('battle-interface');
     if (!el) return;
-    el.classList.remove('battle-shake');
+    const cls = intensity === 'hard' ? 'battle-shake-hard' : 'battle-shake';
+    el.classList.remove('battle-shake', 'battle-shake-hard');
     // Force reflow so the animation restarts even on repeat hits
     void el.offsetWidth;
-    el.classList.add('battle-shake');
-    setTimeout(() => el.classList.remove('battle-shake'), 320);
+    el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), intensity === 'hard' ? 480 : 320);
+}
+
+/**
+ * Brief gold flash across the screen — fired on crits to celebrate the moment.
+ */
+function triggerCritFlash() {
+    const flash = document.createElement('div');
+    flash.className = 'crit-screen-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 280);
+}
+
+/**
+ * Spawns a radial burst of gold sparks from the monster sprite. Used as
+ * the killing-blow punctuation before the slain overlay drops.
+ */
+function spawnDeathSparks() {
+    const monsterEl = document.querySelector('.battle-arena .enemy-side .arena-sprite');
+    if (!monsterEl) return;
+    const rect = monsterEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+        const spark = document.createElement('div');
+        spark.className = 'death-spark';
+        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.35;
+        const dist = 55 + Math.random() * 55;
+        spark.style.left = cx + 'px';
+        spark.style.top = cy + 'px';
+        spark.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+        spark.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+        spark.style.animationDelay = (Math.random() * 80) + 'ms';
+        document.body.appendChild(spark);
+        setTimeout(() => spark.remove(), 850);
+    }
+}
+
+/**
+ * Spawns coin/star particles that arc from `sourceEl` toward `targetEl`.
+ * Each particle ticks a small sound on landing for tactile reward feel.
+ */
+function spawnRewardShower(sourceEl, targetEl, kind, count) {
+    if (!sourceEl || !targetEl) return;
+    const sRect = sourceEl.getBoundingClientRect();
+    const tRect = targetEl.getBoundingClientRect();
+    const sx = sRect.left + sRect.width / 2;
+    const sy = sRect.top + sRect.height * 0.55;
+    const tx = tRect.left + tRect.width / 2;
+    const ty = tRect.top + tRect.height / 2;
+    const icon = kind === 'coin' ? 'paid' : 'star';
+    const tickSound = kind === 'coin' ? playCoinTickSound : playXpTickSound;
+    const flightMs = 620;
+    const stagger = 70;
+
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = `reward-particle reward-particle-${kind}`;
+        p.innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+        const dx = tx - sx + (Math.random() * 36 - 18);
+        const dy = ty - sy + (Math.random() * 24 - 12);
+        p.style.left = sx + 'px';
+        p.style.top  = sy + 'px';
+        p.style.setProperty('--dx', dx + 'px');
+        p.style.setProperty('--dy', dy + 'px');
+        p.style.animationDelay = (i * stagger) + 'ms';
+        document.body.appendChild(p);
+        const land = flightMs + i * stagger;
+        setTimeout(() => { tickSound(); p.remove(); }, land);
+    }
+}
+
+/**
+ * Updates the visual combo chip based on `gameState.combo`. Hides it under
+ * 2 hits (no streak yet); escalates with tier classes for 3, 4, 5+ chains.
+ */
+function updateComboChip() {
+    const chip = document.getElementById('combo-chip');
+    const countEl = document.getElementById('combo-count');
+    if (!chip || !countEl) return;
+    if (gameState.combo >= 2) {
+        countEl.textContent = `x${gameState.combo}`;
+        chip.classList.remove('hidden', 'combo-tier-2', 'combo-tier-3', 'combo-tier-4', 'combo-break');
+        if (gameState.combo >= 5)      chip.classList.add('combo-tier-4');
+        else if (gameState.combo >= 4) chip.classList.add('combo-tier-3');
+        else if (gameState.combo >= 3) chip.classList.add('combo-tier-2');
+        chip.classList.remove('combo-pulse');
+        void chip.offsetWidth;
+        chip.classList.add('combo-pulse');
+    } else {
+        chip.classList.add('hidden');
+    }
+}
+
+/**
+ * Resets the combo counter. If the streak was meaningful (>=2), shows a
+ * brief "BREAK" pulse before hiding so the player feels the loss.
+ */
+function breakCombo() {
+    const chip = document.getElementById('combo-chip');
+    const broke = gameState.combo >= 2;
+    gameState.combo = 0;
+    if (!chip) return;
+    if (broke) {
+        chip.classList.remove('combo-pulse', 'combo-tier-2', 'combo-tier-3', 'combo-tier-4');
+        chip.classList.add('combo-break');
+        setTimeout(() => {
+            chip.classList.add('hidden');
+            chip.classList.remove('combo-break');
+        }, 420);
+    } else {
+        chip.classList.add('hidden');
+    }
+}
+
+/**
+ * Brief highlight on the round chip when combatTurn increments — pulled out
+ * so both player-miss and enemy-counter paths can call it.
+ */
+function pulseRoundChip() {
+    const turnEl = document.getElementById('battle-turn-counter');
+    const chipEl = turnEl && turnEl.parentElement;
+    if (!chipEl) return;
+    chipEl.classList.remove('round-chip-pulse');
+    void chipEl.offsetWidth;
+    chipEl.classList.add('round-chip-pulse');
+    setTimeout(() => chipEl.classList.remove('round-chip-pulse'), 450);
 }
 
 function pushCombatFeed(type, text, iconOverride) {
@@ -587,6 +717,23 @@ function triggerMonsterDeathEffect() {
         monsterStatsEl.classList.add('monster-death-flash');
         setTimeout(() => monsterStatsEl.classList.remove('monster-death-flash'), 900);
     }
+}
+
+/**
+ * Stamps a "slain" overlay across the battle stage so the player gets a clear
+ * kill-confirmation beat before the victory rewards screen takes over.
+ */
+function showSlainOverlay(monster) {
+    const arena = document.querySelector('.battle-interface .battle-arena');
+    if (!arena || arena.querySelector('.kill-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'kill-overlay';
+    overlay.innerHTML = `
+        <div class="kill-overlay-skull"><span class="material-symbols-outlined">skull</span></div>
+        <div class="kill-overlay-title">NUGALĖTAS</div>
+        <div class="kill-overlay-subtitle">${monster.name}</div>
+    `;
+    arena.appendChild(overlay);
 }
 
 let lastInventorySnapshot = [];
@@ -1097,6 +1244,7 @@ function startCombat(monster) {
     gameState.currentMonster = scaledMonster;
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
+    gameState.combo = 0;
     gameState.autoBattle = true;
     gameState.autoBattleDelay = 350;
     document.body.classList.add('in-combat');
@@ -1118,17 +1266,25 @@ function startCombat(monster) {
             <!-- Header ribbon: round + boss tag -->
             <div class="battle-header">
                 <span class="battle-header-title">
-                    ${isBoss ? '<span class="boss-tag">BOSS</span>' : '<span class="material-symbols-outlined" style="font-size:0.95rem;">swords</span> Kova'}
+                    ${isBoss
+                        ? '<span class="boss-tag"><span class="material-symbols-outlined">crown</span> BOSAS</span>'
+                        : '<span class="header-flourish">&#10070;</span><span class="material-symbols-outlined" style="font-size:0.95rem;">swords</span> Kova<span class="header-flourish">&#10070;</span>'}
                 </span>
                 <span class="round-chip">Raundas <span id="battle-turn-counter">${gameState.combatTurn}</span></span>
             </div>
 
             <!-- Arena: two combatants facing each other -->
             <div class="battle-arena">
+                <!-- Combo / streak chip — shown only when combo >= 2 -->
+                <div id="combo-chip" class="combo-chip hidden">
+                    <span class="material-symbols-outlined combo-flame">local_fire_department</span>
+                    <span class="combo-count" id="combo-count">x2</span>
+                    <span class="combo-label">SERIJA</span>
+                </div>
                 <!-- Player side -->
                 <div class="arena-combatant player-side">
                     <div class="arena-name">${gameState.playerName}</div>
-                    <div class="arena-sprite" id="battle-player-actor">
+                    <div class="arena-sprite arena-sprite-enter-player" id="battle-player-actor">
                         <span class="material-symbols-outlined">person</span>
                     </div>
                     <div class="arena-hp-wrap">
@@ -1142,7 +1298,9 @@ function startCombat(monster) {
 
                 <!-- Center VS -->
                 <div class="arena-center">
+                    <div class="arena-vs-ornament arena-vs-top">&#10070;</div>
                     <div class="arena-vs">VS</div>
+                    <div class="arena-vs-ornament arena-vs-bot">&#10070;</div>
                 </div>
 
                 <!-- Enemy side -->
@@ -1151,7 +1309,7 @@ function startCombat(monster) {
                         ${scaledMonster.name}
                         <span class="threat-pips" aria-hidden="true">${threatPips}</span>
                     </div>
-                    <div class="arena-sprite" id="battle-enemy-actor">
+                    <div class="arena-sprite arena-sprite-enter-enemy" id="battle-enemy-actor">
                         <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${scaledMonster.name}" id="monster-stats-display">
                     </div>
                     <div class="arena-hp-wrap">
@@ -1217,8 +1375,17 @@ function startCombat(monster) {
     setGameText(text);
     pushCombatFeed('info', `${monster.name} stoja į kovą!`);
     updateUI();
-    // Auto-battle starts immediately
-    runAutoBattle();
+    // Let the dramatic entry animations play before the first swing — gives
+    // the player a brief tense beat to size up the threat. After ~700ms we
+    // strip the entry classes so subsequent lunge animations (which also
+    // target `transform`) aren't overridden by the entry rule.
+    setTimeout(() => {
+        const ps = document.getElementById('battle-player-actor');
+        const es = document.getElementById('battle-enemy-actor');
+        if (ps) ps.classList.remove('arena-sprite-enter-player');
+        if (es) es.classList.remove('arena-sprite-enter-enemy');
+        runAutoBattle();
+    }, 700);
 }
 
 /**
@@ -1273,6 +1440,13 @@ async function performAttack(isPowerAttack) {
         monster.currentHp -= damage;
         showFloatingCombatText('enemy', damage, { crit });
 
+        // Crit juice: gold flash, harder shake, dedicated sound
+        if (crit) {
+            triggerCritFlash();
+            shakeBattleScreen('hard');
+            playCritSound();
+        }
+
         await sleep(150);
         const dmgDetail = `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`;
         combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">Žala: ${dmgDetail}</p>`);
@@ -1288,26 +1462,42 @@ async function performAttack(isPowerAttack) {
         if (monster.currentHp <= 0) {
             monster.currentHp = 0;
             gameState.monsterDying = true;
-            // Immediately zero the HP bar so the player sees it drop before victory screen
+            gameState.combo = 0;
+            updateComboChip();
+            // Hit-stop: brief freeze on the killing blow before unleashing the
+            // death sequence — gives the kill weight instead of feeling like
+            // any other hit.
+            await sleep(140);
             const hpBar = document.getElementById('battle-enemy-hp-bar');
             if (hpBar) hpBar.style.width = '0%';
             document.getElementById('monster-hp').textContent = '0';
+            shakeBattleScreen('hard');
             triggerMonsterDeathEffect();
+            spawnDeathSparks();
+            playMonsterDieSound();
             combatLogEl.innerHTML = `<p class='success'>${msg} <strong>Pabaisa nugalėta!</strong></p>`;
             updateUI();
+            // Show "slain" overlay on the battle stage after the death animation
+            // peaks, so the player has a clear moment to register the kill before
+            // the victory rewards screen takes over.
+            setTimeout(() => showSlainOverlay(monster), 500);
             setTimeout(() => {
                 gameState.monsterDying = false;
                 winCombat(damage);
-            }, 850);
+            }, 1700);
         } else {
+            gameState.combo++;
+            updateComboChip();
             triggerMonsterHitEffect();
             // Dark Fort rule: enemy does NOT counter-attack when you land a hit
             combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
             gameState.combatTurn++;
+            pulseRoundChip();
         }
     } else {
         // Dark Fort rule: enemy only attacks when you miss
         showFloatingCombatText('enemy', 0, { miss: true });
+        breakCombo();
         log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
         combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
         pushCombatFeed('warning', `Nepataikei į ${monster.name}.`);
@@ -1488,6 +1678,10 @@ async function monsterAttack() {
         showFloatingCombatText('player', damage, { crit: isCrit });
         playPlayerHitSound();
         triggerDamageEffect();
+        if (isCrit) {
+            triggerCritFlash();
+            shakeBattleScreen('hard');
+        }
     } else {
         showFloatingCombatText('player', 0);
     }
@@ -1508,34 +1702,99 @@ async function monsterAttack() {
     } else {
         gameState.combatTurn++;
         setTurnIndicator('player');
+        pulseRoundChip();
     }
     updateUI();
 }
 
 function showVictoryScreen(monster, lootItems, xp, silver) {
-    let lootHtml = lootItems.length > 0 ? lootItems.map(item => `<span>${item}</span>`).join(', ') : 'Nieko';
+    const lootHtml = lootItems.length > 0
+        ? lootItems.map((item, i) => `<span class="victory-loot-item" style="animation-delay:${1500 + i * 180}ms">${item}</span>`).join('')
+        : '<span class="victory-loot-empty">Nieko</span>';
 
-    let html = `
-        <div class="victory-screen">
-            <h2>PERGALĖ!</h2>
-            <div class="victory-monster">
+    const html = `
+        <div class="victory-screen" id="victory-screen-root">
+            <div class="victory-confetti" aria-hidden="true">
+                ${Array.from({ length: 14 }, (_, i) => `<span class="confetti-mote" style="--i:${i}"></span>`).join('')}
+            </div>
+            <h2 class="victory-title">PERGALĖ</h2>
+            <div class="victory-monster" id="victory-monster">
                 <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="Victory">
                 <div>Nugalėtas: <strong>${monster.name}</strong></div>
             </div>
 
             <div class="victory-rewards">
-                <p><span class="material-symbols-outlined">star</span> +${xp} Taškų</p>
-                <p><span class="material-symbols-outlined">paid</span> +${silver} Sidabro</p>
+                <p class="reward-row reward-xp">
+                    <span class="reward-icon"><span class="material-symbols-outlined">star</span></span>
+                    <span class="reward-value" id="reward-xp-value">+0</span>
+                    <span class="reward-label">Taškų</span>
+                </p>
+                <p class="reward-row reward-silver">
+                    <span class="reward-icon"><span class="material-symbols-outlined">paid</span></span>
+                    <span class="reward-value" id="reward-silver-value">+0</span>
+                    <span class="reward-label">Sidabro</span>
+                </p>
                 <div class="victory-loot">
-                    Grobis: ${lootHtml}
+                    <span class="victory-loot-label">Grobis:</span>
+                    <span class="victory-loot-list">${lootHtml}</span>
                 </div>
             </div>
 
-            <button onclick="endCombatEncounter()">Tęsti</button>
+            <button class="victory-continue-btn" id="victory-continue-btn" onclick="endCombatEncounter()">
+                <span>Tęsti į tamsą</span>
+                <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
         </div>
     `;
 
     setGameText(html);
+    playVictorySound();
+    animateVictoryRewards(xp, silver);
+}
+
+/**
+ * Counts a value up from 0 to `to` over `duration` ms with an ease-out curve,
+ * writing into `el.textContent` each frame. Adds a brief "land" pulse class
+ * on completion so the value feels rewarding instead of just appearing.
+ */
+function animateCountUp(el, to, duration, prefix = '+') {
+    if (!el) return;
+    const start = performance.now();
+    const tick = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const value = Math.round(to * eased);
+        el.textContent = `${prefix}${value}`;
+        if (t < 1) {
+            requestAnimationFrame(tick);
+        } else {
+            el.classList.add('reward-value-landed');
+        }
+    };
+    requestAnimationFrame(tick);
+}
+
+/**
+ * Drives the victory screen reveal — staggers row entry, runs count-ups,
+ * and showers coin/star particles from the slain monster portrait into the
+ * matching reward counters so the loop "monster → reward" closes visually.
+ */
+function animateVictoryRewards(xp, silver) {
+    const xpEl = document.getElementById('reward-xp-value');
+    const silverEl = document.getElementById('reward-silver-value');
+    const sourceEl = document.getElementById('victory-monster');
+
+    // XP star shower — modest particle count, capped so big rewards don't spam
+    setTimeout(() => {
+        animateCountUp(xpEl, xp, 700);
+        spawnRewardShower(sourceEl, xpEl, 'star', Math.min(8, Math.max(3, xp)));
+    }, 700);
+
+    // Silver coin shower
+    setTimeout(() => {
+        animateCountUp(silverEl, silver, 800);
+        spawnRewardShower(sourceEl, silverEl, 'coin', Math.min(10, Math.max(3, silver)));
+    }, 1100);
 }
 
 function endCombatEncounter() {

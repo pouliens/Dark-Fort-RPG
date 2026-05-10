@@ -26,16 +26,26 @@ function playSound(preset) {
 // Simplified sound presets for dark/spooky theme - essential sounds only
 const sounds = {
     // Combat sounds - core gameplay
-    attack: "hitHurt",        // Dark, impactful attack sound
-    playerHit: "explosion",   // Heavy, threatening damage sound
-    
+    attack:     "hitHurt",     // Dark, impactful attack sound
+    playerHit:  "explosion",   // Heavy, threatening damage sound
+    crit:       "powerUp",     // Triumphant crit zing
+    monsterDie: "explosion",   // Heavy thud on the killing blow
+    victory:    "powerUp",     // Triumphant rise on victory screen
+    coinTick:   "pickupCoin",  // Per-coin tick during silver shower
+    xpTick:     "blipSelect",  // Per-star tick during xp shower
+
     // Minimal UI sounds
-    buy: "blipSelect",        // Subtle transaction sound
-    sell: "click"             // Simple sell confirmation
+    buy: "blipSelect",         // Subtle transaction sound
+    sell: "click"              // Simple sell confirmation
 };
 
 // Functions to play specific sounds - only essential ones remain
-function playAttackSound() { playSound(sounds.attack); }
-function playPlayerHitSound() { playSound(sounds.playerHit); }
-function playBuySound() { /* sound removed */ }
-function playSellSound() { /* sound removed */ }
+function playAttackSound()     { playSound(sounds.attack); }
+function playPlayerHitSound()  { playSound(sounds.playerHit); }
+function playCritSound()       { playSound(sounds.crit); }
+function playMonsterDieSound() { playSound(sounds.monsterDie); }
+function playVictorySound()    { playSound(sounds.victory); }
+function playCoinTickSound()   { playSound(sounds.coinTick); }
+function playXpTickSound()     { playSound(sounds.xpTick); }
+function playBuySound()        { /* sound removed */ }
+function playSellSound()       { /* sound removed */ }
