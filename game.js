@@ -184,9 +184,15 @@ let combatActionBusy = false;
 const DEFAULT_MONSTER_SPRITE = typeof ENEMY_SPRITE_DIR !== 'undefined'
     ? `${ENEMY_SPRITE_DIR}/tough-threat-6.png`
     : 'assets/enemies/tough-threat-6.png';
+const PLAYER_SPRITE = 'assets/player/player-token.png';
+const LEVEL_UP_COST = 10;
 
 function getMonsterSprite(monster) {
     return monster && monster.sprite ? monster.sprite : DEFAULT_MONSTER_SPRITE;
+}
+
+function canLevelUpNow() {
+    return gameState.points >= LEVEL_UP_COST;
 }
 
 /**
@@ -308,12 +314,96 @@ function updateAutoExploreButton() {
  */
 async function runAutoExplore() {
     while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory) {
+        runAutoDowntimeActions();
         await sleep(gameState.autoExploreDelay);
 
         // Double check conditions after sleeping
         if (gameState.autoExplore && !gameState.inCombat && !gameState.inShop && !gameState.playerIsDead && !gameState.inVictory) {
+            runAutoDowntimeActions();
             await exploreRoom();
         }
+    }
+}
+
+function isAutoDowntime() {
+    return gameState.autoExplore
+        && gameState.gameStarted
+        && !gameState.inCombat
+        && !gameState.inShop
+        && !gameState.inVictory
+        && !gameState.playerIsDead
+        && !gameState.gameWon;
+}
+
+function runAutoDowntimeActions() {
+    if (!isAutoDowntime()) return;
+    autoLevelUpIfNeeded();
+    autoEquipBestGear();
+}
+
+function autoLevelUpIfNeeded() {
+    while (isAutoDowntime() && canLevelUpNow()) {
+        levelUp();
+    }
+}
+
+function getBaseDamageDieForLevel(level) {
+    if (level >= 4) return 'd8';
+    if (level >= 2) return 'd6';
+    return 'd4';
+}
+
+function getItemScore(itemName, type) {
+    const item = ITEM_LOOKUP[itemName];
+    if (!item || item.type !== type) return 0;
+    return type === 'weapon' ? getDamageValue(item.value) : Number(item.value) || 0;
+}
+
+function findBestInventoryItem(type) {
+    let bestName = null;
+    let bestScore = 0;
+
+    for (const itemName of gameState.inventory) {
+        const score = getItemScore(itemName, type);
+        if (score > bestScore) {
+            bestName = itemName;
+            bestScore = score;
+        }
+    }
+
+    return { name: bestName, score: bestScore };
+}
+
+function autoEquipBestGear() {
+    if (!isAutoDowntime()) return;
+
+    let changed = false;
+    const baseWeaponScore = getDamageValue(getBaseDamageDieForLevel(gameState.level));
+    const currentWeaponScore = gameState.equippedWeapon
+        ? getItemScore(gameState.equippedWeapon, 'weapon')
+        : baseWeaponScore;
+    const bestWeapon = findBestInventoryItem('weapon');
+
+    if (bestWeapon.score > currentWeaponScore && bestWeapon.name !== gameState.equippedWeapon) {
+        gameState.equippedWeapon = bestWeapon.name;
+        log(`Auto: užsidėjai geresnį ginklą - ${bestWeapon.name}.`);
+        changed = true;
+    } else if (gameState.equippedWeapon && baseWeaponScore > currentWeaponScore && baseWeaponScore >= bestWeapon.score) {
+        log(`Auto: nusiėmei ${gameState.equippedWeapon}; bazinė žala dabar geresnė.`);
+        gameState.equippedWeapon = null;
+        changed = true;
+    }
+
+    const currentArmorScore = gameState.equippedArmor ? getItemScore(gameState.equippedArmor, 'armor') : 0;
+    const bestArmor = findBestInventoryItem('armor');
+    if (bestArmor.score > currentArmorScore && bestArmor.name !== gameState.equippedArmor) {
+        gameState.equippedArmor = bestArmor.name;
+        log(`Auto: užsidėjai geresnius šarvus - ${bestArmor.name}.`);
+        changed = true;
+    }
+
+    if (changed) {
+        recalculateStats();
     }
 }
 
@@ -816,7 +906,7 @@ function updateUI() {
     document.getElementById('maxHp').textContent = gameState.maxHp;
     document.getElementById('silver').textContent = gameState.silver;
     document.getElementById('points').textContent = gameState.points;
-    document.getElementById('maxPoints').textContent = 10;
+    document.getElementById('maxPoints').textContent = LEVEL_UP_COST;
     document.getElementById('level').textContent = gameState.level;
     if (gameState.playerName) {
         document.getElementById('playerName').innerHTML = `<span class="material-symbols-outlined">history_edu</span> ${gameState.playerName}`;
@@ -938,7 +1028,7 @@ function updateUI() {
     document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
     document.getElementById('fleeBtn').style.display = showManualCombat ? 'block' : 'none';
     
-    const canLevelUp = gameState.points >= 10;
+    const canLevelUp = canLevelUpNow();
     document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
 
     // Update Dungeon Tracker
@@ -1293,7 +1383,7 @@ function startCombat(monster) {
                 <div class="arena-combatant player-side">
                     <div class="arena-name">${gameState.playerName}</div>
                     <div class="arena-sprite arena-sprite-enter-player" id="battle-player-actor">
-                        <span class="material-symbols-outlined">person</span>
+                        <img src="${PLAYER_SPRITE}" alt="${gameState.playerName || 'Žaidėjas'}">
                     </div>
                     <div class="arena-hp-wrap">
                         <div class="arena-hp-bar">
@@ -2012,12 +2102,8 @@ function toggleEquip(itemName, itemType) {
 
 function recalculateStats() {
     // Reset stats to base values, considering level but not items
-    gameState.playerDamage = 'd4';
+    gameState.playerDamage = getBaseDamageDieForLevel(gameState.level);
     gameState.playerDefense = gameState.level - 1; // 0 at level 1, 1 at level 2, etc.
-
-    // Re-apply damage die upgrades from levels
-    if (gameState.level >= 4) gameState.playerDamage = 'd8';
-    else if (gameState.level >= 2) gameState.playerDamage = 'd6';
 
     // Apply equipped items' stats
     if (gameState.equippedWeapon) {
@@ -2104,10 +2190,10 @@ function closeMap() {
 // -----------------------------------------------------------------------------
 
 function levelUp() {
-    if (gameState.points < 10) return;
+    if (!canLevelUpNow()) return;
     
     gameState.level++;
-    gameState.points -= 10;
+    gameState.points -= LEVEL_UP_COST;
 
     updateChallengeProgress('level', 'player', 1);
 

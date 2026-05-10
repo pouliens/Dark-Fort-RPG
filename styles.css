@@ -1006,11 +1006,24 @@ body.in-combat .log {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--rust);
-    background: var(--ink-deep);
+    border: none;
+    background: transparent;
     overflow: visible;
     flex-shrink: 0;
-    transition: box-shadow 0.15s, border-color 0.15s;
+    isolation: isolate;
+    transition: transform 0.15s, filter 0.15s;
+}
+
+.arena-sprite::before {
+    content: "";
+    position: absolute;
+    inset: -18%;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0.92);
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.16s ease-out, transform 0.16s ease-out;
 }
 
 .arena-sprite::after {
@@ -1028,9 +1041,8 @@ body.in-combat .log {
 
 .arena-sprite > * { position: relative; z-index: 2; }
 
-.player-side .arena-sprite {
-    border-color: var(--sulfur-soft);
-    background: linear-gradient(180deg, #1a1610, var(--ink-deep));
+.player-side .arena-sprite::before {
+    background: radial-gradient(circle, rgba(217,180,65,0.28) 0%, rgba(217,180,65,0.10) 42%, transparent 72%);
 }
 
 .player-side .arena-sprite .material-symbols-outlined {
@@ -1039,35 +1051,68 @@ body.in-combat .log {
     opacity: 0.9;
 }
 
+.player-side .arena-sprite img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    border-radius: 50%;
+}
+
 .player-side .arena-sprite.active-turn {
-    border-color: var(--sulfur);
-    box-shadow: 0 0 0 2px rgba(217,180,65,0.18);
+    box-shadow: none;
+}
+
+.player-side .arena-sprite.active-turn::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.player-side .arena-sprite.active-turn img {
+    filter: drop-shadow(0 0 10px rgba(217,180,65,0.42));
 }
 
 .enemy-side .arena-sprite {
-    border-color: rgba(181,40,40,0.5);
-    background: linear-gradient(180deg, #1a0a0a, var(--ink-deep));
-    overflow: hidden;
+    overflow: visible;
+}
+
+.enemy-side .arena-sprite::before {
+    background: radial-gradient(circle, rgba(181,40,40,0.24) 0%, rgba(181,40,40,0.10) 42%, transparent 72%);
 }
 
 .enemy-side .arena-sprite img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    border-radius: 50%;
     image-rendering: pixelated;
     display: block;
 }
 
 .enemy-side .arena-sprite.active-turn {
-    border-color: var(--blood);
-    box-shadow: 0 0 0 2px rgba(181,40,40,0.22);
+    box-shadow: none;
+}
+
+.enemy-side .arena-sprite.active-turn::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.enemy-side .arena-sprite.active-turn img {
+    filter: drop-shadow(0 0 10px rgba(181,40,40,0.38));
 }
 
 .enemy-side.boss .arena-sprite {
     width: 110px;
     height: 110px;
-    border-color: var(--sulfur);
-    box-shadow: 0 0 0 2px rgba(217,180,65,0.18);
+}
+
+.enemy-side.boss .arena-sprite::before {
+    background: radial-gradient(circle, rgba(217,180,65,0.28) 0%, rgba(217,180,65,0.10) 42%, transparent 72%);
+}
+
+.enemy-side.boss .arena-sprite.active-turn img {
+    filter: drop-shadow(0 0 12px rgba(217,180,65,0.42));
 }
 
 /* HP bars */
@@ -1189,6 +1234,17 @@ body.in-combat .log {
 }
 .attack-lunge-right { animation: lunge-right 0.22s ease-out; }
 .attack-lunge-left  { animation: lunge-left  0.22s ease-out; }
+
+@keyframes attack-radial-pulse {
+    0%   { opacity: 0; transform: scale(0.82); }
+    35%  { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+.attack-lunge-right::before,
+.attack-lunge-left::before {
+    animation: attack-radial-pulse 0.24s ease-out;
+}
 
 /* Floating combat text */
 @keyframes float-combat {
@@ -1526,8 +1582,8 @@ body.in-combat #fleeBtn:hover:not(:disabled) { opacity: 1; }
 .player-damage-flash { animation: flash-red 0.2s; }
 
 @keyframes flash-white {
-    0%   { background-color: var(--paper); }
-    100% { background-color: var(--ink); }
+    0%   { filter: brightness(2.4) drop-shadow(0 0 14px rgba(232,224,203,0.5)); transform: scale(1.04); }
+    100% { filter: brightness(1) drop-shadow(0 0 0 rgba(232,224,203,0)); transform: scale(1); }
 }
 .monster-hit-flash { animation: flash-white 0.2s; }
 
@@ -1863,16 +1919,19 @@ body.in-combat #fleeBtn:hover:not(:disabled) { opacity: 1; }
     max-width: 150px;
     height: auto;
     image-rendering: pixelated;
-    border: 1px solid var(--rust);
     margin-bottom: 16px;
-    background: var(--ink-deep);
-    filter: grayscale(0.4) brightness(0.85);
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    filter: grayscale(0.4) brightness(0.85) drop-shadow(0 10px 14px rgba(0,0,0,0.45));
 }
 
-.end-screen.victory .end-screen-visual img { border-color: var(--sulfur-soft); }
+.end-screen.victory .end-screen-visual img {
+    filter: brightness(0.95) drop-shadow(0 0 14px rgba(217,180,65,0.25));
+}
+
 .end-screen.defeat  .end-screen-visual img {
-    border-color: var(--blood-deep);
-    filter: grayscale(100%) contrast(1.2);
+    filter: grayscale(100%) contrast(1.2) brightness(0.75) drop-shadow(0 0 14px rgba(181,40,40,0.22));
 }
 
 .victory-monster div {
