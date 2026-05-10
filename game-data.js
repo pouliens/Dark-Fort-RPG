@@ -1,18 +1,24 @@
+const ENEMY_SPRITE_DIR = 'assets/enemies';
+
 const WEAK_MONSTERS = [
-    { name: 'Kraujuotas Skeletas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Katakombų Kultistas', points: 3, damage: 'd4', hp: 6, difficulty: 2 },
-    { name: 'Goblinas', points: 3, damage: 'd4', hp: 5, difficulty: 2 },
-    { name: 'Nemirėlių Šuo', points: 4, damage: 'd4', hp: 6, difficulty: 3 }
+    { name: 'Kraujuotas Skeletas', points: 3, damage: 'd4', hp: 6, difficulty: 2, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-1.png` },
+    { name: 'Katakombų Kultistas', points: 3, damage: 'd4', hp: 6, difficulty: 2, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-2.png` },
+    { name: 'Goblinas', points: 3, damage: 'd4', hp: 5, difficulty: 2, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-3.png` },
+    { name: 'Nemirėlių Šuo', points: 4, damage: 'd4', hp: 6, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-4.png` },
+    { name: 'Šešėlių Vaiduoklis', points: 4, damage: 'd4', hp: 5, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-5.png` },
+    { name: 'Surūdijęs Sargas', points: 4, damage: 'd4', hp: 6, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/weak-threat-6.png` }
 ];
 
 const TOUGH_MONSTERS = [
-    { name: 'Nekromantas-Burtininkas', points: 4, damage: 'd6', hp: 8, difficulty: 3 },
-    { name: 'Mažas Akmeninis Trolis', points: 5, damage: 'd6', hp: 9, difficulty: 4 },
-    { name: 'Medūza', points: 4, damage: 'd6', hp: 10, difficulty: 3 },
-    { name: 'Griuvėsių Baziliskas', points: 4, damage: 'd6', hp: 11, difficulty: 3 }
+    { name: 'Nekromantas-Burtininkas', points: 4, damage: 'd6', hp: 8, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-1.png` },
+    { name: 'Mažas Akmeninis Trolis', points: 5, damage: 'd6', hp: 9, difficulty: 4, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-2.png` },
+    { name: 'Medūza', points: 4, damage: 'd6', hp: 10, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-3.png` },
+    { name: 'Griuvėsių Baziliskas', points: 4, damage: 'd6', hp: 11, difficulty: 3, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-4.png` },
+    { name: 'Kapų Kapitonas', points: 5, damage: 'd6', hp: 8, difficulty: 4, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-5.png` },
+    { name: 'Tvirtovės Velnias', points: 5, damage: 'd6', hp: 10, difficulty: 4, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-6.png` }
 ];
 
-const FORTRESS_LORD = { name: 'Tvirtovės Valdovas', points: 20, damage: 'd6', hp: 25, difficulty: 4 };
+const FORTRESS_LORD = { name: 'Tvirtovės Valdovas', points: 20, damage: 'd6', hp: 25, difficulty: 4, sprite: `${ENEMY_SPRITE_DIR}/tough-threat-6.png` };
 
 const LOOT_DROPS = [
     { name: 'Kardas', type: 'weapon', value: 'd6' },

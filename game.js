@@ -181,6 +181,14 @@ function setActionsDisabled(disabled) {
 /** True while any combat action (attack, potion, flee) is in progress. Prevents concurrent actions. */
 let combatActionBusy = false;
 
+const DEFAULT_MONSTER_SPRITE = typeof ENEMY_SPRITE_DIR !== 'undefined'
+    ? `${ENEMY_SPRITE_DIR}/tough-threat-6.png`
+    : 'assets/enemies/tough-threat-6.png';
+
+function getMonsterSprite(monster) {
+    return monster && monster.sprite ? monster.sprite : DEFAULT_MONSTER_SPRITE;
+}
+
 /**
  * Shows an animated dice roll panel at the bottom of the screen.
  * @param {object} config
@@ -1310,7 +1318,7 @@ function startCombat(monster) {
                         <span class="threat-pips" aria-hidden="true">${threatPips}</span>
                     </div>
                     <div class="arena-sprite arena-sprite-enter-enemy" id="battle-enemy-actor">
-                        <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="${scaledMonster.name}" id="monster-stats-display">
+                        <img src="${getMonsterSprite(scaledMonster)}" alt="${scaledMonster.name}" id="monster-stats-display">
                     </div>
                     <div class="arena-hp-wrap">
                         <div class="arena-hp-bar">
@@ -1719,7 +1727,7 @@ function showVictoryScreen(monster, lootItems, xp, silver) {
             </div>
             <h2 class="victory-title">PERGALĖ</h2>
             <div class="victory-monster" id="victory-monster">
-                <img src="https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif" alt="Victory">
+                <img src="${getMonsterSprite(monster)}" alt="${monster.name}">
                 <div>Nugalėtas: <strong>${monster.name}</strong></div>
             </div>
 
@@ -2118,7 +2126,7 @@ function levelUp() {
 function showEndGameScreen(isVictory, message) {
     const title = isVictory ? "PERGALĖ!" : "ŽAIDIMAS BAIGTAS";
     const cssClass = isVictory ? "victory" : "defeat";
-    const imageUrl = "https://img.itch.zone/aW1hZ2UvMTQwODA2NC84MjAzNTg5LmdpZg==/original/CIfGNn.gif";
+    const imageUrl = isVictory ? getMonsterSprite(FORTRESS_LORD) : getMonsterSprite(gameState.currentMonster);
 
     // Stats HTML
     const statsHtml = `
