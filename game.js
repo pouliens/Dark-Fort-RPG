@@ -423,6 +423,7 @@ function updateButtons() {
     const showManualCombat = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible && !gameState.autoBattle;
 
     const startBtn = document.getElementById('startBtn');
+    const referenceLink = document.getElementById('referenceLink');
     const exploreBtn = document.getElementById('exploreBtn');
     const autoExploreBtn = document.getElementById('autoExploreBtn');
     const attackBtn = document.getElementById('attackBtn');
@@ -433,6 +434,7 @@ function updateButtons() {
     const extractBtn = document.getElementById('extractBtn');
 
     if (startBtn) startBtn.style.display = gameState.gameStarted ? 'none' : 'block';
+    if (referenceLink) referenceLink.style.display = gameState.gameStarted ? 'none' : '';
     if (exploreBtn) exploreBtn.style.display = inDowntime ? 'block' : 'none';
     if (autoExploreBtn) autoExploreBtn.style.display = inDowntime ? 'block' : 'none';
     if (attackBtn) attackBtn.style.display = showManualCombat ? 'block' : 'none';
