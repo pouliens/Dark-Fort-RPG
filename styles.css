@@ -200,7 +200,7 @@ h1.cyber-glitch::after {
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
     gap: 0;
 }
 
@@ -218,6 +218,12 @@ h1.cyber-glitch::after {
 }
 
 .stat:last-child { border-right: none; }
+
+.stat.warning { color: var(--sulfur); }
+.stat.danger {
+    color: var(--blood);
+    animation: hp-danger-pulse 1s ease-in-out infinite;
+}
 
 .stat .material-symbols-outlined {
     display: block;
@@ -388,14 +394,16 @@ body:not(.in-combat) .actions button .material-symbols-outlined {
 /* Start button (pre-game) and Level Up (post-explore) deserve their own row
    — they're transitions, not navigation, so they read better at full width. */
 body:not(.in-combat) #startBtn,
-body:not(.in-combat) #levelUpBtn {
+body:not(.in-combat) #levelUpBtn,
+body:not(.in-combat) #extractBtn {
     flex: 1 1 100%;
     padding: 12px 14px;
     font-size: 0.92rem;
     letter-spacing: 0.1em;
 }
 body:not(.in-combat) #startBtn .material-symbols-outlined,
-body:not(.in-combat) #levelUpBtn .material-symbols-outlined {
+body:not(.in-combat) #levelUpBtn .material-symbols-outlined,
+body:not(.in-combat) #extractBtn .material-symbols-outlined {
     font-size: 1.1rem;
 }
 
@@ -503,6 +511,12 @@ button:hover:not(:disabled) .btn-sublabel { color: var(--sulfur-soft); }
     color: var(--sulfur);
     border-color: var(--sulfur-soft);
     animation: levelup-pulse 2.4s infinite;
+}
+
+#extractBtn {
+    color: var(--paper);
+    border-color: var(--paper-faint);
+    background: rgba(232,225,207,0.04);
 }
 
 @keyframes levelup-pulse {
@@ -2526,3 +2540,419 @@ body.in-combat #fleeBtn:hover:not(:disabled) { opacity: 1; }
 
     .victory-screen h2, .end-screen h2 { font-size: 2rem; }
 }
+
+/* =============================================================================
+   REFERENCE LINK (sits inside the play page actions strip — matches button shell,
+   but stays muted so Start Mission keeps the sulfur accent)
+   ========================================================================== */
+
+#referenceLink {
+    /* Match the button shell so it sits naturally in the actions row, but stays
+       muted — Start Mission keeps the sulfur accent as the primary CTA. */
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    background: transparent;
+    color: var(--paper-soft);
+    border: 1px solid var(--rust);
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 13px 14px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+#referenceLink .material-symbols-outlined {
+    color: inherit;
+    margin-right: 4px;
+    opacity: 0.9;
+}
+#referenceLink:hover {
+    background: var(--shadow);
+    border-color: var(--sulfur-soft);
+    color: var(--sulfur);
+}
+#referenceLink:hover .btn-sublabel { color: var(--sulfur-soft); }
+body:not(.in-combat) #referenceLink {
+    /* Sit on its own row beneath Start Mission so it doesn't compete with the
+       primary CTA, but visually belongs to the same family. */
+    flex: 1 1 100%;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+}
+body:not(.in-combat) #referenceLink .btn-sublabel { display: none; }
+body:not(.in-combat) #referenceLink .material-symbols-outlined {
+    font-size: 1rem;
+    margin-right: 3px;
+}
+body.in-combat #referenceLink { display: none; }
+
+/* =============================================================================
+   PEN & PAPER REFERENCE PAGE
+   Visual approach: printed RPG zine. Lots of vertical breathing room, no boxed
+   panels around tables — content sits on the page directly, separated by space
+   and a single hairline rule. Sulfur is reserved for accent (titles, roll
+   results); everything else is paper-on-ink.
+   ========================================================================== */
+
+.reference-container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px 24px 96px;
+}
+
+/* --- Header --------------------------------------------------------------- */
+
+.reference-header {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--rust-soft);
+    text-align: center;
+    position: relative;
+}
+.reference-header .game-title {
+    font-size: 2.4rem;
+    margin: 8px 0 6px;
+}
+.reference-back {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--paper-dim);
+    text-decoration: none;
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 0.15s;
+}
+.reference-back:hover { color: var(--sulfur); }
+.reference-back .material-symbols-outlined { font-size: 1rem; }
+.reference-subtitle {
+    color: var(--paper-dim);
+    font-style: italic;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* --- Dice tray (sticky, slim) --------------------------------------------- */
+
+.dice-tray {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(12, 10, 8, 0.95);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--rust-soft);
+    margin: 0 -24px 48px;
+    padding: 12px 24px;
+}
+.dice-tray-inner {
+    max-width: 920px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.dice-tray-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.dice-btn {
+    background: transparent;
+    color: var(--paper-soft);
+    border: 1px solid var(--rust-soft);
+    padding: 7px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    min-width: 48px;
+}
+.dice-btn:hover {
+    color: var(--sulfur);
+    border-color: var(--sulfur-soft);
+    background: rgba(217, 180, 65, 0.04);
+}
+
+.dice-tray-result {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    color: var(--paper-soft);
+    min-height: 32px;
+}
+.dice-tray-label {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--paper-dim);
+}
+.dice-tray-value {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: var(--sulfur);
+    min-width: 1em;
+    text-align: right;
+    line-height: 1;
+}
+.dice-tray-value.flash { animation: dice-flash 0.5s ease-out; }
+@keyframes dice-flash {
+    0%   { color: var(--blood); transform: translateY(-2px); }
+    100% { color: var(--sulfur); transform: translateY(0); }
+}
+.dice-tray-detail {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--paper-dim);
+}
+
+/* --- Section heading ------------------------------------------------------ */
+
+.reference-section {
+    margin-bottom: 72px;
+}
+.reference-section > h2 {
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    color: var(--paper);
+    letter-spacing: 0.14em;
+    margin: 0 0 28px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rust-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-transform: uppercase;
+}
+.reference-section > h2 .material-symbols-outlined {
+    font-size: 1.3rem;
+    color: var(--sulfur-soft);
+}
+
+/* --- Rules grid (cards with a left rule, no full border) ------------------ */
+
+.rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 28px 40px;
+}
+.rule-card {
+    padding: 4px 0 4px 18px;
+    border-left: 2px solid var(--rust);
+}
+.rule-card h3 {
+    font-family: var(--font-heading);
+    color: var(--sulfur);
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.rule-card ul,
+.rule-card ol {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--paper-soft);
+}
+.rule-card li { margin-bottom: 6px; line-height: 1.5; }
+.rule-card strong { color: var(--paper); font-weight: 600; }
+.rule-card p { color: var(--paper-soft); margin: 0 0 8px; line-height: 1.55; }
+.rule-note {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    color: var(--paper-dim);
+    font-style: italic;
+}
+.rule-inline {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.88rem;
+    color: var(--paper-dim);
+}
+.rule-mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+.rule-mini-table th,
+.rule-mini-table td {
+    text-align: left;
+    padding: 4px 8px 4px 0;
+}
+.rule-mini-table th {
+    color: var(--paper-dim);
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--rust-soft);
+}
+.rule-mini-table td { color: var(--paper-soft); }
+
+/* --- Tables --------------------------------------------------------------- */
+
+.table-block {
+    margin-bottom: 48px;
+}
+.table-block:last-child { margin-bottom: 0; }
+
+.table-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 12px;
+}
+.table-header h3 {
+    font-family: var(--font-heading);
+    color: var(--paper);
+    margin: 0;
+    font-size: 0.92rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.table-die {
+    color: var(--sulfur-soft);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    margin-left: 10px;
+    letter-spacing: 0.04em;
+    font-weight: normal;
+}
+.table-roll-btn {
+    background: transparent;
+    color: var(--paper-dim);
+    border: 1px solid var(--rust-soft);
+    padding: 5px 14px;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.table-roll-btn:hover {
+    color: var(--sulfur);
+    border-color: var(--sulfur-soft);
+    background: rgba(217, 180, 65, 0.04);
+}
+
+.ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 0.96rem;
+}
+.ref-table thead th {
+    text-align: left;
+    padding: 6px 12px 8px;
+    color: var(--paper-dim);
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rust);
+    background: transparent;
+}
+.ref-table thead th:first-child { padding-left: 4px; }
+.ref-table tbody td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--rust-soft);
+    vertical-align: top;
+    color: var(--paper-soft);
+    line-height: 1.5;
+}
+.ref-table tbody td:first-child { padding-left: 4px; }
+.ref-table tbody tr:last-child td { border-bottom: 0; }
+.ref-table tbody tr { transition: background 0.15s ease; }
+.ref-table tbody tr:hover { background: rgba(217, 180, 65, 0.025); }
+
+.ref-table .col-roll {
+    width: 48px;
+    font-family: var(--font-mono);
+    color: var(--paper-dim);
+    font-size: 0.86rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.ref-table .col-pay {
+    width: 60px;
+    font-family: var(--font-mono);
+    color: var(--paper-dim);
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+.ref-table tbody td strong,
+.ref-table tbody td b { color: var(--paper); }
+
+/* Name column (2nd col in most tables) — emphasised, paper-color */
+.ref-table tbody td:nth-child(2) {
+    color: var(--paper);
+    font-weight: 500;
+}
+
+/* Highlighted (rolled) row */
+.ref-table tbody tr.rolled {
+    background: rgba(217, 180, 65, 0.08);
+    box-shadow: inset 3px 0 0 var(--sulfur);
+}
+.ref-table tbody tr.rolled td { color: var(--paper); }
+.ref-table tbody tr.rolled .col-roll {
+    color: var(--sulfur);
+    font-weight: 600;
+}
+.ref-table tbody tr.rolled .col-pay { color: var(--paper-soft); }
+
+/* --- Footer --------------------------------------------------------------- */
+
+.reference-footer {
+    margin-top: 56px;
+    text-align: center;
+    color: var(--paper-dim);
+    font-style: italic;
+    font-size: 0.92rem;
+    border-top: 1px solid var(--rust-soft);
+    padding-top: 24px;
+}
+
+/* --- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 720px) {
+    .reference-container { padding: 24px 16px 64px; }
+    .reference-back { position: static; display: inline-flex; margin-bottom: 12px; }
+    .reference-header { text-align: left; padding-bottom: 18px; margin-bottom: 28px; }
+    .reference-header .game-title { font-size: 1.8rem; }
+    .dice-tray { margin: 0 -16px 32px; padding: 10px 16px; }
+    .dice-tray-inner { flex-direction: column; align-items: stretch; gap: 10px; }
+    .dice-tray-result { justify-content: flex-end; }
+    .table-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .reference-section { margin-bottom: 56px; }
+    .ref-table { font-size: 0.9rem; }
+    .ref-table thead th { padding: 6px 8px 8px; }
+    .ref-table tbody td { padding: 10px 8px; }
+    .ref-table .col-roll { width: 38px; }
+    .rules-grid { gap: 24px; }
+}
+

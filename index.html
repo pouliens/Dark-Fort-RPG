@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="lt">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tamsioji Tvirtovė - Solo RPG</title>
+    <title>Dark Fort: Moon Devils</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Pirata+One&display=swap" rel="stylesheet">
@@ -12,18 +12,21 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="cyber-glitch game-title">TAMSIOJI TVIRTOVĖ</h1>
+        <h1 class="cyber-glitch game-title">DARK FORT: MOON DEVILS</h1>
         
         <!-- Character Stats -->
         <div class="character-sheet">
             <h3 id="playerName"><span class="material-symbols-outlined">history_edu</span></h3>
             <div class="stats">
-                <div class="stat" data-tooltip="Gyvybės"><span class="material-symbols-outlined">favorite</span> <span id="hp">15</span>/<span id="maxHp">15</span></div>
-                <div class="stat" data-tooltip="Sidabras"><span class="material-symbols-outlined">paid</span> <span id="silver">0</span></div>
-                <div class="stat" data-tooltip="Taškai"><span class="material-symbols-outlined">star</span> <span id="points">0</span>/<span id="maxPoints">10</span></div>
-                <div class="stat" data-tooltip="Žala"><span class="material-symbols-outlined">flash_on</span> <span id="playerDamage">d4</span></div>
-                <div class="stat" data-tooltip="Šarvai"><span class="material-symbols-outlined">shield</span> <span id="playerDefense">0</span></div>
-                <div class="stat" data-tooltip="Lygis"><span class="material-symbols-outlined">emoji_events</span> <span id="level">1</span></div>
+                <div class="stat" data-tooltip="Body" data-pool="body"><span class="material-symbols-outlined">favorite</span> <span id="body">0</span>/<span id="maxBody">0</span></div>
+                <div class="stat" data-tooltip="Mind" data-pool="mind"><span class="material-symbols-outlined">psychology</span> <span id="mind">0</span>/<span id="maxMind">0</span></div>
+                <div class="stat" data-tooltip="Soul" data-pool="soul"><span class="material-symbols-outlined">flare</span> <span id="soul">0</span>/<span id="maxSoul">0</span></div>
+                <div class="stat" data-tooltip="Oxygen" data-pool="oxygen"><span class="material-symbols-outlined">air</span> <span id="oxygen">0</span>/<span id="maxOxygen">0</span></div>
+                <div class="stat" data-tooltip="Credits"><span class="material-symbols-outlined">paid</span> <span id="credits">0</span></div>
+                <div class="stat" data-tooltip="Threat Points"><span class="material-symbols-outlined">star</span> <span id="points">0</span>/<span id="maxPoints">15</span></div>
+                <div class="stat" data-tooltip="Weapon Damage"><span class="material-symbols-outlined">flash_on</span> <span id="playerDamage">d4-1</span></div>
+                <div class="stat" data-tooltip="Suit Mod"><span class="material-symbols-outlined">shield</span> <span id="playerDefense">None</span></div>
+                <div class="stat" data-tooltip="Advancements"><span class="material-symbols-outlined">emoji_events</span> <span id="level">0</span></div>
             </div>
         </div>
 
@@ -38,34 +41,36 @@
 
             <div class="game-area">
                 <div id="gameText">
-                    <p>Sveikas atvykęs į Tamsiąją Tvirtovę, drąsusis Karguntai!</p>
-                    <p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>
+                    <p>Welcome to Dark Fort: Moon Devils.</p>
+                    <p>Start a mission, recover the target, and decide whether one more room is worth the air.</p>
                 </div>
             </div>
 
             <div class="actions" id="gameActions">
-                <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Pradėti Nuotykį</button>
-                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;" title="Tyrinėti naują menę"><span class="material-symbols-outlined">search</span> Tyrinėti<small class="btn-sublabel">Nauja menė</small></button>
-                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;" title="Automatinis tyrinėjimas"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small></button>
-                <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Pulti<small class="btn-sublabel">Tikslus smūgis</small></button>
-                <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">gavel</span> Galingas Smūgis<small class="btn-sublabel">-2 pataikyti · +2 žala</small></button>
-                <button id="scavengeBtn" onclick="scavenge()" style="display: none;" title="Ieškoti lobio griuvėsiuose"><span class="material-symbols-outlined">manage_search</span> Ieškoti<small class="btn-sublabel">Ieškoti lobio</small></button>
-                <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Bėgti<small class="btn-sublabel">50% šansas pabėgti</small></button>
-                <button id="levelUpBtn" onclick="levelUp()" style="display: none;" title="Kelti lygį (kainuoja 10 taškų)"><span class="material-symbols-outlined">upgrade</span> Kelti Lygį!<small class="btn-sublabel">Kainuoja 10 taškų</small></button>
+                <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Start Mission</button>
+                <a id="referenceLink" href="reference.html" role="button" title="Open the pen-and-paper reference"><span class="material-symbols-outlined">menu_book</span> Pen &amp; Paper<small class="btn-sublabel">Tables &amp; rules</small></a>
+                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;" title="Enter a new room"><span class="material-symbols-outlined">search</span> Explore<small class="btn-sublabel">Spend Oxygen</small></button>
+                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;" title="Automatic exploration"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Auto explore</small></button>
+                <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Attack<small class="btn-sublabel">d6 vs Points</small></button>
+                <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">air</span> Push<small class="btn-sublabel">Spend 1 O2 · +1</small></button>
+                <button id="scavengeBtn" onclick="scavenge()" style="display: none;" title="Rush the quiet salvage"><span class="material-symbols-outlined">manage_search</span> Scavenge<small class="btn-sublabel">Mind test</small></button>
+                <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Flee<small class="btn-sublabel">Take routed damage</small></button>
+                <button id="levelUpBtn" onclick="levelUp()" style="display: none;" title="Scratch an advancement at 15 threat points"><span class="material-symbols-outlined">upgrade</span> Advance<small class="btn-sublabel">15 threat points</small></button>
+                <button id="extractBtn" onclick="extractMission()" style="display: none;" title="Trace the route back to the airlock"><span class="material-symbols-outlined">output</span> Extract<small class="btn-sublabel">Return to airlock</small></button>
             </div>
         </div>
         
         <!-- Inventory -->
         <div class="inventory">
-            <h4><span class="material-symbols-outlined">backpack</span> Inventorius:</h4>
-            <div id="inventory">Tuščia</div>
+            <h4><span class="material-symbols-outlined">backpack</span> Inventory:</h4>
+            <div id="inventory">Empty</div>
         </div>
 
         <!-- Map Modal -->
         <div id="mapModal" class="modal-overlay" style="display: none;">
             <div class="modal-content">
                 <span class="modal-close" onclick="closeMap()">&times;</span>
-                <h3>Tvirtovės Žemėlapis</h3>
+                <h3>Base Map</h3>
                 <div id="mapGrid" class="map-grid">
                     <!-- Map will be generated here -->
                 </div>
@@ -76,15 +81,15 @@
         <div class="side-panels">
             <div class="challenges" id="challenges-panel">
                 <h4 class="collapsible-header" onclick="togglePanel('challenges-panel')">
-                    <span class="material-symbols-outlined">emoji_events</span> Iššūkiai
+                    <span class="material-symbols-outlined">emoji_events</span> Records
                     <span class="collapse-arrow material-symbols-outlined">expand_more</span>
                 </h4>
-                <div class="collapsible-body" id="challenges">Tuoj...</div>
+                <div class="collapsible-body" id="challenges">Loading...</div>
             </div>
 
             <div class="log" id="log-panel">
                 <h4 class="collapsible-header" onclick="togglePanel('log-panel')">
-                    <span class="material-symbols-outlined">menu_book</span> Žurnalas
+                    <span class="material-symbols-outlined">menu_book</span> Log
                     <span class="collapse-arrow material-symbols-outlined">expand_more</span>
                 </h4>
                 <div class="collapsible-body log-body" id="log"></div>
@@ -106,7 +111,7 @@
             </div>
             <div class="dice-detail" id="dice-detail"></div>
             <div class="dice-roll-outcome" id="dice-outcome"></div>
-            <div class="dice-tap-hint">Palieski kad tęsti</div>
+            <div class="dice-tap-hint">Tap to continue</div>
         </div>
     </div>
 

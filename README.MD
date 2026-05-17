@@ -1,12 +1,17 @@
-# Dark Fort RPG
+# Dark Fort: Moon Devils
 
-**Dark Fort RPG** is a solo dungeon crawler web game inspired by the precursor to MÖRK BORG. Explore a cursed catacomb, battle monsters, collect treasures, and see how long you can survive!
+**Dark Fort: Moon Devils** is a solo mission-crawl web game adapted from the Moon Devils rules. Enter abandoned moon bases, spend Oxygen room by room, route damage to Body, Mind, Soul, or Oxygen, recover a mission target, and extract before the base takes too much from you.
 
 You can play the game online here:  
 👉 [https://pouliens.github.io/Dark-Fort-RPG/](https://pouliens.github.io/Dark-Fort-RPG/)
 
 ---
 
-**About Dark Fort:**  
-Dark Fort is the original solo dungeon crawl that inspired MÖRK BORG. If you enjoy this digital adaptation, consider supporting the creators by purchasing the official rules as part of the book:  
-[MÖRK BORG Cult: Feretory on DriveThruRPG](https://www.drivethrurpg.com/en/product/328612/moerk-borg-cult-feretory)
+## Rules Implemented
+
+- Body, Mind, Soul, and Oxygen pools.
+- Random mission briefings, faction ties, and starting kit.
+- Insertion, room table, room shapes, doors, quiet salvage, threats, anomalies, pits, and Void Peddlers.
+- Routed combat damage, weapon rules, armor absorption, fleeing, and threat-point rewards.
+- Target recovery, extraction rolls, extraction complications, and clean exits.
+- Moon Devils advancement at 15 threat points.

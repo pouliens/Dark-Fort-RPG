@@ -14,25 +14,27 @@ def test_win_condition():
         page.click("#startBtn")
 
         # Simulate some progress
-        page.evaluate("gameState.points = 5")
+        page.evaluate("gameState.threatPoints = 5")
         page.evaluate("gameState.level = 4")
-        page.evaluate("gameState.totalSilverCollected = 100")
+        page.evaluate("gameState.totalCreditsCollected = 100")
         page.evaluate("gameState.monstersDefeated = 12")
 
         # Trigger Win
-        page.evaluate("winGame()")
+        page.evaluate("winGame('Test extraction complete.')")
 
         # Check if Buttons are hidden
         # Note: display:none elements are considered not visible by Playwright
         explore_visible = page.is_visible("#exploreBtn")
         levelup_visible = page.is_visible("#levelUpBtn")
         scavenge_visible = page.is_visible("#scavengeBtn")
+        extract_visible = page.is_visible("#extractBtn")
 
         print(f"Explore Button Visible: {explore_visible}")
         print(f"Level Up Button Visible: {levelup_visible}")
         print(f"Scavenge Button Visible: {scavenge_visible}")
+        print(f"Extract Button Visible: {extract_visible}")
 
-        if explore_visible or levelup_visible or scavenge_visible:
+        if explore_visible or levelup_visible or scavenge_visible or extract_visible:
             print("FAILED: Buttons should be hidden.")
             sys.exit(1)
 
@@ -46,10 +48,10 @@ def test_win_condition():
 
         # We check for key phrases since formatting might vary (newlines etc)
         expected_phrases = [
-            "Taškai", "5",
-            "Lygis", "4",
-            "Surinktas Auksas", "100",
-            "Nugalėti Priešai", "12"
+            "Threat Points", "5",
+            "Advancements", "4",
+            "Credits Recovered", "100",
+            "Threats Defeated", "12"
         ]
 
         for phrase in expected_phrases:

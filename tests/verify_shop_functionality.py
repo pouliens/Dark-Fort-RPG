@@ -28,22 +28,22 @@ def test_shop_functionality():
         shop_text = page.inner_text("#gameText")
         # print(f"DEBUG: Shop Text Content:\n{shop_text}")
         # Note: CSS text-transform: uppercase makes h4 uppercase in inner_text
-        if "PREKEIVIO PREKĖS" in shop_text:
+        if "VOID PEDDLER" in shop_text:
             print("SUCCESS: Buy tab header found.")
         else:
             print("FAILED: Buy tab header missing.")
             sys.exit(1)
 
         # Verify Item Presence
-        if "Mikstūra" in shop_text:
-             print("SUCCESS: 'Mikstūra' found in shop.")
+        if "Red stim" in shop_text and "O2 canister" in shop_text:
+             print("SUCCESS: Moon Devils consumables found in shop.")
         else:
-             print("FAILED: 'Mikstūra' missing from shop.")
+             print("FAILED: Moon Devils consumables missing from shop.")
              sys.exit(1)
 
         # Verify Sell Tab
         print("Switching to Sell Tab...")
-        page.click("button:text('Parduoti')")
+        page.click("button:text('Sell')")
 
         # We need to wait a bit for UI update or check the text
         # Since it's synchronous DOM update, it should be immediate, but Playwright might need a tick.
@@ -51,7 +51,7 @@ def test_shop_functionality():
 
         sell_text = page.inner_text("#gameText")
         # print(f"DEBUG: Sell Text Content:\n{sell_text}")
-        if "TAVO PREKĖS" in sell_text:
+        if "YOUR SALVAGE" in sell_text:
             print("SUCCESS: Sell tab header found.")
         else:
             print("FAILED: Sell tab header missing.")

@@ -1,90 +1,232 @@
 // =============================================================================
-// DARK FORT RPG - ŽAIDIMO LOGIKA
+// DARK FORT: MOON DEVILS - GAME LOGIC
 // =============================================================================
 
-// -----------------------------------------------------------------------------
-// ŽAIDIMO BŪSENOS INICIALIZACIJA
-// -----------------------------------------------------------------------------
+const PLAYER_SPRITE = 'assets/player/player-token.png';
+const DEFAULT_MONSTER_SPRITE = typeof ENEMY_SPRITE_DIR !== 'undefined'
+    ? `${ENEMY_SPRITE_DIR}/tough-threat-6.png`
+    : 'assets/enemies/tough-threat-6.png';
+const LEVEL_UP_COST = GAME_RULES.levelUpCost;
+
+const ITEM_LOOKUP = {};
+[
+    { name: 'Base map', type: 'map', price: 0, description: 'A rough route back to the airlock.' },
+    ...LOOT_DROPS,
+    ...SHOP_ITEMS
+].forEach(item => {
+    ITEM_LOOKUP[item.name] = item;
+});
+DEVICES.forEach(item => {
+    ITEM_LOOKUP[item.name] = item;
+});
 
 function createInitialGameState() {
     return {
-        hp: 20,
-        maxHp: 20,
-        silver: 0,
+        pools: {
+            body: { current: 0, max: 0 },
+            mind: { current: 0, max: 0 },
+            soul: { current: 0, max: 0 },
+            oxygen: { current: 0, max: 0 }
+        },
+        credits: 0,
+        totalCreditsCollected: 0,
+        totalSilverCollected: 0,
+        threatPoints: 0,
         points: 0,
-        level: 1,
+        level: 0,
         playerName: '',
         playerProfession: '',
-        playerDamage: 'd4', // Numatytasis žaidėjo žalos dydis
-        playerDamageBonus: 0,
-        playerDefense: 0,   // Numatytasis žaidėjo gynybos dydis
-        metaDamageBonus: 0,
-        metaDefenseBonus: 0,
-        metaMaxHpBonus: 0,
+        faction: null,
+        factionEdgeUsed: false,
+        mission: null,
+        targetRecovered: false,
+        targetRoomNumber: null,
+        keptExploringAfterTarget: false,
         inventory: [],
+        itemUses: {},
         equippedWeapon: null,
         equippedArmor: null,
         currentMonster: null,
+        currentRoom: null,
         inCombat: false,
         inShop: false,
-        gameStarted: false,
-        roomsExplored: 0,
-        bossEncountered: false,
-        playerIsDead: false,
-        canScavenge: false,
-        challenges: {},
-        challengeLookup: {},
-        map: [],
-        totalSilverCollected: 0,
-        monstersDefeated: 0,
-        gameWon: false,
         inVictory: false,
-        monsterDying: false,
+        gameStarted: false,
+        playerIsDead: false,
+        gameWon: false,
+        roomsExplored: 0,
+        map: [],
+        canScavenge: false,
+        pendingInsertion: true,
+        monstersDefeated: 0,
         autoBattle: false,
-        autoBattleDelay: 700,
+        autoBattleDelay: 500,
         autoExplore: false,
-        autoExploreDelay: 800,
+        autoExploreDelay: 900,
         combatTurn: 1,
         combatFeed: [],
-        combo: 0
+        monsterDying: false,
+        advancements: [],
+        attackBonus: 0,
+        extractionBonus: 0,
+        longBreathAvailable: false,
+        hunterHandAvailable: false,
+        ironBodyAvailable: false,
+        coldMindAvailable: false,
+        oldSoulAvailable: false,
+        exitSaintAvailable: false,
+        mirrorVisorAvailable: false,
+        sealantAvailable: false,
+        breached: false,
+        firstMindDamagePlusOne: false,
+        challenges: {},
+        challengeLookup: {},
+        hp: 0,
+        maxHp: 0,
+        silver: 0,
+        playerDamage: 'd4-1',
+        playerDamageBonus: 0,
+        playerDefense: 0
     };
 }
 
 let gameState = createInitialGameState();
-
-// Data is now in game-data.js
+let gameTextEl;
+let logEl;
+let combatActionBusy = false;
+let lastInventorySnapshot = [];
+let lastEquippedWeapon = null;
+let lastEquippedArmor = null;
 
 // -----------------------------------------------------------------------------
-// OPTIMIZATIONS
+// BASIC UTILITIES
 // -----------------------------------------------------------------------------
 
-const ITEM_LOOKUP = {};
-// Populate lookup map. Order matters: LOOT_DROPS first, then SHOP_ITEMS overwrites.
-// This preserves the precedence of SHOP_ITEMS which was implicit in the original [...SHOP_ITEMS, ...LOOT_DROPS].find()
-// or SHOP_ITEMS.find() || LOOT_DROPS.find() logic.
-if (typeof LOOT_DROPS !== 'undefined') {
-    LOOT_DROPS.forEach(item => ITEM_LOOKUP[item.name] = item);
-}
-if (typeof SHOP_ITEMS !== 'undefined') {
-    SHOP_ITEMS.forEach(item => ITEM_LOOKUP[item.name] = item);
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function rollDie(sides) {
+    return Math.floor(Math.random() * sides) + 1;
+}
+
+function rollExpression(expression, minimum = 0) {
+    const expr = String(expression).replace(/\s+/g, '');
+    const tokens = expr.match(/[+-]?(\d*d\d+|\d+)/g);
+    if (!tokens) return minimum;
+
+    const total = tokens.reduce((sum, token) => {
+        const sign = token.startsWith('-') ? -1 : 1;
+        const clean = token.replace(/^[+-]/, '');
+        if (clean.includes('d')) {
+            const [countText, sidesText] = clean.split('d');
+            const count = countText ? Number(countText) : 1;
+            const sides = Number(sidesText);
+            let rolled = 0;
+            for (let i = 0; i < count; i++) {
+                rolled += rollDie(sides);
+            }
+            return sum + sign * rolled;
+        }
+        return sum + sign * Number(clean);
+    }, 0);
+
+    return Math.max(minimum, total);
+}
+
+function rollDamage(diceString) {
+    return rollExpression(diceString, 0);
+}
+
+function getExpressionMax(expression) {
+    const expr = String(expression).replace(/\s+/g, '');
+    const tokens = expr.match(/[+-]?(\d*d\d+|\d+)/g);
+    if (!tokens) return 0;
+    return tokens.reduce((sum, token) => {
+        const sign = token.startsWith('-') ? -1 : 1;
+        const clean = token.replace(/^[+-]/, '');
+        if (clean.includes('d')) {
+            const [countText, sidesText] = clean.split('d');
+            const count = countText ? Number(countText) : 1;
+            return sum + sign * count * Number(sidesText);
+        }
+        return sum + sign * Number(clean);
+    }, 0);
+}
+
+function getDieSides(diceString) {
+    const match = String(diceString).match(/d(\d+)/);
+    return match ? Number(match[1]) : 0;
+}
+
+function getDamageValue(diceString) {
+    return getExpressionMax(diceString);
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function sample(array) {
+    return array[rollDie(array.length) - 1];
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function safeSound(fnName) {
+    if (typeof window !== 'undefined' && typeof window[fnName] === 'function') {
+        window[fnName]();
+    } else if (typeof globalThis[fnName] === 'function') {
+        globalThis[fnName]();
+    }
+}
+
+function getMonsterSprite(monster) {
+    return monster && monster.sprite ? monster.sprite : DEFAULT_MONSTER_SPRITE;
+}
+
+function syncLegacyAliases() {
+    gameState.hp = gameState.pools.body.current;
+    gameState.maxHp = gameState.pools.body.max;
+    gameState.silver = gameState.credits;
+    gameState.points = gameState.threatPoints;
+    gameState.totalSilverCollected = gameState.totalCreditsCollected;
+    const weapon = getEquippedWeapon();
+    gameState.playerDamage = weapon.value;
+    gameState.playerDamageBonus = getAttackBonus(gameState.currentMonster);
+    gameState.playerDefense = gameState.equippedArmor === 'Hardsuit plating' ? 'd4' : 0;
+}
+
 // -----------------------------------------------------------------------------
-// CHALLENGE FUNCTIONS
+// CHALLENGES
 // -----------------------------------------------------------------------------
 
 function loadChallenges() {
-    const savedChallenges = localStorage.getItem('darkFortressChallenges');
-    if (savedChallenges) {
-        gameState.challenges = JSON.parse(savedChallenges);
+    const saved = localStorage.getItem(GAME_RULES.challengeStorageKey);
+    if (saved) {
+        gameState.challenges = JSON.parse(saved);
     } else {
         gameState.challenges = CHALLENGES.reduce((acc, challenge) => {
             acc[challenge.id] = { ...challenge, progress: 0 };
             return acc;
         }, {});
     }
+    rebuildChallengeLookup();
+}
 
-    // Build Lookup
+function rebuildChallengeLookup() {
     gameState.challengeLookup = {};
     Object.values(gameState.challenges).forEach(challenge => {
         if (!gameState.challengeLookup[challenge.type]) {
@@ -95,54 +237,30 @@ function loadChallenges() {
         }
         gameState.challengeLookup[challenge.type][challenge.targetName].push(challenge);
     });
-
-    applyMetaProgression();
-}
-
-function applyMetaProgression() {
-    gameState.metaMaxHpBonus = 0;
-    gameState.metaDamageBonus = 0;
-    gameState.metaDefenseBonus = 0;
-
-    Object.values(gameState.challenges).forEach(challenge => {
-        if (challenge.progress >= challenge.targetValue && challenge.reward) {
-            if (challenge.reward.stat === 'metaMaxHpBonus') gameState.metaMaxHpBonus += challenge.reward.value;
-            if (challenge.reward.stat === 'metaDamageBonus') gameState.metaDamageBonus += challenge.reward.value;
-            if (challenge.reward.stat === 'metaDefenseBonus') gameState.metaDefenseBonus += challenge.reward.value;
-        }
-    });
 }
 
 function saveChallenges() {
-    localStorage.setItem('darkFortressChallenges', JSON.stringify(gameState.challenges));
+    localStorage.setItem(GAME_RULES.challengeStorageKey, JSON.stringify(gameState.challenges));
 }
 
 function updateChallengeProgress(type, name, amount) {
-    if (!gameState.challengeLookup || !gameState.challengeLookup[type] || !gameState.challengeLookup[type][name]) {
-        return;
-    }
+    const matches = gameState.challengeLookup?.[type]?.[name];
+    if (!matches) return;
 
-    gameState.challengeLookup[type][name].forEach(challenge => {
-        if (challenge.progress < challenge.targetValue) {
-            const oldProgress = challenge.progress;
-            challenge.progress = Math.min(challenge.targetValue, challenge.progress + amount);
-
-            if (challenge.progress > oldProgress) {
-                 log(`Iššūkio progresas: ${challenge.description} (${challenge.progress}/${challenge.targetValue})`);
-            }
+    matches.forEach(challenge => {
+        if (challenge.progress >= challenge.targetValue) return;
+        const oldProgress = challenge.progress;
+        challenge.progress = Math.min(challenge.targetValue, challenge.progress + amount);
+        if (challenge.progress > oldProgress) {
+            log(`Progress: ${challenge.description} (${challenge.progress}/${challenge.targetValue})`);
         }
     });
 }
 
 // -----------------------------------------------------------------------------
-// UTILITY FUNCTIONS
+// UI HELPERS
 // -----------------------------------------------------------------------------
 
-/**
- * Shows a toast notification.
- * @param {string} message - The message to display.
- * @param {string} type - 'info', 'success', or 'danger'.
- */
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -153,68 +271,30 @@ function showToast(message, type = 'info') {
     let icon = 'info';
     if (type === 'success') icon = 'check_circle';
     if (type === 'danger') icon = 'warning';
-
-    toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${message}`;
+    toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${escapeHtml(message)}`;
 
     container.appendChild(toast);
-
-    // Remove after animation (3s total: 0.3 slideIn + 2.2 wait + 0.5 fadeOut)
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
 
-// -----------------------------------------------------------------------------
-// DICE ROLL UI
-// -----------------------------------------------------------------------------
-
-/** Resolves after `ms` milliseconds. */
-function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-/** Enables or disables all interactive game buttons during dice animation. */
 function setActionsDisabled(disabled) {
     document.querySelectorAll(
         '#gameActions button, .battle-actions button, #quick-items button, #battle-quick-items button, .inventory-item, .shop-item'
-    ).forEach(el => { el.disabled = disabled; el.style.pointerEvents = disabled ? 'none' : ''; });
+    ).forEach(el => {
+        el.disabled = disabled;
+        el.style.pointerEvents = disabled ? 'none' : '';
+    });
 }
 
-/** True while any combat action (attack, potion, flee) is in progress. Prevents concurrent actions. */
-let combatActionBusy = false;
-
-const DEFAULT_MONSTER_SPRITE = typeof ENEMY_SPRITE_DIR !== 'undefined'
-    ? `${ENEMY_SPRITE_DIR}/tough-threat-6.png`
-    : 'assets/enemies/tough-threat-6.png';
-const PLAYER_SPRITE = 'assets/player/player-token.png';
-const LEVEL_UP_COST = 10;
-
-function getMonsterSprite(monster) {
-    return monster && monster.sprite ? monster.sprite : DEFAULT_MONSTER_SPRITE;
-}
-
-function canLevelUpNow() {
-    return gameState.points >= LEVEL_UP_COST;
-}
-
-/**
- * Shows an animated dice roll panel at the bottom of the screen.
- * @param {object} config
- * @param {string} config.context     - Label (e.g. "Attack Roll")
- * @param {{type:string, result:number}[]} config.dice - Dice to display
- * @param {number} [config.threshold] - Optional vs. number shown on right
- * @param {string} config.outcome     - Result text (e.g. "HIT!")
- * @param {boolean|null} config.isSuccess - true=success style, false=failure, null=neutral
- * @param {string} [config.detail]    - Optional small line (e.g. "+2 bonus")
- * @returns {Promise<void>}
- */
 async function showDiceRoll({ context, dice, threshold, outcome, isSuccess, detail = null }) {
-    const overlay   = document.getElementById('dice-overlay');
+    const overlay = document.getElementById('dice-overlay');
     const contextEl = document.getElementById('dice-context');
-    const facesRow  = document.getElementById('dice-faces-row');
-    const vsWrap    = document.getElementById('dice-vs-wrap');
-    const detailEl  = document.getElementById('dice-detail');
+    const facesRow = document.getElementById('dice-faces-row');
+    const vsWrap = document.getElementById('dice-vs-wrap');
+    const detailEl = document.getElementById('dice-detail');
     const outcomeEl = document.getElementById('dice-outcome');
+    if (!overlay || !contextEl || !facesRow || !vsWrap || !detailEl || !outcomeEl) return;
 
-    // Build dice face elements
     facesRow.innerHTML = dice.map((d, i) =>
         `<div class="die-face" data-type="${d.type}">
             <span class="die-type-label">${d.type}</span>
@@ -223,263 +303,1645 @@ async function showDiceRoll({ context, dice, threshold, outcome, isSuccess, deta
     ).join('');
 
     contextEl.textContent = context;
-
     if (threshold !== undefined && threshold !== null) {
         vsWrap.style.display = 'flex';
-        document.getElementById('dice-threshold').textContent = threshold;
+        setText('dice-threshold', threshold);
     } else {
         vsWrap.style.display = 'none';
     }
-
-    if (detail) {
-        detailEl.textContent = detail;
-        detailEl.style.display = 'block';
-    } else {
-        detailEl.style.display = 'none';
-    }
-
+    detailEl.textContent = detail || '';
+    detailEl.style.display = detail ? 'block' : 'none';
     outcomeEl.textContent = '';
     outcomeEl.className = 'dice-roll-outcome';
 
-    // Show panel
     overlay.classList.add('visible');
     setActionsDisabled(true);
 
-    // Rolling phase – randomize displayed numbers
     const intervals = dice.map((d, i) => {
         const el = document.getElementById(`die-num-${i}`);
-        const sides = parseInt(d.type.slice(1), 10) || 6;
+        const sides = Number(String(d.type).slice(1)) || 6;
         return setInterval(() => {
-            if (el) el.textContent = Math.floor(Math.random() * sides) + 1;
+            if (el) el.textContent = rollDie(sides);
         }, 80);
     });
 
     await sleep(500);
-
-    // Settle – show real result
     intervals.forEach(clearInterval);
     dice.forEach((d, i) => {
         const el = document.getElementById(`die-num-${i}`);
-        if (el) { el.textContent = d.result; el.classList.remove('rolling'); }
+        if (el) {
+            el.textContent = d.result;
+            el.classList.remove('rolling');
+        }
     });
 
-    // Reveal outcome
     await sleep(80);
     outcomeEl.textContent = outcome;
-    outcomeEl.classList.add(isSuccess === true ? 'success' : isSuccess === false ? 'failure' : 'neutral');
-    outcomeEl.classList.add('visible');
+    outcomeEl.classList.add(isSuccess === true ? 'success' : isSuccess === false ? 'failure' : 'neutral', 'visible');
 
-    // Allow tap-to-dismiss after result is shown
     let earlyResolve;
-    const earlyPromise = new Promise(r => { earlyResolve = r; });
+    const earlyPromise = new Promise(resolve => { earlyResolve = resolve; });
     overlay.addEventListener('click', earlyResolve, { once: true });
-
-    await Promise.race([earlyPromise, sleep(1300)]);
+    await Promise.race([earlyPromise, sleep(1000)]);
 
     overlay.removeEventListener('click', earlyResolve);
     overlay.classList.remove('visible');
-    await sleep(320);
+    await sleep(240);
     setActionsDisabled(false);
 }
 
-/**
- * Toggles auto-explore mode on/off.
- */
-function toggleAutoExplore() {
-    gameState.autoExplore = !gameState.autoExplore;
-    updateAutoExploreButton();
-
-    if (gameState.autoExplore) {
-        runAutoExplore();
+function log(message) {
+    if (logEl) {
+        logEl.insertAdjacentHTML('afterbegin', `<p>${message}</p>`);
     }
 }
 
-function updateAutoExploreButton() {
-    const btn = document.getElementById('autoExploreBtn');
-    if (!btn) return;
-
-    if (gameState.autoExplore) {
-        btn.innerHTML = '<span class="material-symbols-outlined">pause</span> Auto<small class="btn-sublabel">Sustabdyti</small>';
-        btn.style.color = 'var(--accent-yellow)';
-        btn.style.borderColor = 'rgba(242, 255, 0, 0.4)';
-    } else {
-        btn.innerHTML = '<span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Automatinis tyrinėjimas</small>';
-        btn.style.color = '';
-        btn.style.borderColor = '';
+function setGameText(html) {
+    if (gameTextEl) {
+        gameTextEl.innerHTML = html;
     }
 }
 
-/**
- * Runs the auto-explore loop.
- */
-async function runAutoExplore() {
-    while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory) {
-        runAutoDowntimeActions();
-        await sleep(gameState.autoExploreDelay);
+function renderPool(pool) {
+    const value = gameState.pools[pool];
+    return `${value.current}/${value.max}`;
+}
 
-        // Double check conditions after sleeping
-        if (gameState.autoExplore && !gameState.inCombat && !gameState.inShop && !gameState.playerIsDead && !gameState.inVictory) {
-            runAutoDowntimeActions();
-            await exploreRoom();
-        }
+function poolClass(pool) {
+    const value = gameState.pools[pool];
+    if (value.max <= 0) return '';
+    const pct = value.current / value.max;
+    if (pct <= 0.25) return 'danger';
+    if (pct <= 0.5) return 'warning';
+    return '';
+}
+
+function updateUI() {
+    syncLegacyAliases();
+
+    setText('body', gameState.pools.body.current);
+    setText('maxBody', gameState.pools.body.max);
+    setText('mind', gameState.pools.mind.current);
+    setText('maxMind', gameState.pools.mind.max);
+    setText('soul', gameState.pools.soul.current);
+    setText('maxSoul', gameState.pools.soul.max);
+    setText('oxygen', gameState.pools.oxygen.current);
+    setText('maxOxygen', gameState.pools.oxygen.max);
+    setText('credits', gameState.credits);
+    setText('points', gameState.threatPoints);
+    setText('maxPoints', LEVEL_UP_COST);
+    setText('level', gameState.level);
+
+    const nameEl = document.getElementById('playerName');
+    if (nameEl) {
+        nameEl.innerHTML = gameState.playerName
+            ? `<span class="material-symbols-outlined">history_edu</span> ${escapeHtml(gameState.playerName)} <small>${escapeHtml(gameState.playerProfession)}</small>`
+            : '<span class="material-symbols-outlined">history_edu</span>';
+    }
+
+    const damageString = getEquippedWeapon().value;
+    setText('playerDamage', damageString);
+    setText('playerDefense', gameState.equippedArmor || 'None');
+
+    document.querySelectorAll('[data-pool]').forEach(el => {
+        el.classList.remove('warning', 'danger');
+        const css = poolClass(el.dataset.pool);
+        if (css) el.classList.add(css);
+    });
+
+    updateBattleUI();
+    updateInventoryUI();
+    updateDungeonTracker();
+    updateChallengeUI();
+    updateButtons();
+}
+
+function updateButtons() {
+    const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon;
+    const buttonsVisible = !gameState.inVictory;
+    const inDowntime = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible;
+    const showManualCombat = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible && !gameState.autoBattle;
+
+    const startBtn = document.getElementById('startBtn');
+    const exploreBtn = document.getElementById('exploreBtn');
+    const autoExploreBtn = document.getElementById('autoExploreBtn');
+    const attackBtn = document.getElementById('attackBtn');
+    const powerAttackBtn = document.getElementById('powerAttackBtn');
+    const scavengeBtn = document.getElementById('scavengeBtn');
+    const fleeBtn = document.getElementById('fleeBtn');
+    const levelUpBtn = document.getElementById('levelUpBtn');
+    const extractBtn = document.getElementById('extractBtn');
+
+    if (startBtn) startBtn.style.display = gameState.gameStarted ? 'none' : 'block';
+    if (exploreBtn) exploreBtn.style.display = inDowntime ? 'block' : 'none';
+    if (autoExploreBtn) autoExploreBtn.style.display = inDowntime ? 'block' : 'none';
+    if (attackBtn) attackBtn.style.display = showManualCombat ? 'block' : 'none';
+    if (powerAttackBtn) powerAttackBtn.style.display = showManualCombat ? 'block' : 'none';
+    if (scavengeBtn) scavengeBtn.style.display = inDowntime && gameState.canScavenge ? 'block' : 'none';
+    if (fleeBtn) fleeBtn.style.display = showManualCombat ? 'block' : 'none';
+    if (levelUpBtn) levelUpBtn.style.display = inDowntime && canLevelUpNow() ? 'block' : 'none';
+    if (extractBtn) extractBtn.style.display = inDowntime && gameState.targetRecovered ? 'block' : 'none';
+}
+
+function updateChallengeUI() {
+    const challengesEl = document.getElementById('challenges');
+    if (!challengesEl) return;
+    const values = Object.values(gameState.challenges || {});
+    if (!values.length) {
+        challengesEl.innerHTML = 'No records yet.';
+        return;
+    }
+    challengesEl.innerHTML = values.map(challenge => {
+        const progress = Math.min(challenge.progress, challenge.targetValue);
+        const isComplete = progress >= challenge.targetValue;
+        return `
+            <div class="challenge ${isComplete ? 'complete' : ''}">
+                <span class="challenge-desc">${escapeHtml(challenge.description)}</span>
+                <span class="challenge-progress">${isComplete ? 'Done' : `${progress} / ${challenge.targetValue}`}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// -----------------------------------------------------------------------------
+// INVENTORY AND ITEMS
+// -----------------------------------------------------------------------------
+
+function getItem(itemName) {
+    return ITEM_LOOKUP[itemName] || null;
+}
+
+function addItem(itemName) {
+    const item = getItem(itemName);
+    gameState.inventory.push(itemName);
+
+    if (item && (item.uses || item.skipFights) && !gameState.itemUses[itemName]) {
+        const uses = item.uses || item.skipFights;
+        gameState.itemUses[itemName] = typeof uses === 'string' ? rollExpression(uses, 1) : uses;
+    }
+
+    if (item?.type === 'weapon' && !gameState.equippedWeapon) {
+        gameState.equippedWeapon = itemName;
+    }
+    if (item?.type === 'armor' && !gameState.equippedArmor) {
+        gameState.equippedArmor = itemName;
+        applyArmorFlags(itemName);
     }
 }
 
-function isAutoDowntime() {
-    return gameState.autoExplore
-        && gameState.gameStarted
-        && !gameState.inCombat
-        && !gameState.inShop
-        && !gameState.inVictory
-        && !gameState.playerIsDead
-        && !gameState.gameWon;
-}
-
-function runAutoDowntimeActions() {
-    if (!isAutoDowntime()) return;
-    autoLevelUpIfNeeded();
-    autoEquipBestGear();
-}
-
-function autoLevelUpIfNeeded() {
-    while (isAutoDowntime() && canLevelUpNow()) {
-        levelUp();
+function removeOneItem(itemName) {
+    const index = gameState.inventory.indexOf(itemName);
+    if (index < 0) return false;
+    gameState.inventory.splice(index, 1);
+    if (!gameState.inventory.includes(itemName)) {
+        delete gameState.itemUses[itemName];
     }
+    if (gameState.equippedWeapon === itemName) gameState.equippedWeapon = null;
+    if (gameState.equippedArmor === itemName) gameState.equippedArmor = null;
+    return true;
 }
 
-function getBaseDamageDieForLevel(level) {
-    if (level >= 4) return 'd8';
-    if (level >= 2) return 'd6';
-    return 'd4';
+function countItem(itemName) {
+    return gameState.inventory.filter(item => item === itemName).length;
 }
 
-function getItemScore(itemName, type) {
-    const item = ITEM_LOOKUP[itemName];
-    if (!item || item.type !== type) return 0;
-    return type === 'weapon' ? getDamageValue(item.value) : Number(item.value) || 0;
+function significantInventoryCount() {
+    return gameState.inventory.filter(itemName => itemName !== 'Base map' && itemName !== gameState.equippedArmor).length;
 }
 
-function findBestInventoryItem(type) {
-    let bestName = null;
-    let bestScore = 0;
-
-    for (const itemName of gameState.inventory) {
-        const score = getItemScore(itemName, type);
-        if (score > bestScore) {
-            bestName = itemName;
-            bestScore = score;
-        }
+function getEquippedWeapon() {
+    if (gameState.equippedWeapon) {
+        const weapon = getItem(gameState.equippedWeapon);
+        if (weapon?.type === 'weapon') return weapon;
     }
-
-    return { name: bestName, score: bestScore };
+    return { name: 'Unarmed', type: 'weapon', value: 'd4-1', description: 'Unarmed damage.' };
 }
 
-function autoEquipBestGear() {
-    if (!isAutoDowntime()) return;
-
-    let changed = false;
-    const baseWeaponScore = getDamageValue(getBaseDamageDieForLevel(gameState.level));
-    const currentWeaponScore = gameState.equippedWeapon
-        ? getItemScore(gameState.equippedWeapon, 'weapon')
-        : baseWeaponScore;
-    const bestWeapon = findBestInventoryItem('weapon');
-
-    if (bestWeapon.score > currentWeaponScore && bestWeapon.name !== gameState.equippedWeapon) {
-        gameState.equippedWeapon = bestWeapon.name;
-        log(`Auto: užsidėjai geresnį ginklą - ${bestWeapon.name}.`);
-        changed = true;
-    } else if (gameState.equippedWeapon && baseWeaponScore > currentWeaponScore && baseWeaponScore >= bestWeapon.score) {
-        log(`Auto: nusiėmei ${gameState.equippedWeapon}; bazinė žala dabar geresnė.`);
-        gameState.equippedWeapon = null;
-        changed = true;
-    }
-
-    const currentArmorScore = gameState.equippedArmor ? getItemScore(gameState.equippedArmor, 'armor') : 0;
-    const bestArmor = findBestInventoryItem('armor');
-    if (bestArmor.score > currentArmorScore && bestArmor.name !== gameState.equippedArmor) {
-        gameState.equippedArmor = bestArmor.name;
-        log(`Auto: užsidėjai geresnius šarvus - ${bestArmor.name}.`);
-        changed = true;
-    }
-
-    if (changed) {
-        recalculateStats();
-    }
+function applyArmorFlags(itemName) {
+    gameState.mirrorVisorAvailable = itemName === 'Mirror visor';
+    gameState.sealantAvailable = itemName === 'Perkūnas sealant rig';
 }
 
-/**
- * Rolls a die with a given number of sides.
- * @param {number} sides - The number of sides on the die.
- * @returns {number} The result of the roll.
- */
-function rollDie(sides) {
-    return Math.floor(Math.random() * sides) + 1;
-}
-
-/**
- * Calculates damage based on a dice string (e.g., 'd6').
- * @param {string} diceString - The dice string.
- * @returns {number} The calculated damage.
- */
-function rollDamage(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? rollDie(parseInt(match[1], 10)) : 1;
-}
-
-function getDieSides(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-}
-
-/**
- * Gets the numerical value of a damage die string.
- * @param {string} diceString - The dice string (e.g., 'd6').
- * @returns {number} The max roll of the die.
- */
-function getDamageValue(diceString) {
-    const match = diceString.match(/d(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-}
-
-/**
- * Handles clicks on inventory items, routing to use or equip functions.
- * @param {string} itemName - The name of the item clicked.
- */
 function handleInventoryClick(itemName) {
-    if (itemName === 'Žemėlapis') {
+    if (itemName === 'Base map') {
         openMap();
         return;
     }
 
-    const itemDetails = ITEM_LOOKUP[itemName];
-
-    if (!itemDetails) {
-        log(`Negalima panaudoti daikto ${itemName}.`);
+    const item = getItem(itemName);
+    if (!item) {
+        log(`No rule is attached to ${itemName}.`);
         return;
     }
 
-    if (itemDetails.type === 'utility') {
-        log(`Daiktas ${itemName} naudojamas automatiškai.`);
+    if (item.type === 'weapon') {
+        toggleEquip(itemName, 'weapon');
         return;
     }
 
-    if (itemDetails.type === 'potion') {
-        usePotion();
-    } else if (itemDetails.type === 'weapon' || itemDetails.type === 'armor') {
-        toggleEquip(itemName, itemDetails.type);
-    } else {
-        log(`Daiktas ${itemName} neturi panaudojimo.`);
+    if (item.type === 'armor') {
+        toggleEquip(itemName, 'armor');
+        return;
+    }
+
+    if (item.type === 'consumable') {
+        useConsumable(itemName);
+        return;
+    }
+
+    log(`${itemName} is ready when a room or combat rule calls for it.`);
+}
+
+async function useConsumable(itemName) {
+    const item = getItem(itemName);
+    if (!item || item.type !== 'consumable') return;
+
+    if (item.repairsBreach) {
+        gameState.breached = false;
+        removeOneItem(itemName);
+        log(`Used ${itemName}; suit breach repaired.`);
+        setGameText(`<p class="success">You seal the suit breach with ${escapeHtml(itemName)}.</p>`);
+        updateUI();
+        return;
+    }
+
+    if (item.restores) {
+        const amount = rollExpression(item.restores.dice, 1);
+        restorePool(item.restores.pool, amount);
+        removeOneItem(itemName);
+        if (item.sideEffectOnOne && amount === 1) {
+            await applyDamage(item.sideEffectOnOne.pool, item.sideEffectOnOne.amount, `${itemName} side effect`);
+        }
+        if (item.threatPointOnFull && gameState.pools[item.restores.pool].current === gameState.pools[item.restores.pool].max) {
+            addThreatPoints(1, 'courage from Mother-soil charm');
+        }
+        setGameText(`<p class="success">Used ${escapeHtml(itemName)}. Restored ${amount} ${POOL_LABELS[item.restores.pool]}.</p>`);
+        updateUI();
+        return;
+    }
+
+    if (item.restoresAll) {
+        Object.entries(item.restoresAll).forEach(([pool, amount]) => restorePool(pool, amount));
+        removeOneItem(itemName);
+        setGameText(`<p class="success">Used ${escapeHtml(itemName)}. Body, Mind, and Soul each recover.</p>`);
+        updateUI();
+        return;
+    }
+
+    log(`${itemName} is kept for a specific danger.`);
+}
+
+async function usePotion() {
+    const preferred = ['Red stim', 'Dream sedative', 'Mother-soil charm', 'O2 canister']
+        .find(itemName => countItem(itemName) > 0 && shouldUseConsumable(itemName));
+    if (preferred) {
+        await useConsumable(preferred);
     }
 }
 
+function shouldUseConsumable(itemName) {
+    const item = getItem(itemName);
+    if (!item?.restores) return false;
+    const pool = gameState.pools[item.restores.pool];
+    return pool.current < pool.max;
+}
+
+function toggleEquip(itemName, itemType) {
+    const slot = itemType === 'weapon' ? 'equippedWeapon' : 'equippedArmor';
+    if (gameState[slot] === itemName) {
+        gameState[slot] = null;
+        log(`Unequipped ${itemName}.`);
+    } else {
+        gameState[slot] = itemName;
+        log(`Equipped ${itemName}.`);
+    }
+    if (itemType === 'armor') {
+        applyArmorFlags(gameState.equippedArmor);
+    }
+    updateUI();
+}
+
+function updateInventoryUI() {
+    const inventoryEl = document.getElementById('inventory');
+    if (!inventoryEl) return;
+
+    const signature = JSON.stringify({
+        inventory: gameState.inventory,
+        weapon: gameState.equippedWeapon,
+        armor: gameState.equippedArmor,
+        uses: gameState.itemUses
+    });
+    if (
+        signature === JSON.stringify(lastInventorySnapshot)
+        && gameState.equippedWeapon === lastEquippedWeapon
+        && gameState.equippedArmor === lastEquippedArmor
+    ) {
+        return;
+    }
+
+    lastInventorySnapshot = JSON.parse(signature);
+    lastEquippedWeapon = gameState.equippedWeapon;
+    lastEquippedArmor = gameState.equippedArmor;
+
+    if (gameState.inventory.length === 0) {
+        inventoryEl.innerHTML = 'Empty';
+        return;
+    }
+
+    const counts = gameState.inventory.reduce((acc, itemName) => {
+        acc[itemName] = (acc[itemName] || 0) + 1;
+        return acc;
+    }, {});
+
+    inventoryEl.innerHTML = Object.entries(counts).map(([itemName, count]) => {
+        const item = getItem(itemName);
+        const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
+        const uses = gameState.itemUses[itemName] ? ` · ${gameState.itemUses[itemName]} use${gameState.itemUses[itemName] === 1 ? '' : 's'}` : '';
+        const countText = count > 1 ? ` (x${count})` : '';
+        const classes = ['inventory-item', isEquipped ? 'equipped' : '', item?.type === 'gear' || item?.type === 'device' ? 'non-selectable' : '']
+            .filter(Boolean)
+            .join(' ');
+        return `<button class="${classes}" onclick="handleInventoryClick('${escapeHtml(itemName)}')" title="${escapeHtml(item?.description || '')}">
+            ${escapeHtml(itemName)}${countText}${uses}
+        </button>`;
+    }).join(' ');
+}
 
 // -----------------------------------------------------------------------------
-// DUNGEON TRACKER UI
+// POOLS, TESTS, AND DAMAGE
 // -----------------------------------------------------------------------------
 
-/**
- * Updates the visual dungeon path tracker based on gameState.map
- */
+function setPool(pool, max) {
+    gameState.pools[pool] = { current: max, max };
+}
+
+function restorePool(pool, amount) {
+    const value = gameState.pools[pool];
+    value.current = clamp(value.current + amount, 0, value.max);
+    log(`Restored ${amount} ${POOL_LABELS[pool]}.`);
+}
+
+function testTargetForPool(pool) {
+    const current = gameState.pools[pool].current;
+    if (current >= 13) return 2;
+    if (current >= 9) return 3;
+    if (current >= 5) return 4;
+    if (current >= 1) return 5;
+    return Infinity;
+}
+
+function getPoolTestBonus(pool) {
+    let bonus = 0;
+    const weapon = getEquippedWeapon();
+    if (pool === 'body' && weapon.bodyTestBonus) bonus += weapon.bodyTestBonus;
+    if (pool === 'body' && gameState.inventory.includes('Climbing line')) bonus += 1;
+    return bonus;
+}
+
+async function attributeTest(pool, label, oxygenPush = false) {
+    const threshold = testTargetForPool(pool);
+    if (threshold === Infinity) return false;
+    let roll = rollDie(6);
+    let bonus = getPoolTestBonus(pool);
+    if (oxygenPush) {
+        spendOxygen(1, `push ${label}`);
+        bonus += 1;
+    }
+    let total = roll + bonus;
+    let success = total >= threshold;
+    let rerollDetail = '';
+    if (!success && pool === 'mind' && gameState.coldMindAvailable) {
+        gameState.coldMindAvailable = false;
+        const secondRoll = rollDie(6);
+        rerollDetail = ` · Cold Mind reroll ${secondRoll}`;
+        roll = secondRoll;
+        total = roll + bonus;
+        success = total >= threshold;
+    }
+    if (!success && pool === 'soul' && gameState.oldSoulAvailable) {
+        gameState.oldSoulAvailable = false;
+        const secondRoll = rollDie(6);
+        rerollDetail = ` · Old Soul reroll ${secondRoll}`;
+        roll = secondRoll;
+        total = roll + bonus;
+        success = total >= threshold;
+    }
+    await showDiceRoll({
+        context: `${POOL_LABELS[pool]} Test`,
+        dice: [{ type: 'd6', result: roll }],
+        threshold,
+        outcome: success ? 'SUCCESS' : 'FAIL',
+        isSuccess: success,
+        detail: `${label}${bonus ? ` · +${bonus}` : ''}${rerollDetail}`
+    });
+    log(`${POOL_LABELS[pool]} test for ${label}: ${roll}${bonus ? ` + ${bonus}` : ''} vs ${threshold} (${success ? 'success' : 'fail'}).`);
+    return success;
+}
+
+function spendOxygen(amount, reason) {
+    let remaining = amount;
+    while (remaining > 0) {
+        if (gameState.pools.oxygen.current > 0) {
+            gameState.pools.oxygen.current -= 1;
+        } else {
+            gameState.pools.body.current -= 1;
+            log(`Oxygen is empty; ${reason} costs 1 Body.`);
+        }
+        remaining--;
+    }
+    checkDefeat(`${reason} with no Oxygen`);
+}
+
+async function oxygenCollapseTick(reason) {
+    if (gameState.pools.oxygen.current > 0) return;
+    await applyDamage('body', 1, `oxygen collapse during ${reason}`, { bypassArmor: true });
+}
+
+async function breachSuit(source) {
+    if (gameState.sealantAvailable) {
+        gameState.sealantAvailable = false;
+        log('Perkūnas sealant rig ignores the first suit breach.');
+        return;
+    }
+    if (!gameState.breached) {
+        gameState.breached = true;
+        const loss = rollExpression('d4', 1);
+        await applyDamage('oxygen', loss, `${source} suit breach`, { bypassArmor: true });
+    }
+}
+
+async function applyDamage(pool, amount, source, options = {}) {
+    let damage = Math.max(0, amount);
+    const physical = pool === 'body' && !options.bypassArmor;
+
+    if (pool === 'mind' && gameState.firstMindDamagePlusOne) {
+        damage += 1;
+        gameState.firstMindDamagePlusOne = false;
+    }
+
+    if (pool === 'mind' && gameState.equippedArmor === 'Mirror visor' && gameState.mirrorVisorAvailable && damage > 0) {
+        const reduction = rollExpression('d4', 1);
+        damage = Math.max(0, damage - reduction);
+        gameState.mirrorVisorAvailable = false;
+        log(`Mirror visor reduces Mind damage by ${reduction}.`);
+    }
+
+    if (pool === 'soul' && countItem('Moon-salt pouch') > 0 && damage > 0) {
+        removeOneItem('Moon-salt pouch');
+        if (gameState.currentRoom) gameState.currentRoom.unsafe = true;
+        log('Moon-salt pouch cancels Soul damage; the room becomes unsafe.');
+        damage = 0;
+    }
+
+    if (physical && gameState.equippedArmor === 'Hardsuit plating' && damage > 0) {
+        const armorDie = gameState.currentMonster?.name === 'Moon Devil' ? 'd4-1' : 'd4';
+        const absorbed = rollExpression(armorDie, 0);
+        damage = Math.max(0, damage - absorbed);
+        log(`Hardsuit plating absorbs ${absorbed} Body.`);
+    }
+
+    if (pool === 'body' && gameState.ironBodyAvailable && damage > 0) {
+        damage = Math.max(0, damage - 1);
+        gameState.ironBodyAvailable = false;
+        log('Iron Body reduces this Body damage by 1.');
+    }
+
+    if (damage > 0) {
+        gameState.pools[pool].current = Math.max(0, gameState.pools[pool].current - damage);
+        log(`${source}: ${damage} ${POOL_LABELS[pool]} damage.`);
+        if (pool === 'body' || pool === 'mind' || pool === 'soul') {
+            safeSound('playPlayerHitSound');
+            triggerDamageEffect();
+        }
+    } else {
+        log(`${source}: no damage gets through.`);
+    }
+
+    if (physical && damage > 0 && gameState.breached) {
+        gameState.pools.oxygen.current = Math.max(0, gameState.pools.oxygen.current - 1);
+        log('Breached suit loses 1 Oxygen after a physical hit.');
+    }
+
+    if (pool === 'oxygen' && gameState.pools.oxygen.current === 0 && gameState.breached) {
+        gameState.pools.soul.current = Math.max(0, gameState.pools.soul.current - 1);
+        log('The empty breached suit costs 1 Soul.');
+    }
+
+    checkDefeat(source);
+}
+
+function checkDefeat(source) {
+    if (gameState.playerIsDead || gameState.gameWon) return;
+    if (gameState.pools.body.current <= 0) {
+        gameOver(`Body reached 0. ${source}`);
+    } else if (gameState.pools.mind.current <= 0) {
+        gameOver(`Mind reached 0. Catatonia ends the mission. ${source}`);
+    } else if (gameState.pools.soul.current <= 0) {
+        gameOver(`Soul reached 0. You break and run for the airlock. ${source}`);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// START, EXPLORATION, AND ROOMS
+// -----------------------------------------------------------------------------
+
+function startGame() {
+    const titleEl = document.querySelector('h1.cyber-glitch');
+    if (titleEl) titleEl.style.display = 'none';
+
+    gameState = createInitialGameState();
+    combatActionBusy = false;
+    lastInventorySnapshot = [];
+    lastEquippedWeapon = null;
+    lastEquippedArmor = null;
+    loadChallenges();
+
+    gameState.gameStarted = true;
+    gameState.playerName = sample(PLAYER_NAMES);
+    gameState.playerProfession = sample(PLAYER_PROFESSIONS);
+    gameState.faction = sample(FACTIONS);
+    gameState.mission = sample(MISSIONS);
+
+    setPool('body', rollExpression('3d6', 3));
+    setPool('mind', rollExpression('3d6', 3));
+    setPool('soul', rollExpression('3d6', 3));
+    setPool('oxygen', rollExpression('12+d6', 13));
+
+    const startingCredits = rollExpression('15+d6', 16);
+    addCredits(startingCredits, 'starting credits');
+
+    addItem('Base map');
+    const startingWeapon = STARTING_WEAPONS[rollDie(6) - 1];
+    const startingItem = STARTING_ITEMS[rollDie(6) - 1];
+    addItem(startingWeapon.name);
+    addItem(startingItem.name);
+
+    gameState.equippedWeapon = startingWeapon.name;
+    if (startingItem.type === 'armor') {
+        gameState.equippedArmor = startingItem.name;
+        applyArmorFlags(startingItem.name);
+    }
+
+    updateAutoExploreButton();
+
+    log(`${gameState.playerName}, ${gameState.playerProfession}, enters under contract with ${gameState.faction.name}.`);
+    log(`Mission: ${gameState.mission.briefing}. Target: ${gameState.mission.target}.`);
+    log(`Starting kit: ${startingWeapon.name}, ${startingItem.name}.`);
+
+    setGameText(`
+        <p><strong>${escapeHtml(gameState.mission.briefing)}</strong></p>
+        <p>Target: ${escapeHtml(gameState.mission.target)}.</p>
+        <p class="info">Faction tie: <strong>${escapeHtml(gameState.faction.name)}</strong>. ${escapeHtml(gameState.faction.edge)}</p>
+        <p>The airlock opens. The base waits below.</p>
+    `);
+    updateUI();
+    showToast('Mission started', 'success');
+}
+
+function createRoom({ shape = null, doors = null, eventType = 'Unknown', details = '' } = {}) {
+    return {
+        room: gameState.map.length + 1,
+        shape,
+        doors,
+        type: eventType,
+        details,
+        explored: false,
+        safe: false,
+        unsafe: false,
+        fled: false,
+        livingThreat: false,
+        threatPoints: shape?.threatPoints || 1
+    };
+}
+
+function rollRoomShape() {
+    const roll = rollDie(6) + rollDie(6);
+    const shape = ROOM_SHAPES.find(row => roll >= row.min && roll <= row.max);
+    return { ...shape, roll };
+}
+
+function rollDoors(shape) {
+    if (shape?.fixedDoors) return shape.fixedDoors;
+    const roll = rollDie(4);
+    const entry = DOORS_TABLE.find(row => row.roll === roll);
+    return entry ? entry.doors : 2;
+}
+
+function markRoomExplored(room, reason = 'room explored') {
+    if (!room || room.explored) return;
+    room.explored = true;
+    room.livingThreat = false;
+    gameState.roomsExplored += 1;
+    addThreatPoints(room.threatPoints || 1, reason);
+    updateChallengeProgress('explore', 'room', 1);
+}
+
+function addThreatPoints(amount, reason) {
+    gameState.threatPoints += amount;
+    log(`+${amount} threat point${amount === 1 ? '' : 's'} (${reason}).`);
+}
+
+function addCredits(amount, reason) {
+    const finalAmount = gameState.targetRecovered && gameState.keptExploringAfterTarget ? amount * 2 : amount;
+    gameState.credits += finalAmount;
+    gameState.totalCreditsCollected += finalAmount;
+    updateChallengeProgress('collect', 'credits', finalAmount);
+    log(`+${finalAmount} credits (${reason}).`);
+    if (gameState.mission?.scrapTarget && !gameState.targetRecovered && gameState.credits >= gameState.mission.scrapTarget) {
+        recoverTarget('salvage quota reached');
+    }
+}
+
+async function exploreRoom() {
+    if (!gameState.gameStarted || gameState.inCombat || gameState.inShop || gameState.playerIsDead) return;
+
+    gameState.canScavenge = false;
+
+    if (gameState.pendingInsertion) {
+        await resolveInsertion();
+        return;
+    }
+
+    const wasCarryingTarget = gameState.targetRecovered;
+    if (wasCarryingTarget) {
+        gameState.keptExploringAfterTarget = true;
+    }
+
+    const extraLoad = Math.max(0, significantInventoryCount() - GAME_RULES.inventoryLimit);
+    let oxygenCost = 1 + extraLoad;
+    if (gameState.longBreathAvailable && oxygenCost > 0) {
+        oxygenCost -= 1;
+        gameState.longBreathAvailable = false;
+        log('Long Breath makes this room entry cost 0 base Oxygen.');
+    }
+    spendOxygen(oxygenCost, `entering room${extraLoad ? ' with overloaded kit' : ''}`);
+    if (gameState.playerIsDead) return;
+
+    const shape = rollRoomShape();
+    const doors = rollDoors(shape);
+    const room = createRoom({ shape, doors });
+    gameState.currentRoom = room;
+    gameState.map.push(room);
+
+    const roomRoll = rollDie(6);
+    await showDiceRoll({
+        context: 'Room Table',
+        dice: [{ type: 'd6', result: roomRoll }],
+        outcome: roomRollToLabel(roomRoll),
+        isSuccess: roomRoll === 1 || roomRoll === 6 ? true : roomRoll >= 4 ? false : null,
+        detail: `${shape.name} · ${doors} exit${doors === 1 ? '' : 's'}`
+    });
+
+    if (shouldFindTarget(roomRoll)) {
+        await resolveTargetRoom(room);
+    } else {
+        await resolveRoomRoll(room, roomRoll);
+    }
+
+    if (!gameState.playerIsDead && wasCarryingTarget && rollDie(6) === 1) {
+        const damage = rollExpression('d4', 1);
+        await applyDamage(gameState.mission.pool, damage, 'the recovered artifact wakes');
+    }
+}
+
+async function resolveInsertion() {
+    gameState.pendingInsertion = false;
+    const roll = rollDie(4);
+    const room = createRoom({
+        shape: { name: 'Entry chamber', effect: 'airlock insertion', threatPoints: 1 },
+        doors: roll,
+        eventType: 'Entry',
+        details: `${roll} exit${roll === 1 ? '' : 's'}`
+    });
+    gameState.currentRoom = room;
+    gameState.map.push(room);
+
+    await showDiceRoll({
+        context: 'Insertion',
+        dice: [{ type: 'd4', result: roll }],
+        outcome: ['LOOT', 'GUARD', 'SURVEYOR', 'SILENCE'][roll - 1],
+        isSuccess: roll === 1 || roll === 4,
+        detail: `${roll} door${roll === 1 ? '' : 's'} deeper`
+    });
+
+    if (roll === 1) {
+        const item = rollRandomLoot();
+        addItem(item.name);
+        room.type = 'Loot';
+        room.details = item.name;
+        markRoomExplored(room, 'entry chamber resolved');
+        setGameText(`<p class="success">The entry chamber holds ${escapeHtml(item.name)}.</p><p>${escapeHtml(item.description || '')}</p>`);
+    } else if (roll === 2) {
+        const monster = sample(WEAK_MONSTERS);
+        room.type = 'Threat';
+        room.details = monster.name;
+        room.livingThreat = true;
+        setGameText(`<p class="warning">A ${escapeHtml(monster.name)} guards the airlock approach.</p>`);
+        startCombat(monster, room);
+        return;
+    } else if (roll === 3) {
+        const device = sample(DEVICES);
+        addItem(device.name);
+        room.type = 'Surveyor';
+        room.details = device.name;
+        await applyDamage('soul', 1, 'leaving the dying surveyor breathing', { bypassArmor: true });
+        markRoomExplored(room, 'entry chamber resolved');
+        setGameText(`<p>A dying surveyor presses ${escapeHtml(device.name)} into your glove. The mercy you do not give costs 1 Soul.</p>`);
+    } else {
+        room.type = 'Safe';
+        room.safe = true;
+        restorePool('soul', 1);
+        markRoomExplored(room, 'entry chamber resolved');
+        setGameText('<p>The chamber is silent. Lights flicker in an old folk-song rhythm. You mark it as a safe backtrack point and steady your Soul.</p>');
+    }
+
+    updateUI();
+}
+
+function roomRollToLabel(roll) {
+    const entry = ROOM_TABLE.find(row => row.roll === roll);
+    return entry ? entry.label.toUpperCase() : 'ROOM';
+}
+
+function shouldFindTarget(roomRoll) {
+    if (gameState.targetRecovered) return false;
+    if (gameState.mission?.scrapTarget && gameState.credits >= gameState.mission.scrapTarget) return true;
+    if (gameState.roomsExplored >= 12 && roomRoll !== 4 && roomRoll !== 5) return true;
+    return gameState.roomsExplored >= 6 && roomRoll === 1;
+}
+
+async function resolveTargetRoom(room) {
+    room.type = 'Target';
+    room.details = gameState.mission.target;
+    const pool = gameState.mission.pool;
+    const success = await attributeTest(pool, gameState.mission.briefing);
+    if (!success) {
+        const damage = rollExpression('d4', 1);
+        await applyDamage(pool, damage, `${gameState.mission.briefing} complication`);
+        if (gameState.mission.briefing === 'Wake the AI') {
+            gameState.firstMindDamagePlusOne = true;
+        }
+    }
+    recoverTarget('target chamber');
+    markRoomExplored(room, 'target chamber secured');
+    setGameText(`
+        <p class="success"><strong>Target recovered:</strong> ${escapeHtml(gameState.mission.target)}.</p>
+        <p>${escapeHtml(gameState.mission.twist)}</p>
+        <p>You can extract now, or keep looting and let the artifact wake on a 1-in-6 after each new room.</p>
+    `);
+    updateUI();
+}
+
+function recoverTarget(reason) {
+    if (gameState.targetRecovered) return;
+    gameState.targetRecovered = true;
+    gameState.targetRoomNumber = gameState.currentRoom?.room || null;
+    updateChallengeProgress('target', 'mission', 1);
+    log(`Mission target recovered (${reason}).`);
+}
+
+async function resolveRoomRoll(room, roll) {
+    if (roll === 1) {
+        await resolveQuietSalvage(room);
+    } else if (roll === 2) {
+        await resolvePit(room);
+    } else if (roll === 3) {
+        await resolveAnomaly(room);
+    } else if (roll === 4) {
+        const monster = sample(WEAK_MONSTERS);
+        room.type = 'Threat';
+        room.details = monster.name;
+        room.livingThreat = true;
+        startCombat(monster, room);
+    } else if (roll === 5) {
+        const monster = sample(TOUGH_MONSTERS);
+        room.type = 'Threat';
+        room.details = monster.name;
+        room.livingThreat = true;
+        startCombat(monster, room);
+    } else {
+        room.type = 'Void Peddler';
+        room.details = 'trade';
+        markRoomExplored(room, 'void peddler room resolved');
+        openShop(true);
+    }
+}
+
+async function resolveQuietSalvage(room) {
+    room.type = 'Quiet salvage';
+    if (gameState.pools.soul.current < gameState.pools.soul.max) {
+        restorePool('soul', 1);
+        room.details = '+1 Soul';
+    } else {
+        const credits = rollExpression('d6', 1);
+        addCredits(credits, 'quiet salvage');
+        room.details = `${credits} credits`;
+    }
+    gameState.canScavenge = true;
+    markRoomExplored(room, 'quiet salvage room resolved');
+    setGameText('<p class="success">Quiet salvage. You take the obvious benefit. You may rush the search with a Mind test for more.</p>');
+    updateUI();
+}
+
+async function resolvePit(room) {
+    room.type = 'Pit / drop';
+    const success = await attributeTest('body', 'cross pit / drop / cable well');
+    if (!success) {
+        const damage = rollExpression('d6', 1);
+        await applyDamage('body', damage, 'pit fall');
+        await breachSuit('pit fall');
+        room.details = `${damage} Body`;
+    } else {
+        room.details = 'crossed';
+    }
+    markRoomExplored(room, 'pit room resolved');
+    setGameText(`<p>${success ? 'You cross cleanly.' : 'You cross, but the fall and breach leave a mark.'}</p>`);
+    updateUI();
+}
+
+async function resolveAnomaly(room) {
+    room.type = 'Anomaly';
+    const pool = gameState.pools.mind.current >= gameState.pools.soul.current ? 'mind' : 'soul';
+    const success = await attributeTest(pool, 'parse anomaly broadcast');
+    if (success) {
+        if (gameState.pools.mind.current < gameState.pools.mind.max) {
+            const amount = rollExpression('d4', 1);
+            restorePool('mind', amount);
+            room.details = `+${amount} Mind`;
+        } else {
+            addThreatPoints(3, 'understood anomaly');
+            room.details = '+3 threat';
+        }
+    } else {
+        const damage = rollExpression('d4', 1);
+        await applyDamage(pool, damage, 'anomaly broadcast');
+        room.details = `${damage} ${POOL_LABELS[pool]}`;
+    }
+    markRoomExplored(room, 'anomaly room resolved');
+    setGameText(`<p>${success ? 'You parse the impossible signal before it parses you.' : 'The signal gets inside the suit.'}</p>`);
+    updateUI();
+}
+
+async function scavenge() {
+    if (!gameState.canScavenge || !gameState.currentRoom) return;
+    gameState.canScavenge = false;
+    const success = await attributeTest('mind', 'rush quiet salvage');
+    if (success) {
+        const credits = rollExpression('d6', 1);
+        addCredits(credits, 'rushed salvage');
+        gameState.currentRoom.safe = true;
+        gameState.currentRoom.details = `${gameState.currentRoom.details}; safe; +${credits} credits`;
+        setGameText(`<p class="success">The rushed search pays off: ${credits} credits and a safe backtrack point.</p>`);
+    } else {
+        gameState.currentRoom.unsafe = true;
+        gameState.currentRoom.details = `${gameState.currentRoom.details}; unsafe`;
+        setGameText('<p class="warning">The search makes noise. Backtracking through this room is unsafe.</p>');
+    }
+    updateUI();
+}
+
+function rollRandomLoot() {
+    const roll = rollDie(6);
+    if (roll === 1) return sample(WEAPONS);
+    if (roll === 2) return sample(CONSUMABLES);
+    if (roll === 3) return sample(GEAR);
+    if (roll === 4) return sample(DEVICES);
+    if (roll === 5) return sample(SUITS);
+    addThreatPoints(2, 'artifact clue');
+    return { name: 'Artifact clue', type: 'clue', description: '+2 threat points and +1 to locate the target chamber.' };
+}
+
+// -----------------------------------------------------------------------------
+// COMBAT
+// -----------------------------------------------------------------------------
+
+function startCombat(monster, room = gameState.currentRoom) {
+    const armor = getItem(gameState.equippedArmor);
+    if (armor?.skipFights && gameState.itemUses[gameState.equippedArmor] > 0) {
+        gameState.itemUses[gameState.equippedArmor] -= 1;
+        addThreatPoints(monster.points, `${monster.name} bypassed with ${gameState.equippedArmor}`);
+        if (room) {
+            room.type = 'Bypassed threat';
+            room.details = `${monster.name} bypassed`;
+            markRoomExplored(room, 'threat bypassed by phase cloak');
+        }
+        setGameText(`<p class="success">${escapeHtml(gameState.equippedArmor)} phases you past ${escapeHtml(monster.name)}. You keep the threat points as cunning survival.</p>`);
+        updateUI();
+        return;
+    }
+
+    gameState.inCombat = true;
+    gameState.currentRoom = room;
+    gameState.currentMonster = { ...monster, currentHp: monster.hp, difficulty: monster.points, firstMiss: true };
+    gameState.combatTurn = 1;
+    gameState.combatFeed = [];
+    gameState.autoBattle = false;
+    gameState.monsterDying = false;
+    combatActionBusy = false;
+    document.body.classList.add('in-combat');
+
+    const m = gameState.currentMonster;
+    const hitChance = Math.max(0, Math.min(100, Math.round(((7 - m.points) / 6) * 100)));
+
+    setGameText(`
+        <div class="battle-interface" id="battle-interface">
+            <div class="battle-header">
+                <span class="battle-header-title"><span class="material-symbols-outlined">swords</span> Combat</span>
+                <span class="round-chip">Round <span id="battle-turn-counter">${gameState.combatTurn}</span></span>
+            </div>
+            <div class="battle-arena">
+                <div class="arena-combatant player-side">
+                    <div class="arena-name">${escapeHtml(gameState.playerName)}</div>
+                    <div class="arena-sprite arena-sprite-enter-player" id="battle-player-actor">
+                        <img src="${PLAYER_SPRITE}" alt="${escapeHtml(gameState.playerName || 'Explorer')}">
+                    </div>
+                    <div class="arena-hp-wrap">
+                        <div class="arena-hp-bar">
+                            <div id="battle-player-hp-bar-fill" class="arena-hp-fill player-hp" style="width:${poolPercent('body')}%;"></div>
+                            <div class="arena-hp-text">Body <span id="battle-body">${renderPool('body')}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="arena-center">
+                    <div class="arena-vs">VS</div>
+                </div>
+                <div class="arena-combatant enemy-side ${TOUGH_MONSTERS.some(t => t.name === m.name) ? 'tough' : 'weak'}">
+                    <div class="arena-name">${escapeHtml(m.name)} <span class="threat-pips">${escapeHtml(m.type)}</span></div>
+                    <div class="arena-sprite arena-sprite-enter-enemy" id="battle-enemy-actor">
+                        <img src="${getMonsterSprite(m)}" alt="${escapeHtml(m.name)}" id="monster-stats-display">
+                    </div>
+                    <div class="arena-hp-wrap">
+                        <div class="arena-hp-bar">
+                            <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width:100%;"></div>
+                            <div class="arena-hp-text"><span id="monster-hp">${m.currentHp}</span>/${m.hp}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="battle-stats-bar">
+                <div class="stat-card you">
+                    <div class="battle-stat-item dmg" title="Weapon damage"><span class="material-symbols-outlined">flash_on</span><span id="battle-player-damage">${escapeHtml(getEquippedWeapon().value)}</span></div>
+                    <div class="battle-stat-item def" title="Armor"><span class="material-symbols-outlined">shield</span><span id="battle-player-defense">${escapeHtml(gameState.equippedArmor || 'None')}</span></div>
+                </div>
+                <div class="stat-card" style="background: rgba(242,255,0,0.05); border-color: rgba(242,255,0,0.2);">
+                    <div class="battle-stat-item hit" title="Base hit chance"><span class="material-symbols-outlined">my_location</span><span id="battle-hit-chance">${hitChance}%</span></div>
+                </div>
+                <div class="stat-card enemy">
+                    <div class="battle-stat-item threat" title="Threat damage"><span class="material-symbols-outlined">swords</span><span>${escapeHtml(m.damage)} ${POOL_LABELS[m.damagePool]}</span></div>
+                </div>
+            </div>
+            <p class="battle-special">${escapeHtml(m.special || '')}</p>
+            <div class="auto-battle-row">
+                <button id="auto-battle-btn" class="auto-battle-btn" onclick="toggleAutoBattle()">
+                    <span class="material-symbols-outlined">play_arrow</span> <span>Auto</span>
+                </button>
+                <button id="auto-speed-btn" class="auto-battle-btn auto-speed-btn" onclick="cycleAutoBattleSpeed()">
+                    <span class="material-symbols-outlined">bolt</span> <span id="auto-battle-speed-label">x1</span>
+                </button>
+                <div class="battle-intent hidden" id="battle-intent">
+                    <span class="intent-label">Next:</span>
+                    <span class="intent-value" id="battle-intent-value">Attack</span>
+                </div>
+            </div>
+            <div id="battle-feed" class="battle-feed"></div>
+            <div id="combat-log" class="battle-log"></div>
+        </div>
+    `);
+
+    pushCombatFeed('info', `${m.name} blocks the route.`);
+    updateUI();
+    setTimeout(() => {
+        document.getElementById('battle-player-actor')?.classList.remove('arena-sprite-enter-player');
+        document.getElementById('battle-enemy-actor')?.classList.remove('arena-sprite-enter-enemy');
+    }, 700);
+}
+
+function poolPercent(pool) {
+    const value = gameState.pools[pool];
+    return value.max > 0 ? clamp(Math.round((value.current / value.max) * 100), 0, 100) : 0;
+}
+
+function updateBattleUI() {
+    if (!gameState.inCombat) return;
+    setText('battle-body', renderPool('body'));
+    setText('battle-player-damage', getEquippedWeapon().value);
+    setText('battle-player-defense', gameState.equippedArmor || 'None');
+    setText('battle-turn-counter', gameState.combatTurn);
+
+    const playerHpBar = document.getElementById('battle-player-hp-bar-fill');
+    if (playerHpBar) {
+        const pct = poolPercent('body');
+        playerHpBar.style.width = `${pct}%`;
+        playerHpBar.className = 'arena-hp-fill player-hp';
+        if (pct <= 25) playerHpBar.classList.add('low-hp');
+        else if (pct <= 50) playerHpBar.classList.add('medium-hp');
+    }
+
+    const monster = gameState.currentMonster;
+    if (monster) {
+        setText('monster-hp', Math.max(0, monster.currentHp));
+        const hpBar = document.getElementById('battle-enemy-hp-bar');
+        if (hpBar) hpBar.style.width = `${clamp((monster.currentHp / monster.hp) * 100, 0, 100)}%`;
+        const hitEl = document.getElementById('battle-hit-chance');
+        if (hitEl) {
+            const needed = Math.max(2, monster.points - getAttackBonus(monster));
+            const chance = clamp(Math.round(((7 - needed) / 6) * 100), 0, 100);
+            hitEl.textContent = `${chance}%`;
+        }
+    }
+    updateBattleIntent();
+}
+
+function getAttackBonus(monster) {
+    const weapon = getEquippedWeapon();
+    let bonus = gameState.attackBonus || 0;
+    if (weapon.attackBonus) bonus += weapon.attackBonus;
+    if (monster) {
+        if (weapon.attackBonusVs?.includes(monster.type) || (weapon.attackBonusVsPool && monster.damagePool === weapon.attackBonusVsPool)) bonus += 1;
+        if (monster.name === 'Moon Golem' && ['Pry-hammer', 'Žaltys shock baton'].includes(weapon.name)) bonus += 1;
+    }
+    if (gameState.currentRoom?.shape?.name === 'Corridor / service shaft' && ['Perkūnas service pistol', 'Moon-salt carbine'].includes(weapon.name)) {
+        bonus += 1;
+    }
+    return bonus;
+}
+
+async function attack() {
+    await performAttack(false);
+}
+
+async function powerAttack() {
+    await performAttack(true);
+}
+
+async function performAttack(pushWithOxygen) {
+    const monster = gameState.currentMonster;
+    if (!monster || gameState.monsterDying || combatActionBusy) return;
+    combatActionBusy = true;
+    setTurnIndicator('player');
+    await oxygenCollapseTick('combat round');
+    if (gameState.playerIsDead) {
+        combatActionBusy = false;
+        return;
+    }
+
+    let pushBonus = 0;
+    if (pushWithOxygen) {
+        spendOxygen(1, 'pushing an attack');
+        pushBonus = 1;
+    }
+
+    safeSound('playAttackSound');
+    animateBattleAttack('player');
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) combatLogEl.innerHTML = '';
+
+    const roll = rollDie(6);
+    const attackBonus = getAttackBonus(monster) + pushBonus;
+    const total = roll + attackBonus;
+    const hit = total >= monster.points;
+
+    await sleep(150);
+    if (combatLogEl) {
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">Attack: [${roll}]${attackBonus ? ` + ${attackBonus}` : ''} vs ${monster.points}</p>`);
+    }
+
+    if (hit) {
+        const weapon = getEquippedWeapon();
+        let damage = rollExpression(weapon.value, 0);
+        if (weapon.machineDamageBonus && monster.type === 'Machine') damage += weapon.machineDamageBonus;
+        monster.currentHp -= damage;
+        showFloatingCombatText('enemy', damage);
+        log(`Hit ${monster.name} for ${damage} damage.`);
+        pushCombatFeed('player', `-${damage} HP to ${monster.name}`);
+
+        if (countItem('Aitvaras drone-chip') > 0 && gameState.itemUses['Aitvaras drone-chip'] > 0 && monster.currentHp > 0) {
+            const droneDamage = rollExpression('d4', 1);
+            gameState.itemUses['Aitvaras drone-chip'] -= 1;
+            monster.currentHp -= droneDamage;
+            log(`Aitvaras drone-chip deals ${droneDamage} extra damage.`);
+            pushCombatFeed('player', `Drone: -${droneDamage} HP`);
+        }
+
+        if (monster.currentHp <= 0) {
+            monster.currentHp = 0;
+            await finishMonsterDeath(damage);
+        } else {
+            triggerMonsterHitEffect();
+            if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="success">Hit for ${damage}.</p>`);
+            gameState.combatTurn += 1;
+            pulseRoundChip();
+        }
+    } else {
+        showFloatingCombatText('enemy', 0, { miss: true });
+        log(`Missed ${monster.name}.`);
+        pushCombatFeed('warning', `Missed ${monster.name}`);
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss. The threat hits back.</p>`);
+        await applyWeaponMissCost();
+        await monsterAttack();
+    }
+
+    combatActionBusy = false;
+    updateUI();
+}
+
+async function applyWeaponMissCost() {
+    const weapon = getEquippedWeapon();
+    if (!weapon.missCost) return;
+
+    if (weapon.missCost.preventWithOxygen && gameState.pools.oxygen.current > 0) {
+        spendOxygen(1, `${weapon.name} brace`);
+        log(`${weapon.name} miss: spent 1 Oxygen to brace.`);
+        return;
+    }
+
+    await applyDamage(weapon.missCost.pool, weapon.missCost.amount, `${weapon.name} miss`, { bypassArmor: true });
+}
+
+async function finishMonsterDeath(killingBlowDamage) {
+    const monster = gameState.currentMonster;
+    gameState.monsterDying = true;
+    const hpBar = document.getElementById('battle-enemy-hp-bar');
+    if (hpBar) hpBar.style.width = '0%';
+    setText('monster-hp', 0);
+    triggerMonsterDeathEffect();
+    safeSound('playMonsterDieSound');
+    setTimeout(() => showSlainOverlay(monster), 350);
+    await sleep(900);
+    gameState.monsterDying = false;
+    winCombat(killingBlowDamage);
+}
+
+async function monsterAttack() {
+    const monster = gameState.currentMonster;
+    if (!monster) return;
+    setTurnIndicator('enemy');
+    animateBattleAttack('enemy');
+
+    let damage = rollExpression(monster.damage, 0);
+    if (gameState.currentRoom?.doors === 0) damage += 1;
+    if (gameState.currentRoom?.shape?.name === 'Oval shrine-lab' && monster.damagePool === 'soul') damage += 1;
+
+    await sleep(150);
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) {
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">${escapeHtml(monster.name)} damage: ${damage} ${POOL_LABELS[monster.damagePool]}</p>`);
+    }
+
+    await applyDamage(monster.damagePool, damage, monster.name);
+    showFloatingCombatText('player', damage);
+    pushCombatFeed('enemy', `${monster.name}: -${damage} ${POOL_LABELS[monster.damagePool]}`);
+
+    if (monster.name === 'Possessed AI' && damage > 0 && monster.damagePool === 'mind' && gameState.pools.oxygen.current > 0) {
+        spendOxygen(1, 'cutting comms against Possessed AI');
+        restorePool('mind', 1);
+    }
+
+    if (monster.name === 'Repair Drone' && damage > 0 && countItem('Suit patch kit') > 0) {
+        removeOneItem('Suit patch kit');
+        restorePool('oxygen', 1);
+        log('Suit patch kit prevents the Repair Drone oxygen loss.');
+    } else if (monster.name === 'Repair Drone' && damage > 0) {
+        await applyDamage('oxygen', 1, 'Repair Drone cutter leak', { bypassArmor: true });
+    }
+
+    if (monster.name === 'Moon Devil' && damage > 0) {
+        await applyDamage('oxygen', 1, 'Moon Devil claw breach', { bypassArmor: true });
+    }
+
+    if (monster.name === 'Wire Devil' && damage > 0 && gameState.currentRoom) {
+        gameState.currentRoom.unsafe = true;
+    }
+
+    if (!gameState.playerIsDead) {
+        gameState.combatTurn += 1;
+        setTurnIndicator('player');
+        pulseRoundChip();
+    }
+    updateUI();
+}
+
+async function flee() {
+    if (combatActionBusy) return;
+    combatActionBusy = true;
+    gameState.autoBattle = false;
+    const monster = gameState.currentMonster;
+    const room = gameState.currentRoom;
+    const damageExpr = room?.doors >= 2 ? 'd4-1' : 'd4';
+    const damage = rollExpression(damageExpr, 0);
+
+    spendOxygen(1, 'fleeing combat');
+    await applyDamage(monster.damagePool, damage, `fleeing ${monster.name}`);
+
+    if (room) {
+        room.fled = true;
+        room.livingThreat = true;
+        room.details = `${monster.name} fled`;
+    }
+
+    gameState.inCombat = false;
+    gameState.currentMonster = null;
+    document.body.classList.remove('in-combat');
+    setGameText(`<p class="warning">You flee, leaving the room unexplored. ${damage} ${POOL_LABELS[monster.damagePool]} damage follows you out.</p>`);
+    combatActionBusy = false;
+    updateUI();
+}
+
+function winCombat(killingBlowDamage) {
+    const monster = gameState.currentMonster;
+    gameState.monstersDefeated += 1;
+
+    const threatReward = monster.name === 'Moon Golem' ? 7 : monster.points;
+    addThreatPoints(threatReward, `${monster.name} defeated`);
+    updateChallengeProgress('slay', monster.name, 1);
+
+    const lootItems = resolveMonsterSpecials(monster);
+    if (gameState.currentRoom && !gameState.currentRoom.explored) {
+        markRoomExplored(gameState.currentRoom, 'threat room survived');
+    }
+
+    gameState.inVictory = true;
+    showVictoryScreen(monster, lootItems, threatReward, 0);
+    updateUI();
+}
+
+function resolveMonsterSpecials(monster) {
+    const loot = [];
+    const weapon = getEquippedWeapon();
+
+    if (weapon.restoreSoulOnWeakKill && WEAK_MONSTERS.some(m => m.name === monster.name)) {
+        restorePool('soul', weapon.restoreSoulOnWeakKill);
+    }
+    if (weapon.loud && gameState.currentRoom) {
+        gameState.currentRoom.unsafe = true;
+    }
+    if (monster.name === 'Dust Devil' && gameState.currentRoom) {
+        gameState.currentRoom.safe = true;
+    }
+    if (monster.name === 'Space Goblin' && rollDie(6) <= 2) {
+        const item = sample(GEAR);
+        addItem(item.name);
+        loot.push(item.name);
+    }
+    if (monster.name === 'Root Doctor') {
+        const credits = rollExpression('3d6', 3);
+        addCredits(credits, 'Root Doctor loot');
+    }
+    if (monster.name === 'Vacuum Basilisk' && rollDie(6) <= 2) {
+        addThreatPoints(10, 'Vacuum Basilisk hide insight');
+        if (gameState.breached) gameState.breached = false;
+    }
+    if (gameState.hunterHandAvailable) {
+        const weakestPool = POOLS.reduce((lowest, pool) => {
+            const currentPct = gameState.pools[pool].current / gameState.pools[pool].max;
+            const lowestPct = gameState.pools[lowest].current / gameState.pools[lowest].max;
+            return currentPct < lowestPct ? pool : lowest;
+        }, 'body');
+        restorePool(weakestPool, 1);
+        gameState.hunterHandAvailable = false;
+    }
+
+    if (Math.random() < 0.25) {
+        const item = rollRandomLoot();
+        if (item.name !== 'Artifact clue') {
+            addItem(item.name);
+            loot.push(item.name);
+        }
+    }
+    return loot;
+}
+
+function showVictoryScreen(monster, lootItems, xp, credits) {
+    const lootHtml = lootItems.length
+        ? lootItems.map(item => `<span class="victory-loot-item">${escapeHtml(item)}</span>`).join('')
+        : '<span class="victory-loot-empty">None</span>';
+
+    setGameText(`
+        <div class="victory-screen" id="victory-screen-root">
+            <h2 class="victory-title">SURVIVED</h2>
+            <div class="victory-monster" id="victory-monster">
+                <img src="${getMonsterSprite(monster)}" alt="${escapeHtml(monster.name)}">
+                <div>Defeated: <strong>${escapeHtml(monster.name)}</strong></div>
+            </div>
+            <div class="victory-rewards">
+                <p class="reward-row reward-xp"><span class="reward-icon"><span class="material-symbols-outlined">star</span></span><span class="reward-value">+${xp}</span><span class="reward-label">Threat points</span></p>
+                <p class="reward-row reward-silver"><span class="reward-icon"><span class="material-symbols-outlined">paid</span></span><span class="reward-value">+${credits}</span><span class="reward-label">Credits</span></p>
+                <div class="victory-loot"><span class="victory-loot-label">Loot:</span><span class="victory-loot-list">${lootHtml}</span></div>
+            </div>
+            <button class="victory-continue-btn" onclick="endCombatEncounter()"><span>Continue</span><span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+    `);
+    safeSound('playVictorySound');
+}
+
+function endCombatEncounter() {
+    gameState.autoBattle = false;
+    combatActionBusy = false;
+    gameState.inVictory = false;
+    gameState.inCombat = false;
+    gameState.currentMonster = null;
+    document.body.classList.remove('in-combat');
+    setGameText(`<p>The fight is over. ${canLevelUpNow() ? 'Your threat points are high enough to advance.' : 'The base is quiet for now.'}</p>`);
+    updateUI();
+    if (gameState.autoExplore) runAutoExplore();
+}
+
+function toggleAutoBattle() {
+    gameState.autoBattle = !gameState.autoBattle;
+    const btn = document.getElementById('auto-battle-btn');
+    if (btn) {
+        btn.classList.toggle('active', gameState.autoBattle);
+        btn.innerHTML = gameState.autoBattle
+            ? '<span class="material-symbols-outlined">pause</span> <span>Auto</span>'
+            : '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
+    }
+    updateBattleIntent();
+    updateUI();
+    if (gameState.autoBattle) runAutoBattle();
+}
+
+function cycleAutoBattleSpeed() {
+    if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 300;
+    else if (gameState.autoBattleDelay === 300) gameState.autoBattleDelay = 150;
+    else gameState.autoBattleDelay = 500;
+    setText('auto-battle-speed-label', gameState.autoBattleDelay <= 150 ? 'x3' : gameState.autoBattleDelay <= 300 ? 'x2' : 'x1');
+}
+
+function updateBattleIntent() {
+    const intentEl = document.getElementById('battle-intent');
+    const valueEl = document.getElementById('battle-intent-value');
+    if (!intentEl || !valueEl) return;
+    if (!gameState.inCombat || !gameState.autoBattle || gameState.monsterDying) {
+        intentEl.classList.add('hidden');
+        return;
+    }
+    intentEl.classList.remove('hidden');
+    valueEl.textContent = pickAutoBattleAction() === 'potion' ? 'Use item' : 'Attack';
+}
+
+function pickAutoBattleAction() {
+    const lowPool = POOLS.find(pool => gameState.pools[pool].current / gameState.pools[pool].max <= 0.35);
+    if (lowPool) {
+        const item = ['Red stim', 'Dream sedative', 'Mother-soil charm', 'O2 canister']
+            .find(itemName => countItem(itemName) > 0 && getItem(itemName)?.restores?.pool === lowPool);
+        if (item) return 'potion';
+    }
+    return 'attack';
+}
+
+async function runAutoBattle() {
+    while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
+        const action = pickAutoBattleAction();
+        if (action === 'potion') await usePotion();
+        else await performAttack(false);
+        if (gameState.autoBattle && gameState.inCombat) await sleep(gameState.autoBattleDelay);
+    }
+    gameState.autoBattle = false;
+    const btn = document.getElementById('auto-battle-btn');
+    if (btn) {
+        btn.classList.remove('active');
+        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
+    }
+}
+
+// -----------------------------------------------------------------------------
+// EXTRACTION AND ADVANCEMENT
+// -----------------------------------------------------------------------------
+
+async function extractMission() {
+    if (!gameState.targetRecovered || gameState.inCombat || gameState.inShop) return;
+
+    const route = calculateExtractionRoute();
+    spendOxygen(route.oxygenCost, 'extraction route');
+    if (gameState.playerIsDead) return;
+
+    const roll = rollDie(6);
+    const total = roll + route.modifier;
+    const clean = total >= 4;
+
+    await showDiceRoll({
+        context: 'Extraction',
+        dice: [{ type: 'd6', result: roll }],
+        threshold: 4,
+        outcome: clean ? 'CLEAN EXIT' : 'COMPLICATION',
+        isSuccess: clean,
+        detail: `modifier ${route.modifier >= 0 ? '+' : ''}${route.modifier}; paid ${route.oxygenCost} Oxygen`
+    });
+
+    if (clean) {
+        addThreatPoints(1, 'clean extraction');
+        updateChallengeProgress('extract', 'clean', 1);
+    } else {
+        await resolveExtractionComplication();
+        if (gameState.playerIsDead) return;
+    }
+
+    completeMission(clean, route);
+}
+
+function calculateExtractionRoute() {
+    const pathRooms = Math.max(0, gameState.map.length - 1);
+    const safeRooms = gameState.map.filter(room => room.safe).length;
+    const oxygenDiscount = Math.min(Math.max(0, safeRooms - 1), pathRooms);
+    const oxygenCost = Math.max(0, pathRooms - oxygenDiscount);
+
+    let modifier = gameState.extractionBonus || 0;
+    if (safeRooms > 0) modifier += 1;
+    if (gameState.map.some(room => room.doors >= 2)) modifier += 1;
+    if (gameState.map.some(room => room.fled)) modifier -= 1;
+    if (gameState.map.some(room => room.livingThreat)) modifier -= 1;
+    if (gameState.keptExploringAfterTarget) modifier -= 1;
+
+    return { pathRooms, oxygenCost, modifier };
+}
+
+async function resolveExtractionComplication() {
+    const roll = rollDie(6);
+    if (roll === 1) {
+        const loss = rollExpression('d4', 1);
+        await applyDamage('oxygen', loss, 'extraction air leak', { bypassArmor: true });
+    } else if (roll === 2) {
+        const monster = sample(WEAK_MONSTERS);
+        const damage = rollExpression(monster.damage, 1);
+        await applyDamage(monster.damagePool, damage, `blocked route: ${monster.name}`);
+    } else if (roll === 3) {
+        const success = await attributeTest('body', 'hard extraction crossing');
+        if (!success) await applyDamage('body', rollExpression('d4', 1), 'hard extraction crossing');
+    } else if (roll === 4) {
+        const success = await attributeTest('mind', 'bad route signal');
+        if (!success) spendOxygen(1, 'bad signal route correction');
+    } else if (roll === 5) {
+        const success = await attributeTest('soul', 'voices in the suit');
+        if (!success) await applyDamage('soul', rollExpression('d4', 1), 'voices in the suit');
+    } else {
+        const loose = gameState.inventory.find(item => item !== 'Base map' && item !== gameState.equippedWeapon && item !== gameState.equippedArmor);
+        if (loose) {
+            removeOneItem(loose);
+            log(`Dropped salvage during extraction: ${loose}.`);
+        } else {
+            const lost = Math.min(gameState.credits, rollExpression('d6', 1));
+            gameState.credits -= lost;
+            log(`Dropped ${lost} credits during extraction.`);
+        }
+    }
+}
+
+function completeMission(clean, route) {
+    const payout = typeof gameState.mission.payout === 'number' ? gameState.mission.payout : gameState.credits;
+    gameState.credits += payout;
+    gameState.totalCreditsCollected += payout;
+    updateChallengeProgress('collect', 'credits', payout);
+    addThreatPoints(3, 'mission payout');
+    saveChallenges();
+    winGame(clean
+        ? `Clean extraction with ${gameState.mission.target}. Payout: ${payout} credits.`
+        : `Extraction succeeded after complications. Payout: ${payout} credits.`);
+}
+
+function canLevelUpNow() {
+    return gameState.threatPoints >= LEVEL_UP_COST && gameState.advancements.length < ADVANCEMENTS.length;
+}
+
+function levelUp() {
+    if (!canLevelUpNow()) return;
+    const available = ADVANCEMENTS.filter(adv => !gameState.advancements.includes(adv.id));
+    const advancement = available[rollDie(available.length) - 1];
+    gameState.advancements.push(advancement.id);
+    gameState.level = gameState.advancements.length;
+    gameState.threatPoints = 0;
+
+    if (advancement.maxPool) {
+        gameState.pools[advancement.maxPool].max += advancement.amount;
+        gameState.pools[advancement.maxPool].current += advancement.amount;
+    }
+    if (advancement.attackBonus) gameState.attackBonus += advancement.attackBonus;
+    if (advancement.extractionBonus) gameState.extractionBonus += advancement.extractionBonus;
+    if (advancement.id === 'exitSaint' && gameState.currentRoom?.explored) {
+        gameState.currentRoom.safe = true;
+        log('Exit Saint marks the current room as a safe backtrack point.');
+    }
+
+    gameState.ironBodyAvailable = gameState.advancements.includes('ironBody');
+    gameState.coldMindAvailable = gameState.advancements.includes('coldMind');
+    gameState.oldSoulAvailable = gameState.advancements.includes('oldSoul');
+    gameState.longBreathAvailable = gameState.advancements.includes('longBreath');
+    gameState.hunterHandAvailable = gameState.advancements.includes('huntersHand');
+    gameState.exitSaintAvailable = gameState.advancements.includes('exitSaint');
+
+    updateChallengeProgress('level', 'player', 1);
+    log(`Advancement scratched: ${advancement.name}.`);
+    setGameText(`<p class="success"><strong>${escapeHtml(advancement.name)}</strong></p><p>${escapeHtml(advancement.description)}</p>`);
+    updateUI();
+}
+
+// -----------------------------------------------------------------------------
+// SHOP
+// -----------------------------------------------------------------------------
+
+function openShop(isFirstTime = false, tab = 'buy') {
+    gameState.inShop = true;
+    const intro = isFirstTime ? '<p class="success">A Void Peddler waits in the pressure leak, prices already written in frost.</p>' : '';
+    const tabs = `
+        <div class="shop-tabs">
+            <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Buy</button>
+            <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Sell</button>
+        </div>
+    `;
+
+    let content = '';
+    if (tab === 'buy') {
+        content = `<h4><span class="material-symbols-outlined">storefront</span> Void Peddler</h4>${SHOP_ITEMS.map(item => createShopItemHTML(item, true)).join('')}`;
+    } else {
+        const counts = gameState.inventory.reduce((acc, itemName) => {
+            if (itemName !== 'Base map') acc[itemName] = (acc[itemName] || 0) + 1;
+            return acc;
+        }, {});
+        const items = Object.entries(counts).map(([itemName, count]) => createShopItemHTML(getItem(itemName) || { name: itemName, price: 2, type: 'misc' }, false, count)).join('');
+        content = `<h4><span class="material-symbols-outlined">backpack</span> Your Salvage</h4>${items || '<p>Nothing to sell.</p>'}`;
+    }
+
+    setGameText(`${intro}${tabs}${content}<button onclick="closeShop()">Leave Peddler</button>`);
+    updateUI();
+}
+
+function createShopItemHTML(item, isBuying, count = 1) {
+    const price = isBuying
+        ? item.price
+        : gameState.faction?.name === 'The Drift Syndicate' ? (item.price || 2) : Math.max(1, Math.floor((item.price || 2) / 2));
+    const canAfford = !isBuying || gameState.credits >= price;
+    const action = isBuying
+        ? canAfford ? `onclick="buyItem('${escapeHtml(item.name)}')"` : ''
+        : `onclick="sellItem('${escapeHtml(item.name)}', ${price})"`;
+    const icon = item.type === 'weapon' ? 'flash_on'
+        : item.type === 'armor' ? 'shield'
+        : item.type === 'consumable' ? 'local_pharmacy'
+        : item.type === 'device' ? 'memory'
+        : 'backpack';
+    const statInfo = item.type === 'weapon'
+        ? `<span class="stat-badge damage">${escapeHtml(item.value)} <span class="material-symbols-outlined icon-small">flash_on</span></span>`
+        : item.type === 'armor'
+            ? '<span class="stat-badge defense"><span class="material-symbols-outlined icon-small">shield</span></span>'
+            : '';
+    const label = isBuying ? item.name : `${item.name}${count > 1 ? ` (x${count})` : ''}`;
+    return `<div class="shop-item ${canAfford ? '' : 'disabled'}" ${action}>
+        <div class="shop-item-info">
+            <span class="material-symbols-outlined item-icon">${icon}</span>
+            <div class="item-details">
+                <div class="item-header"><span class="item-name">${escapeHtml(label)}</span>${statInfo}</div>
+                <div class="item-desc">${escapeHtml(item.description || '')}</div>
+            </div>
+        </div>
+        <div class="shop-item-price">${isBuying ? '' : '+'}${price} <span class="material-symbols-outlined icon-small">paid</span></div>
+    </div>`;
+}
+
+function buyItem(itemName) {
+    const item = getItem(itemName);
+    if (!item || gameState.credits < item.price) return;
+    gameState.credits -= item.price;
+    if (item.randomTable === 'devices') {
+        const device = sample(DEVICES);
+        addItem(device.name);
+        log(`Bought random device: ${device.name}.`);
+    } else {
+        addItem(itemName);
+        log(`Bought ${itemName}.`);
+    }
+    safeSound('playBuySound');
+    openShop(false, 'buy');
+}
+
+function sellItem(itemName, sellPrice) {
+    if (!removeOneItem(itemName)) return;
+    addCredits(sellPrice, `sold ${itemName}`);
+    safeSound('playSellSound');
+    openShop(false, 'sell');
+}
+
+function closeShop() {
+    gameState.inShop = false;
+    setGameText('<p>The Void Peddler folds back into the pressure leak. The route deeper remains.</p>');
+    updateUI();
+    if (gameState.autoExplore) runAutoExplore();
+}
+
+// -----------------------------------------------------------------------------
+// MAP AND TRACKER
+// -----------------------------------------------------------------------------
+
+function getRoomIcon(type) {
+    switch (type) {
+        case 'Threat': return '<span class="material-symbols-outlined">skull</span>';
+        case 'Pit / drop': return '<span class="material-symbols-outlined">warning</span>';
+        case 'Void Peddler': return '<span class="material-symbols-outlined">storefront</span>';
+        case 'Loot': return '<span class="material-symbols-outlined">diamond</span>';
+        case 'Target': return '<span class="material-symbols-outlined">vpn_key</span>';
+        case 'Safe': return '<span class="material-symbols-outlined">verified</span>';
+        case 'Anomaly': return '<span class="material-symbols-outlined">settings_input_antenna</span>';
+        default: return '<span class="material-symbols-outlined">door_front</span>';
+    }
+}
+
 function updateDungeonTracker() {
     const containerEl = document.getElementById('dungeonTrackerContainer');
     const trackerEl = document.getElementById('dungeonTracker');
@@ -491,88 +1953,106 @@ function updateDungeonTracker() {
     }
 
     containerEl.style.display = 'block';
-
-    const maxRoomsToShow = 5;
-    const startIndex = Math.max(0, gameState.map.length - maxRoomsToShow);
-    const visibleRooms = gameState.map.slice(startIndex);
-
-    let html = '';
-
-    visibleRooms.forEach((room, index) => {
-        const isCurrent = index === visibleRooms.length - 1;
-        let icon = 'help';
-        let cssClass = '';
-
-        switch (room.type) {
-            case 'Priešas': icon = 'skull'; cssClass = 'enemy'; break;
-            case 'Spąstai': icon = 'warning'; cssClass = 'trap'; break;
-            case 'Parduotuvė': icon = 'storefront'; cssClass = 'shop'; break;
-            case 'Lobis': icon = 'diamond'; cssClass = 'empty'; break; // Treat loot visually like a safe room but with diamond
-            case 'Tuščias': icon = 'door_front'; cssClass = 'empty'; break;
-        }
-
-        const nodeHtml = `
-            <div class="tracker-node ${cssClass} ${isCurrent ? 'active' : ''}" title="Kambarys ${room.room}: ${room.type}">
-                <span class="material-symbols-outlined">${icon}</span>
-                <span class="tracker-node-label">${room.room}</span>
-            </div>
-        `;
-
-        // If it's not the first element in the loop, add a line before it
-        if (index > 0 || startIndex > 0) {
-            html += `<div class="tracker-line"></div>`;
-        }
-
-        html += `<div class="tracker-node-wrap">${nodeHtml}</div>`;
-    });
-
-    // Add the "Next" unknown node
-    html += `
+    const visibleRooms = gameState.map.slice(Math.max(0, gameState.map.length - 6));
+    trackerEl.innerHTML = visibleRooms.map((room, index) => {
+        const icon = iconNameForRoom(room);
+        const classes = [
+            room.type === 'Threat' ? 'enemy' : '',
+            room.type === 'Pit / drop' ? 'trap' : '',
+            room.type === 'Void Peddler' ? 'shop' : '',
+            room.safe ? 'empty' : '',
+            index === visibleRooms.length - 1 ? 'active' : ''
+        ].filter(Boolean).join(' ');
+        const line = index > 0 ? '<div class="tracker-line"></div>' : '';
+        return `${line}<div class="tracker-node-wrap"><div class="tracker-node ${classes}" title="Room ${room.room}: ${escapeHtml(room.type)}">
+            <span class="material-symbols-outlined">${icon}</span><span class="tracker-node-label">${room.room}</span>
+        </div></div>`;
+    }).join('') + `
         <div class="tracker-line"></div>
-        <div class="tracker-node-wrap">
-            <div class="tracker-node unknown" title="Kitas kambarys">
-                <span class="material-symbols-outlined">question_mark</span>
-                <span class="tracker-node-label">?</span>
-            </div>
-        </div>
+        <div class="tracker-node-wrap"><div class="tracker-node unknown" title="Next room"><span class="material-symbols-outlined">question_mark</span><span class="tracker-node-label">?</span></div></div>
     `;
-
-    trackerEl.innerHTML = html;
-
-    // Auto-scroll to the end
     containerEl.scrollLeft = containerEl.scrollWidth;
 }
 
+function iconNameForRoom(room) {
+    if (room.type === 'Threat') return 'skull';
+    if (room.type === 'Pit / drop') return 'warning';
+    if (room.type === 'Void Peddler') return 'storefront';
+    if (room.type === 'Target') return 'vpn_key';
+    if (room.safe) return 'verified';
+    if (room.type === 'Anomaly') return 'settings_input_antenna';
+    return 'door_front';
+}
+
+function openMap() {
+    const mapGridEl = document.getElementById('mapGrid');
+    const mapModalEl = document.getElementById('mapModal');
+    if (!mapGridEl || !mapModalEl) return;
+    mapGridEl.innerHTML = gameState.map.map(room => `
+        <div class="map-cell ${room.safe ? 'safe' : ''} ${room.unsafe ? 'unsafe' : ''}">
+            <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
+            <div class="map-cell-room-number">${room.room}</div>
+            <div class="map-cell-details">
+                <strong>${escapeHtml(room.type)}</strong><br>
+                ${escapeHtml(room.shape?.name || '')}<br>
+                ${escapeHtml(room.details || '')}
+            </div>
+        </div>
+    `).join('');
+    mapModalEl.style.display = 'block';
+}
+
+function closeMap() {
+    const mapModalEl = document.getElementById('mapModal');
+    if (mapModalEl) mapModalEl.style.display = 'none';
+}
+
 // -----------------------------------------------------------------------------
-// UI FUNCTIONS
+// AUTO EXPLORE
 // -----------------------------------------------------------------------------
 
-let gameTextEl, logEl;
+function toggleAutoExplore() {
+    gameState.autoExplore = !gameState.autoExplore;
+    updateAutoExploreButton();
+    if (gameState.autoExplore) runAutoExplore();
+}
 
-/**
- * Logs a message to the game log.
- * @param {string} message - The message to log.
- */
-function log(message) {
-    if (logEl) {
-        logEl.insertAdjacentHTML('afterbegin', `<p>${message}</p>`);
+function updateAutoExploreButton() {
+    const btn = document.getElementById('autoExploreBtn');
+    if (!btn) return;
+    if (gameState.autoExplore) {
+        btn.innerHTML = '<span class="material-symbols-outlined">pause</span> Auto<small class="btn-sublabel">Stop</small>';
+        btn.style.color = 'var(--accent-yellow)';
+        btn.style.borderColor = 'rgba(242, 255, 0, 0.4)';
+    } else {
+        btn.innerHTML = '<span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Auto explore</small>';
+        btn.style.color = '';
+        btn.style.borderColor = '';
     }
 }
 
-/**
- * Sets the main game text.
- * @param {string} html - The HTML content to set.
- */
-function setGameText(html) {
-    if (gameTextEl) {
-        gameTextEl.innerHTML = html;
+async function runAutoExplore() {
+    while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory && !gameState.gameWon) {
+        if (canLevelUpNow()) levelUp();
+        await sleep(gameState.autoExploreDelay);
+        if (gameState.targetRecovered) {
+            gameState.autoExplore = false;
+            updateAutoExploreButton();
+            return;
+        }
+        if (!gameState.inCombat && !gameState.inShop && !gameState.playerIsDead) {
+            await exploreRoom();
+        }
     }
 }
+
+// -----------------------------------------------------------------------------
+// VISUAL COMBAT FEEDBACK
+// -----------------------------------------------------------------------------
 
 function setTurnIndicator(turn) {
     const playerActor = document.getElementById('battle-player-actor');
     const enemyActor = document.getElementById('battle-enemy-actor');
-
     if (playerActor) playerActor.classList.toggle('active-turn', turn === 'player');
     if (enemyActor) enemyActor.classList.toggle('active-turn', turn === 'enemy');
 }
@@ -584,157 +2064,62 @@ function animateBattleAttack(attacker) {
     setTimeout(() => actorEl.classList.remove('attack-lunge-right', 'attack-lunge-left'), 260);
 }
 
-function showFloatingCombatText(target, amount, { crit = false, heal = false, miss = false } = {}) {
+function showFloatingCombatText(target, amount, { miss = false } = {}) {
     const targetEl = document.getElementById(target === 'player' ? 'battle-player-actor' : 'battle-enemy-actor');
     if (!targetEl) return;
-
     const float = document.createElement('div');
     if (miss) {
         float.className = 'floating-combat-text miss';
-        float.textContent = 'PRASLYDO';
-    } else if (amount === 0 && target === 'player') {
-        float.className = 'floating-combat-text block';
-        float.textContent = 'BLOKUOTA';
+        float.textContent = 'MISS';
     } else {
-        float.className = `floating-combat-text ${crit ? 'crit' : ''} ${heal ? 'heal' : 'damage'}`.trim();
-        float.textContent = `${heal ? '+' : '-'}${amount}${crit ? ' CRIT!' : ''}`;
+        float.className = amount > 0 ? 'floating-combat-text damage' : 'floating-combat-text block';
+        float.textContent = amount > 0 ? `-${amount}` : 'BLOCK';
     }
     targetEl.appendChild(float);
     setTimeout(() => float.remove(), 900);
 }
 
-/**
- * Briefly shakes the battle interface for player-damage impact feedback.
- * @param {'normal'|'hard'} intensity — 'hard' for crits / kills.
- */
 function shakeBattleScreen(intensity = 'normal') {
     const el = document.getElementById('battle-interface');
     if (!el) return;
     const cls = intensity === 'hard' ? 'battle-shake-hard' : 'battle-shake';
     el.classList.remove('battle-shake', 'battle-shake-hard');
-    // Force reflow so the animation restarts even on repeat hits
     void el.offsetWidth;
     el.classList.add(cls);
     setTimeout(() => el.classList.remove(cls), intensity === 'hard' ? 480 : 320);
 }
 
-/**
- * Brief gold flash across the screen — fired on crits to celebrate the moment.
- */
-function triggerCritFlash() {
-    const flash = document.createElement('div');
-    flash.className = 'crit-screen-flash';
-    document.body.appendChild(flash);
-    setTimeout(() => flash.remove(), 280);
+function triggerDamageEffect() {
+    document.querySelector('.character-sheet')?.classList.add('player-damage-flash');
+    setTimeout(() => document.querySelector('.character-sheet')?.classList.remove('player-damage-flash'), 400);
+    shakeBattleScreen();
 }
 
-/**
- * Spawns a radial burst of gold sparks from the monster sprite. Used as
- * the killing-blow punctuation before the slain overlay drops.
- */
-function spawnDeathSparks() {
-    const monsterEl = document.querySelector('.battle-arena .enemy-side .arena-sprite');
-    if (!monsterEl) return;
-    const rect = monsterEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const count = 16;
-    for (let i = 0; i < count; i++) {
-        const spark = document.createElement('div');
-        spark.className = 'death-spark';
-        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.35;
-        const dist = 55 + Math.random() * 55;
-        spark.style.left = cx + 'px';
-        spark.style.top = cy + 'px';
-        spark.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
-        spark.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
-        spark.style.animationDelay = (Math.random() * 80) + 'ms';
-        document.body.appendChild(spark);
-        setTimeout(() => spark.remove(), 850);
-    }
+function triggerMonsterHitEffect() {
+    const monsterStatsEl = document.getElementById('monster-stats-display');
+    monsterStatsEl?.classList.add('monster-hit-flash');
+    setTimeout(() => monsterStatsEl?.classList.remove('monster-hit-flash'), 400);
 }
 
-/**
- * Spawns coin/star particles that arc from `sourceEl` toward `targetEl`.
- * Each particle ticks a small sound on landing for tactile reward feel.
- */
-function spawnRewardShower(sourceEl, targetEl, kind, count) {
-    if (!sourceEl || !targetEl) return;
-    const sRect = sourceEl.getBoundingClientRect();
-    const tRect = targetEl.getBoundingClientRect();
-    const sx = sRect.left + sRect.width / 2;
-    const sy = sRect.top + sRect.height * 0.55;
-    const tx = tRect.left + tRect.width / 2;
-    const ty = tRect.top + tRect.height / 2;
-    const icon = kind === 'coin' ? 'paid' : 'star';
-    const tickSound = kind === 'coin' ? playCoinTickSound : playXpTickSound;
-    const flightMs = 620;
-    const stagger = 70;
-
-    for (let i = 0; i < count; i++) {
-        const p = document.createElement('div');
-        p.className = `reward-particle reward-particle-${kind}`;
-        p.innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
-        const dx = tx - sx + (Math.random() * 36 - 18);
-        const dy = ty - sy + (Math.random() * 24 - 12);
-        p.style.left = sx + 'px';
-        p.style.top  = sy + 'px';
-        p.style.setProperty('--dx', dx + 'px');
-        p.style.setProperty('--dy', dy + 'px');
-        p.style.animationDelay = (i * stagger) + 'ms';
-        document.body.appendChild(p);
-        const land = flightMs + i * stagger;
-        setTimeout(() => { tickSound(); p.remove(); }, land);
-    }
+function triggerMonsterDeathEffect() {
+    const monsterImg = document.querySelector('.enemy-side img, .enemy-side .arena-sprite');
+    monsterImg?.classList.add('monster-death-flash');
+    setTimeout(() => monsterImg?.classList.remove('monster-death-flash'), 900);
 }
 
-/**
- * Updates the visual combo chip based on `gameState.combo`. Hides it under
- * 2 hits (no streak yet); escalates with tier classes for 3, 4, 5+ chains.
- */
-function updateComboChip() {
-    const chip = document.getElementById('combo-chip');
-    const countEl = document.getElementById('combo-count');
-    if (!chip || !countEl) return;
-    if (gameState.combo >= 2) {
-        countEl.textContent = `x${gameState.combo}`;
-        chip.classList.remove('hidden', 'combo-tier-2', 'combo-tier-3', 'combo-tier-4', 'combo-break');
-        if (gameState.combo >= 5)      chip.classList.add('combo-tier-4');
-        else if (gameState.combo >= 4) chip.classList.add('combo-tier-3');
-        else if (gameState.combo >= 3) chip.classList.add('combo-tier-2');
-        chip.classList.remove('combo-pulse');
-        void chip.offsetWidth;
-        chip.classList.add('combo-pulse');
-    } else {
-        chip.classList.add('hidden');
-    }
+function showSlainOverlay(monster) {
+    const arena = document.querySelector('.battle-interface .battle-arena');
+    if (!arena || arena.querySelector('.kill-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'kill-overlay';
+    overlay.innerHTML = `
+        <div class="kill-overlay-skull"><span class="material-symbols-outlined">skull</span></div>
+        <div class="kill-overlay-title">SLAIN</div>
+        <div class="kill-overlay-subtitle">${escapeHtml(monster.name)}</div>
+    `;
+    arena.appendChild(overlay);
 }
 
-/**
- * Resets the combo counter. If the streak was meaningful (>=2), shows a
- * brief "BREAK" pulse before hiding so the player feels the loss.
- */
-function breakCombo() {
-    const chip = document.getElementById('combo-chip');
-    const broke = gameState.combo >= 2;
-    gameState.combo = 0;
-    if (!chip) return;
-    if (broke) {
-        chip.classList.remove('combo-pulse', 'combo-tier-2', 'combo-tier-3', 'combo-tier-4');
-        chip.classList.add('combo-break');
-        setTimeout(() => {
-            chip.classList.add('hidden');
-            chip.classList.remove('combo-break');
-        }, 420);
-    } else {
-        chip.classList.add('hidden');
-    }
-}
-
-/**
- * Brief highlight on the round chip when combatTurn increments — pulled out
- * so both player-miss and enemy-counter paths can call it.
- */
 function pulseRoundChip() {
     const turnEl = document.getElementById('battle-turn-counter');
     const chipEl = turnEl && turnEl.parentElement;
@@ -747,22 +2132,14 @@ function pulseRoundChip() {
 
 function pushCombatFeed(type, text, iconOverride) {
     if (!gameState.inCombat) return;
-    const iconByType = {
-        player: 'swords',
-        enemy: 'skull',
-        warning: 'priority_high',
-        info: 'info'
-    };
-    const entry = {
+    const iconByType = { player: 'swords', enemy: 'skull', warning: 'priority_high', info: 'info' };
+    gameState.combatFeed.unshift({
         type,
         text,
         icon: iconOverride || iconByType[type] || 'info',
         turn: gameState.combatTurn
-    };
-    gameState.combatFeed.unshift(entry);
-    if (gameState.combatFeed.length > 5) {
-        gameState.combatFeed.length = 5;
-    }
+    });
+    if (gameState.combatFeed.length > 5) gameState.combatFeed.length = 5;
 
     const feedEl = document.getElementById('battle-feed');
     if (!feedEl) return;
@@ -770,1545 +2147,88 @@ function pushCombatFeed(type, text, iconOverride) {
         <div class="battle-feed-item ${item.type}">
             <span class="battle-feed-icon"><span class="material-symbols-outlined">${item.icon}</span></span>
             <span class="battle-feed-turn">#${item.turn}</span>
-            <span class="battle-feed-text">${item.text}</span>
+            <span class="battle-feed-text">${escapeHtml(item.text)}</span>
         </div>
     `).join('');
 }
 
-/**
- * Triggers a visual effect for player damage.
- */
-function triggerDamageEffect() {
-    const characterSheetEl = document.querySelector('.character-sheet');
-    if (characterSheetEl) {
-        characterSheetEl.classList.add('player-damage-flash');
-        setTimeout(() => characterSheetEl.classList.remove('player-damage-flash'), 400);
-    }
-    shakeBattleScreen();
-}
-
-/**
- * Triggers a visual effect for monster hits.
- */
-function triggerMonsterHitEffect() {
-    const monsterStatsEl = document.getElementById('monster-stats-display');
-    if (monsterStatsEl) {
-        monsterStatsEl.classList.add('monster-hit-flash');
-        setTimeout(() => monsterStatsEl.classList.remove('monster-hit-flash'), 400);
-    }
-}
-
-/**
- * Triggers a dramatic death animation on the killing blow.
- */
-function triggerMonsterDeathEffect() {
-    // Animate the monster image — most prominent element in battle
-    const monsterImg = document.querySelector('.enemy-side img, .enemy-side .arena-sprite');
-    if (monsterImg) {
-        monsterImg.classList.add('monster-death-flash');
-        setTimeout(() => monsterImg.classList.remove('monster-death-flash'), 900);
-    }
-    // Also dim the stats panel
-    const monsterStatsEl = document.getElementById('monster-stats-display');
-    if (monsterStatsEl) {
-        monsterStatsEl.classList.remove('monster-hit-flash');
-        monsterStatsEl.classList.add('monster-death-flash');
-        setTimeout(() => monsterStatsEl.classList.remove('monster-death-flash'), 900);
-    }
-}
-
-/**
- * Stamps a "slain" overlay across the battle stage so the player gets a clear
- * kill-confirmation beat before the victory rewards screen takes over.
- */
-function showSlainOverlay(monster) {
-    const arena = document.querySelector('.battle-interface .battle-arena');
-    if (!arena || arena.querySelector('.kill-overlay')) return;
-    const overlay = document.createElement('div');
-    overlay.className = 'kill-overlay';
-    overlay.innerHTML = `
-        <div class="kill-overlay-skull"><span class="material-symbols-outlined">skull</span></div>
-        <div class="kill-overlay-title">NUGALĖTAS</div>
-        <div class="kill-overlay-subtitle">${monster.name}</div>
-    `;
-    arena.appendChild(overlay);
-}
-
-let lastInventorySnapshot = [];
-let lastEquippedWeapon = null;
-let lastEquippedArmor = null;
-
-function updateInventoryUI() {
-    const inventoryEl = document.getElementById('inventory');
-
-    // Check for changes
-    let changed = false;
-
-    if (gameState.equippedWeapon !== lastEquippedWeapon || gameState.equippedArmor !== lastEquippedArmor) {
-        changed = true;
-    } else if (gameState.inventory.length !== lastInventorySnapshot.length) {
-        changed = true;
-    } else {
-        const inventory = gameState.inventory;
-        const len = inventory.length;
-        for (let i = 0; i < len; i++) {
-            if (inventory[i] !== lastInventorySnapshot[i]) {
-                changed = true;
-                break;
-            }
-        }
-    }
-
-    if (!changed) return;
-
-    // Update snapshot
-    lastInventorySnapshot = [...gameState.inventory];
-    lastEquippedWeapon = gameState.equippedWeapon;
-    lastEquippedArmor = gameState.equippedArmor;
-
-    if (gameState.inventory.length === 0) {
-        inventoryEl.innerHTML = 'Tuščia';
-    } else {
-        const itemCounts = gameState.inventory.reduce((acc, itemName) => {
-            acc[itemName] = (acc[itemName] || 0) + 1;
-            return acc;
-        }, {});
-
-        inventoryEl.innerHTML = Object.entries(itemCounts).map(([itemName, count]) => {
-            let displayText = itemName;
-            if (count > 1) {
-                displayText += ` (x${count})`;
-            }
-            const itemDetails = ITEM_LOOKUP[itemName];
-            const isEquipped = itemName === gameState.equippedWeapon || itemName === gameState.equippedArmor;
-            const isUtility = itemDetails && itemDetails.type === 'utility';
-            const isMap = itemName === 'Žemėlapis';
-
-            let classes = 'inventory-item';
-            if (isEquipped) classes += ' equipped';
-            if (isUtility) classes += ' non-selectable';
-
-            const onclick = (isUtility && !isMap) ? '' : `onclick="handleInventoryClick('${itemName}')"`;
-
-            return `<button class="${classes}" ${onclick}>
-                        ${displayText}
-                    </button>`;
-        }).join(' ');
-    }
-}
-
-/**
- * Updates the entire UI based on the current game state.
- */
-function updateUI() {
-    // Update Stats
-    document.getElementById('hp').textContent = gameState.hp;
-    document.getElementById('maxHp').textContent = gameState.maxHp;
-    document.getElementById('silver').textContent = gameState.silver;
-    document.getElementById('points').textContent = gameState.points;
-    document.getElementById('maxPoints').textContent = LEVEL_UP_COST;
-    document.getElementById('level').textContent = gameState.level;
-    if (gameState.playerName) {
-        document.getElementById('playerName').innerHTML = `<span class="material-symbols-outlined">history_edu</span> ${gameState.playerName}`;
-    }
-    let damageString = gameState.playerDamage;
-    if (gameState.playerDamageBonus > 0) {
-        damageString += `+${gameState.playerDamageBonus}`;
-    }
-    document.getElementById('playerDamage').textContent = damageString;
-    document.getElementById('playerDefense').textContent = gameState.playerDefense;
-
-    // Update Battle Interface Stats (if active)
-    if (gameState.inCombat) {
-        const battleHp = document.getElementById('battle-player-hp');
-        const battleMaxHp = document.getElementById('battle-player-max-hp');
-        const battleDamage = document.getElementById('battle-player-damage');
-        const battleDefense = document.getElementById('battle-player-defense');
-
-        if (battleHp) battleHp.textContent = gameState.hp;
-        if (battleMaxHp) battleMaxHp.textContent = gameState.maxHp;
-        if (battleDamage) battleDamage.textContent = damageString;
-        if (battleDefense) battleDefense.textContent = gameState.playerDefense;
-
-        if (gameState.currentMonster) {
-            const hpBar = document.getElementById('battle-enemy-hp-bar');
-            const hpGhost = document.getElementById('battle-enemy-hp-ghost');
-            if (hpBar) {
-                const pct = Math.max(0, (gameState.currentMonster.currentHp / gameState.currentMonster.hp) * 100);
-                hpBar.style.width = `${pct}%`;
-                // Ghost bar drains after a short delay so the damage reads as "lost HP"
-                if (hpGhost) hpGhost.style.width = `${pct}%`;
-            }
-            const monsterHpTextEl = document.getElementById('monster-hp');
-            if (monsterHpTextEl) {
-                monsterHpTextEl.textContent = Math.max(0, gameState.currentMonster.currentHp);
-            }
-
-            // Hit chance = ((7 - difficulty) / 6) * 100; updates if player swaps weapons mid-fight (no hit bonus yet but future-proof)
-            const hitEl = document.getElementById('battle-hit-chance');
-            if (hitEl) {
-                const chance = Math.max(0, Math.min(100, Math.round(((7 - gameState.currentMonster.difficulty) / 6) * 100)));
-                hitEl.textContent = `${chance}%`;
-            }
-        }
-
-        // Player HP bar
-        const playerHpBarFill = document.getElementById('battle-player-hp-bar-fill');
-        const playerHpGhost = document.getElementById('battle-player-hp-ghost');
-        if (playerHpBarFill) {
-            const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
-            playerHpBarFill.style.width = `${pct}%`;
-            if (playerHpGhost) playerHpGhost.style.width = `${pct}%`;
-            playerHpBarFill.className = 'arena-hp-fill player-hp';
-            if (pct <= 25) {
-                playerHpBarFill.classList.add('low-hp');
-            } else if (pct <= 50) {
-                playerHpBarFill.classList.add('medium-hp');
-            }
-        }
-
-        // Next-action intent hint for auto-battle
-        updateBattleIntent();
-
-        // Quick Items (Potions & Weapons) — compact inline
-        const quickItemsEl = document.getElementById('battle-quick-items');
-        if (quickItemsEl) {
-            let buttonsHtml = '';
-            let potionCount = 0;
-            const uniqueWeapons = new Set();
-
-            for (let i = 0; i < gameState.inventory.length; i++) {
-                const item = gameState.inventory[i];
-                if (item === 'Mikstūra') {
-                    potionCount++;
-                } else {
-                    const details = ITEM_LOOKUP[item];
-                    if (details && details.type === 'weapon' && item !== gameState.equippedWeapon) {
-                        uniqueWeapons.add(item);
-                    }
-                }
-            }
-
-            if (potionCount > 0) {
-                buttonsHtml += `<button class="battle-item-btn" onclick="usePotion()">
-                    <span class="material-symbols-outlined icon-small">local_pharmacy</span> ${potionCount}
-                </button>`;
-            }
-
-            uniqueWeapons.forEach(weapon => {
-                buttonsHtml += `<button class="battle-item-btn" onclick="swapWeaponInBattle('${weapon}')">
-                   <span class="material-symbols-outlined icon-small">swap_horiz</span> ${weapon}
-               </button>`;
-            });
-
-            quickItemsEl.innerHTML = buttonsHtml;
-        }
-
-        const turnEl = document.getElementById('battle-turn-counter');
-        if (turnEl) {
-            turnEl.textContent = gameState.combatTurn;
-        }
-    }
-
-    // Update Inventory
-    updateInventoryUI();
-
-    // Update Buttons
-    const isPlayerActionable = gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon;
-    const buttonsVisible = !gameState.inVictory;
-
-    document.getElementById('startBtn').style.display = gameState.gameStarted ? 'none' : 'block';
-    document.getElementById('exploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('autoExploreBtn').style.display = isPlayerActionable && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-
-    // Only show manual combat buttons when auto-battle is OFF
-    const showManualCombat = isPlayerActionable && gameState.inCombat && !gameState.monsterDying && buttonsVisible && !gameState.autoBattle;
-    document.getElementById('attackBtn').style.display = showManualCombat ? 'block' : 'none';
-    document.getElementById('powerAttackBtn').style.display = showManualCombat ? 'block' : 'none';
-    document.getElementById('scavengeBtn').style.display = isPlayerActionable && gameState.canScavenge && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-    document.getElementById('fleeBtn').style.display = showManualCombat ? 'block' : 'none';
-    
-    const canLevelUp = canLevelUpNow();
-    document.getElementById('levelUpBtn').style.display = isPlayerActionable && canLevelUp && !gameState.inCombat && !gameState.inShop && buttonsVisible ? 'block' : 'none';
-
-    // Update Dungeon Tracker
-    updateDungeonTracker();
-
-    // Update Challenges
-    const challengesEl = document.getElementById('challenges');
-    if (gameState.challenges && Object.keys(gameState.challenges).length > 0) {
-        challengesEl.innerHTML = Object.values(gameState.challenges).map(challenge => {
-            const progress = Math.min(challenge.progress, challenge.targetValue);
-            const isComplete = progress >= challenge.targetValue;
-            const progressText = isComplete ? 'Įvykdyta!' : `${progress} / ${challenge.targetValue}`;
-            return `
-                <div class="challenge ${isComplete ? 'complete' : ''}">
-                    <span class="challenge-desc">${challenge.description}</span>
-                    <span class="challenge-progress">${progressText}</span>
-                </div>
-            `;
-        }).join('');
-    } else {
-        challengesEl.innerHTML = 'Nėra iššūkių.';
-    }
-}
-
-
 // -----------------------------------------------------------------------------
-// CORE GAME ACTIONS
-// -----------------------------------------------------------------------------
-
-/**
- * Starts a new game.
- */
-function startGame() {
-    // Hide Title
-    const titleEl = document.querySelector('h1.cyber-glitch');
-    if (titleEl) titleEl.style.display = 'none';
-
-    loadChallenges();
-    gameState.gameStarted = true;
-
-    // Apply HP meta-progression
-    gameState.maxHp += gameState.metaMaxHpBonus;
-    gameState.hp = gameState.maxHp;
-
-    const startingSilver = 25 + rollDie(6);
-    gameState.silver = startingSilver;
-    gameState.totalSilverCollected += startingSilver;
-    updateChallengeProgress('collect', 'silver', startingSilver);
-
-    // Assign random name and profession
-    gameState.playerName = PLAYER_NAMES[rollDie(PLAYER_NAMES.length) - 1];
-    gameState.playerProfession = PLAYER_PROFESSIONS[rollDie(PLAYER_PROFESSIONS.length) - 1];
-
-    // Starting inventory
-    let startingInventory = ['Žemėlapis', 'Kardas', 'Mikstūra'];
-    if (Math.random() < 0.5) startingInventory.push('Mikstūra');
-    if (Math.random() < 0.3) startingInventory.push('Virvė');
-    gameState.inventory = startingInventory;
-
-    if (gameState.inventory.includes('Kardas')) {
-        gameState.equippedWeapon = 'Kardas';
-    }
-    
-    // Reset autoExplore just in case
-    gameState.autoExplore = false;
-    updateAutoExploreButton();
-
-    log(`Tavo vardas yra ${gameState.playerName}, tu esi ${gameState.playerProfession}.`);
-    log(`Nuotykis prasideda! Radai ${startingSilver} sidabro.`);
-    log(`Tavo įranga: ${gameState.inventory.join(', ')}.`);
-    
-    setGameText("<p>Įeini į prieblandoje skendintį kambarį. Ore tvyro dulkių ir puvėsių kvapas. Vienerios durys veda gilyn į katakombas.</p><p>Ką darysi?</p>");
-    recalculateStats(); // To apply starting equipment
-    updateUI();
-    showToast("Nuotykis prasidėjo!", "success");
-}
-
-/**
- * Explores a new room, triggering events like traps, monsters, or shops.
- */
-async function exploreRoom() {
-    gameState.canScavenge = false;
-
-    if (gameState.level >= 5) {
-        let triggerBoss = false;
-
-        if (!gameState.bossEncountered) {
-            triggerBoss = true;
-        } else if (Math.random() < 0.15) {
-            triggerBoss = true;
-        }
-
-        if (triggerBoss) {
-            gameState.bossEncountered = true;
-            log(`Sutikai galutinį bosą: ${FORTRESS_LORD.name}.`);
-            startCombat(FORTRESS_LORD);
-            return;
-        }
-    }
-
-    gameState.points++;
-    gameState.roomsExplored++;
-    updateChallengeProgress('explore', 'room', 1);
-    const roll = rollDie(6);
-
-    // Exploration outcome labels
-    const exploreOutcomes = {
-        1: { outcome: 'TUŠČIA MENĖ',    isSuccess: null  },
-        2: { outcome: 'TUŠČIA MENĖ',    isSuccess: null  },
-        3: { outcome: 'SPĄSTAI!',        isSuccess: false },
-        4: { outcome: 'PRIEŠAS!',        isSuccess: false },
-        5: { outcome: 'PAVOJINGAS!',     isSuccess: false },
-        6: { outcome: 'PARDUOTUVĖ!',     isSuccess: true  },
-    };
-    const eo = exploreOutcomes[roll];
-    await showDiceRoll({
-        context: 'Menės Tyrinėjimas',
-        dice: [{ type: 'd6', result: roll }],
-        outcome: eo.outcome,
-        isSuccess: eo.isSuccess
-    });
-
-    let text = `<p><strong>Kambarys ${gameState.roomsExplored}:</strong></p>`;
-    let roomEvent = { room: gameState.roomsExplored, type: 'Tuščias', details: '' };
-
-    switch (roll) {
-        case 1:
-        case 2: // Empty Room
-            text += "<p>Kambarys tuščias, tik dulkės ir voratinkliai.</p>";
-            log("Kambarys buvo tuščias.");
-            roomEvent.type = 'Tuščias';
-            gameState.canScavenge = true;
-            break;
-        case 3: // Trap
-            roomEvent.type = 'Spąstai';
-            if (gameState.inventory.includes('Virvė')) {
-                text += "<p class='success'>Pastebėjai spąstus-duobę ir saugiai perėjai per ją virve.</p>";
-                log("Saugiai išvengta spąstų-duobės.");
-                roomEvent.details = 'Išvengta';
-            } else {
-                const trapRoll = rollDie(4);
-                await showDiceRoll({
-                    context: 'Spąstų Žala',
-                    dice: [{ type: 'd4', result: trapRoll }],
-                    outcome: `\u2212${trapRoll} HP`,
-                    isSuccess: false
-                });
-                gameState.hp -= trapRoll;
-                playPlayerHitSound();
-                triggerDamageEffect();
-                text += `<p class='warning'>Įkritai į spąstus-duobę ir patyrei ${trapRoll} žalos!</p>`;
-                log(`Patyrė ${trapRoll} žalos nuo spąstų.`);
-                roomEvent.details = `Patyrė ${trapRoll} žalos`;
-            }
-            break;
-        case 4: { // Weak Monster
-            const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
-            log(`Sutikai ${weakMonster.name}.`);
-            gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: weakMonster.name });
-            startCombat(weakMonster);
-            return;
-        }
-        case 5: { // Tough Monster
-            const toughMonster = TOUGH_MONSTERS[rollDie(TOUGH_MONSTERS.length) - 1];
-            log(`Sutikai ${toughMonster.name}.`);
-            gameState.map.push({ room: gameState.roomsExplored, type: 'Priešas', details: toughMonster.name });
-            startCombat(toughMonster);
-            return;
-        }
-        case 6: // Shop
-            log("Radai parduotuvę.");
-            gameState.map.push({ room: gameState.roomsExplored, type: 'Parduotuvė', details: '' });
-            openShop(true);
-            return;
-    }
-
-    gameState.map.push(roomEvent);
-
-    setGameText(text);
-    if (gameState.hp <= 0) {
-        gameOver("Mirėte nuo spąstų!");
-    } else {
-        updateUI();
-    }
-}
-
-/**
- * Uses a potion to heal the player.
- */
-async function usePotion() {
-    if (gameState.inCombat && combatActionBusy) return;
-    const potionIndex = gameState.inventory.indexOf('Mikstūra');
-    if (potionIndex > -1) {
-        if (gameState.inCombat) combatActionBusy = true;
-        const roll1 = rollDie(6);
-        const roll2 = rollDie(6);
-        const healing = roll1 + roll2;
-
-        if (gameState.inCombat) {
-            await sleep(150);
-            const combatLogEl = document.getElementById('combat-log');
-            if (combatLogEl) {
-                combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-pink)">Mikstūros Gydymas: ${roll1} + ${roll2} = ${healing}</p>`);
-            }
-        } else {
-            await showDiceRoll({
-                context: 'Mikstūros Gydymas',
-                dice: [{ type: 'd6', result: roll1 }, { type: 'd6', result: roll2 }],
-                outcome: `+${healing} HP`,
-                isSuccess: true,
-                detail: `${roll1} + ${roll2} = ${healing} gyvybės`
-            });
-        }
-
-        gameState.hp = Math.min(gameState.maxHp, gameState.hp + healing);
-        gameState.inventory.splice(potionIndex, 1);
-        log(`Išgėrei mikstūrą ir išsigydei ${healing} gyvybių.`);
-
-        if (gameState.inCombat) {
-            const combatLogEl = document.getElementById('combat-log');
-            if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
-            await monsterAttack();
-            combatActionBusy = false;
-        } else if (gameState.inShop) {
-            openShop(false, 'buy'); // Refresh shop so potion count updates — stay in shop
-        } else {
-            setGameText(`<p class='success'>Išgeri mikstūrą, atstatydamas ${healing} gyvybių. Dabar turi ${gameState.hp} gyvybių.</p>`);
-        }
-        updateUI();
-    }
-}
-
-function swapWeaponInBattle(itemName) {
-    const itemDetails = ITEM_LOOKUP[itemName];
-    if (itemDetails && itemDetails.type === 'weapon') {
-        gameState.equippedWeapon = itemName;
-        recalculateStats();
-
-        // Log for battle
-        const logMsg = `Pasikeitei ginklą į ${itemName}.`;
-        log(logMsg);
-        const combatLogEl = document.getElementById('combat-log');
-        if (combatLogEl) {
-            combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">${logMsg}</p>`);
-        }
-        updateUI();
-    }
-}
-
-
-/**
- * Scavenge the current room for resources.
- */
-async function scavenge() {
-    gameState.canScavenge = false;
-    const roll = rollDie(6);
-
-    let scavengeOutcome, scavengeSuccess;
-    if (roll <= 2)      { scavengeOutcome = 'PASALA!'; scavengeSuccess = false; }
-    else if (roll <= 4) { scavengeOutcome = 'NIEKO';   scavengeSuccess = null;  }
-    else                { scavengeOutcome = 'LOBIS!';  scavengeSuccess = true;  }
-
-    await showDiceRoll({
-        context: 'Paieška',
-        dice: [{ type: 'd6', result: roll }],
-        outcome: scavengeOutcome,
-        isSuccess: scavengeSuccess
-    });
-
-    if (roll <= 2) {
-        // Ambush!
-        const weakMonster = WEAK_MONSTERS[rollDie(WEAK_MONSTERS.length) - 1];
-        log(`Ieškodamas sukėlei triukšmą ir prisišaukei ${weakMonster.name}!`);
-        setGameText(`<p class="warning">Besirausdamas griuvėsiuose pažadinai ${weakMonster.name}!</p>`);
-        startCombat(weakMonster);
-    } else if (roll <= 4) {
-        // Nothing
-        log("Nieko neradai.");
-        setGameText("<p>Nieko naudingo neradai.</p>");
-        updateUI();
-    } else {
-        // Loot!
-        const silver = rollDie(6) + 2;
-        gameState.silver += silver;
-        gameState.totalSilverCollected += silver;
-        updateChallengeProgress('collect', 'silver', silver);
-        log(`Radai ${silver} sidabro!`);
-        setGameText(`<p class="success">Tarp šiukšlių radai paslėptą kapšą su ${silver} sidabro!</p>`);
-        updateUI();
-    }
-}
-
-
-// -----------------------------------------------------------------------------
-// COMBAT ACTIONS
-// -----------------------------------------------------------------------------
-
-/**
- * Initiates combat with a monster.
- * @param {object} monster - The monster to fight.
- */
-function startCombat(monster) {
-    gameState.inCombat = true;
-
-    // Scale monster based on player level
-    let scaledHp = monster.hp + (gameState.level - 1) * 2;
-    let scaledDifficulty = Math.min(6, monster.difficulty + Math.floor((gameState.level - 1) / 2));
-
-    let scaledMonster = { ...monster, hp: scaledHp, currentHp: scaledHp, difficulty: scaledDifficulty };
-
-    gameState.currentMonster = scaledMonster;
-    gameState.combatTurn = 1;
-    gameState.combatFeed = [];
-    gameState.combo = 0;
-    gameState.autoBattle = true;
-    gameState.autoBattleDelay = 350;
-    document.body.classList.add('in-combat');
-
-    let damageString = gameState.playerDamage;
-    if (gameState.playerDamageBonus > 0) damageString += `+${gameState.playerDamageBonus}`;
-
-    const isBoss = monster.name === FORTRESS_LORD.name;
-    const isTough = TOUGH_MONSTERS.some(m => m.name === monster.name);
-    const threatClass = isBoss ? 'boss' : isTough ? 'tough' : 'weak';
-    const threatPipCount = isBoss ? 3 : isTough ? 2 : 1;
-    const threatPips = '<span class="material-symbols-outlined">skull</span>'.repeat(threatPipCount);
-
-    // Hit chance % from d6 vs difficulty: (7 - difficulty) / 6
-    const hitChance = Math.max(0, Math.min(100, Math.round(((7 - scaledMonster.difficulty) / 6) * 100)));
-
-    let text = `
-        <div class="battle-interface" id="battle-interface">
-            <!-- Header ribbon: round + boss tag -->
-            <div class="battle-header">
-                <span class="battle-header-title">
-                    ${isBoss
-                        ? '<span class="boss-tag"><span class="material-symbols-outlined">crown</span> BOSAS</span>'
-                        : '<span class="header-flourish">&#10070;</span><span class="material-symbols-outlined" style="font-size:0.95rem;">swords</span> Kova<span class="header-flourish">&#10070;</span>'}
-                </span>
-                <span class="round-chip">Raundas <span id="battle-turn-counter">${gameState.combatTurn}</span></span>
-            </div>
-
-            <!-- Arena: two combatants facing each other -->
-            <div class="battle-arena">
-                <!-- Combo / streak chip — shown only when combo >= 2 -->
-                <div id="combo-chip" class="combo-chip hidden">
-                    <span class="material-symbols-outlined combo-flame">local_fire_department</span>
-                    <span class="combo-count" id="combo-count">x2</span>
-                    <span class="combo-label">SERIJA</span>
-                </div>
-                <!-- Player side -->
-                <div class="arena-combatant player-side">
-                    <div class="arena-name">${gameState.playerName}</div>
-                    <div class="arena-sprite arena-sprite-enter-player" id="battle-player-actor">
-                        <img src="${PLAYER_SPRITE}" alt="${gameState.playerName || 'Žaidėjas'}">
-                    </div>
-                    <div class="arena-hp-wrap">
-                        <div class="arena-hp-bar">
-                            <div class="arena-hp-ghost" id="battle-player-hp-ghost" style="width: 100%;"></div>
-                            <div id="battle-player-hp-bar-fill" class="arena-hp-fill player-hp" style="width: 100%;"></div>
-                            <div class="arena-hp-text"><span id="battle-player-hp">${gameState.hp}</span>/<span id="battle-player-max-hp">${gameState.maxHp}</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Center VS -->
-                <div class="arena-center">
-                    <div class="arena-vs-ornament arena-vs-top">&#10070;</div>
-                    <div class="arena-vs">VS</div>
-                    <div class="arena-vs-ornament arena-vs-bot">&#10070;</div>
-                </div>
-
-                <!-- Enemy side -->
-                <div class="arena-combatant enemy-side ${threatClass}">
-                    <div class="arena-name">
-                        ${scaledMonster.name}
-                        <span class="threat-pips" aria-hidden="true">${threatPips}</span>
-                    </div>
-                    <div class="arena-sprite arena-sprite-enter-enemy" id="battle-enemy-actor">
-                        <img src="${getMonsterSprite(scaledMonster)}" alt="${scaledMonster.name}" id="monster-stats-display">
-                    </div>
-                    <div class="arena-hp-wrap">
-                        <div class="arena-hp-bar">
-                            <div class="arena-hp-ghost" id="battle-enemy-hp-ghost" style="width: 100%;"></div>
-                            <div id="battle-enemy-hp-bar" class="arena-hp-fill enemy-hp" style="width: 100%;"></div>
-                            <div class="arena-hp-segments"></div>
-                            <div class="arena-hp-text"><span id="monster-hp">${scaledMonster.hp}</span>/${scaledMonster.hp}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Split stats bar: YOU (left) | HIT% (center) | THREAT (right) -->
-            <div class="battle-stats-bar">
-                <div class="stat-card you">
-                    <div class="battle-stat-item dmg" title="Žala">
-                        <span class="material-symbols-outlined">flash_on</span>
-                        <span id="battle-player-damage">${damageString}</span>
-                    </div>
-                    <div class="battle-stat-item def" title="Apsauga">
-                        <span class="material-symbols-outlined">shield</span>
-                        <span id="battle-player-defense">${gameState.playerDefense}</span>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: rgba(242,255,0,0.05); border-color: rgba(242,255,0,0.2);">
-                    <div class="battle-stat-item hit" title="Pataikymo tikimybė">
-                        <span class="material-symbols-outlined">my_location</span>
-                        <span id="battle-hit-chance">${hitChance}%</span>
-                    </div>
-                </div>
-                <div class="stat-card enemy ${isBoss ? 'boss' : ''}">
-                    <div class="battle-stat-item threat" title="Priešo žala">
-                        <span class="material-symbols-outlined">swords</span>
-                        <span>${scaledMonster.damage}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick items tray (potions, weapon swaps) -->
-            <div id="battle-quick-items" class="battle-quick-items-row"></div>
-
-            <!-- Auto-battle controls + intent hint -->
-            <div class="auto-battle-row">
-                <button id="auto-battle-btn" class="auto-battle-btn active" onclick="toggleAutoBattle()">
-                    <span class="material-symbols-outlined">pause</span> <span>Auto</span>
-                </button>
-                <button id="auto-speed-btn" class="auto-battle-btn auto-speed-btn" onclick="cycleAutoBattleSpeed()">
-                    <span class="material-symbols-outlined">bolt</span> <span id="auto-battle-speed-label">x2</span>
-                </button>
-                <div class="battle-intent" id="battle-intent">
-                    <span class="intent-label">Toliau:</span>
-                    <span class="intent-value" id="battle-intent-value">Pulti</span>
-                </div>
-            </div>
-
-            <!-- Unified battle feed -->
-            <div id="battle-feed" class="battle-feed"></div>
-            <div id="combat-log" class="battle-log"></div>
-        </div>
-    `;
-
-    setGameText(text);
-    pushCombatFeed('info', `${monster.name} stoja į kovą!`);
-    updateUI();
-    // Let the dramatic entry animations play before the first swing — gives
-    // the player a brief tense beat to size up the threat. After ~700ms we
-    // strip the entry classes so subsequent lunge animations (which also
-    // target `transform`) aren't overridden by the entry rule.
-    setTimeout(() => {
-        const ps = document.getElementById('battle-player-actor');
-        const es = document.getElementById('battle-enemy-actor');
-        if (ps) ps.classList.remove('arena-sprite-enter-player');
-        if (es) es.classList.remove('arena-sprite-enter-enemy');
-        runAutoBattle();
-    }, 700);
-}
-
-/**
- * Player attacks the current monster.
- */
-async function attack() {
-    await performAttack(false);
-}
-
-/**
- * Player performs a power attack.
- */
-async function powerAttack() {
-    await performAttack(true);
-}
-
-async function performAttack(isPowerAttack) {
-    const monster = gameState.currentMonster;
-    if (!monster || gameState.monsterDying || combatActionBusy) return;
-    combatActionBusy = true;
-    setTurnIndicator('player');
-
-    playAttackSound();
-    animateBattleAttack('player');
-
-    const combatLogEl = document.getElementById('combat-log');
-    combatLogEl.innerHTML = ''; // Clear previous log
-
-    let attackRoll = rollDie(6);
-    let hitBonus = 0;
-    let damageBonus = 0;
-
-    if (isPowerAttack) {
-        hitBonus = -2;
-        damageBonus = 2;
-        log("Bandai galingą smūgį...");
-    }
-
-    const hit = attackRoll + hitBonus >= monster.difficulty;
-
-    await sleep(150);
-    const attackContext = isPowerAttack ? 'Galingas Smūgis' : 'Smūgio Metimas';
-    const hitBonusStr = hitBonus !== 0 ? ` (${hitBonus > 0 ? '+' : ''}${hitBonus})` : '';
-    combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">${attackContext}: [${attackRoll}]${hitBonusStr} vs ${monster.difficulty}</p>`);
-
-    if (hit) {
-        const damageRoll = rollDamage(gameState.playerDamage);
-        const totalBonus = gameState.playerDamageBonus + damageBonus;
-        const crit = attackRoll === 6;
-        const critBonus = crit ? 2 : 0;
-        const damage = damageRoll + totalBonus + critBonus;
-        monster.currentHp -= damage;
-        showFloatingCombatText('enemy', damage, { crit });
-
-        // Crit juice: gold flash, harder shake, dedicated sound
-        if (crit) {
-            triggerCritFlash();
-            shakeBattleScreen('hard');
-            playCritSound();
-        }
-
-        await sleep(150);
-        const dmgDetail = `${damageRoll}${totalBonus !== 0 ? ` + ${totalBonus}` : ''}${critBonus ? ` + ${critBonus} CRIT` : ''} = ${damage}`;
-        combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">Žala: ${dmgDetail}</p>`);
-
-        let msg = `Pataikei į ${monster.name} ir padarei ${damage} žalos.${crit ? ' Kritinis smūgis!' : ''}`;
-        if (isPowerAttack) msg = `Galingas smūgis! ${damage} žalos!`;
-
-        log(`${attackContext}: [${attackRoll}]${hitBonusStr} vs ${monster.difficulty}. ${msg}`);
-        pushCombatFeed('player', `Tu: -${damage} HP ${monster.name}`);
-
-        document.getElementById('monster-hp').textContent = Math.max(0, monster.currentHp);
-
-        if (monster.currentHp <= 0) {
-            monster.currentHp = 0;
-            gameState.monsterDying = true;
-            gameState.combo = 0;
-            updateComboChip();
-            // Hit-stop: brief freeze on the killing blow before unleashing the
-            // death sequence — gives the kill weight instead of feeling like
-            // any other hit.
-            await sleep(140);
-            const hpBar = document.getElementById('battle-enemy-hp-bar');
-            if (hpBar) hpBar.style.width = '0%';
-            document.getElementById('monster-hp').textContent = '0';
-            shakeBattleScreen('hard');
-            triggerMonsterDeathEffect();
-            spawnDeathSparks();
-            playMonsterDieSound();
-            combatLogEl.innerHTML = `<p class='success'>${msg} <strong>Pabaisa nugalėta!</strong></p>`;
-            updateUI();
-            // Show "slain" overlay on the battle stage after the death animation
-            // peaks, so the player has a clear moment to register the kill before
-            // the victory rewards screen takes over.
-            setTimeout(() => showSlainOverlay(monster), 500);
-            setTimeout(() => {
-                gameState.monsterDying = false;
-                winCombat(damage);
-            }, 1700);
-        } else {
-            gameState.combo++;
-            updateComboChip();
-            triggerMonsterHitEffect();
-            // Dark Fort rule: enemy does NOT counter-attack when you land a hit
-            combatLogEl.innerHTML = `<p class='success'>${msg}</p>`;
-            gameState.combatTurn++;
-            pulseRoundChip();
-        }
-    } else {
-        // Dark Fort rule: enemy only attacks when you miss
-        showFloatingCombatText('enemy', 0, { miss: true });
-        breakCombo();
-        log(isPowerAttack ? `Galingas smūgis nepavyko!` : `Nepataikei į ${monster.name}.`);
-        combatLogEl.innerHTML = `<p class='warning'>${isPowerAttack ? 'Galingas smūgis nepavyko (nepataikei)!' : `Nepataikei į ${monster.name}.`}</p>`;
-        pushCombatFeed('warning', `Nepataikei į ${monster.name}.`);
-        await monsterAttack();
-    }
-    combatActionBusy = false;
-    updateUI();
-}
-
-/**
- * Flees from combat.
- */
-async function flee() {
-    if (combatActionBusy) return;
-    combatActionBusy = true;
-    gameState.autoBattle = false; // fleeing cancels auto-battle
-    const combatLogEl = document.getElementById('combat-log');
-    // d6 >= 4 = 50% chance to escape (3 of 6 values succeed)
-    const fleeRoll = rollDie(6);
-    const escaped = fleeRoll >= 4;
-
-    await sleep(150);
-    if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-cyan)">Pabėgimo Bandymas: [${fleeRoll}] vs 4</p>`);
-
-    if (escaped) {
-        gameState.inCombat = false;
-        gameState.currentMonster = null;
-        document.body.classList.remove('in-combat');
-        log("Sėkmingai pabėgai iš kovos.");
-        setGameText("<p class='success'>Pavyko pabėgti!</p><p>Gali tęsti tyrinėjimą.</p>");
-        updateUI();
-    } else {
-        log("Nepavyko pabėgti.");
-        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>Nepavyko pabėgti!</p>`);
-        await monsterAttack();
-    }
-    combatActionBusy = false;
-}
-
-/**
- * Toggles auto-battle mode on/off.
- */
-function toggleAutoBattle() {
-    gameState.autoBattle = !gameState.autoBattle;
-    const btn = document.getElementById('auto-battle-btn');
-    if (btn) {
-        btn.classList.toggle('active', gameState.autoBattle);
-        btn.innerHTML = gameState.autoBattle
-            ? '<span class="material-symbols-outlined">pause</span> <span>Auto</span>'
-            : '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
-    }
-    updateBattleIntent();
-    updateUI();
-    if (gameState.autoBattle) {
-        runAutoBattle();
-    }
-}
-
-function cycleAutoBattleSpeed() {
-    if (gameState.autoBattleDelay === 500) gameState.autoBattleDelay = 350;
-    else if (gameState.autoBattleDelay === 350) gameState.autoBattleDelay = 200;
-    else if (gameState.autoBattleDelay === 200) gameState.autoBattleDelay = 100;
-    else gameState.autoBattleDelay = 500;
-
-    const label = document.getElementById('auto-battle-speed-label');
-    if (label) {
-        label.textContent = gameState.autoBattleDelay <= 100 ? 'x4' : gameState.autoBattleDelay <= 200 ? 'x3' : gameState.autoBattleDelay <= 350 ? 'x2' : 'x1.5';
-    }
-}
-
-/**
- * Refreshes the "Next: ..." intent hint so the player can predict the
- * auto-battle's next move (Unicorn Overlord style).
- */
-function updateBattleIntent() {
-    const intentEl = document.getElementById('battle-intent');
-    const valueEl = document.getElementById('battle-intent-value');
-    if (!intentEl || !valueEl) return;
-    if (!gameState.inCombat || !gameState.autoBattle || gameState.monsterDying) {
-        intentEl.classList.add('hidden');
-        return;
-    }
-    intentEl.classList.remove('hidden');
-    const action = pickAutoBattleAction();
-    valueEl.className = 'intent-value';
-    if (action === 'potion') {
-        valueEl.textContent = 'Mikstūra';
-        valueEl.classList.add('potion');
-    } else if (action === 'power') {
-        valueEl.textContent = 'Galingas';
-        valueEl.classList.add('power');
-    } else {
-        valueEl.textContent = 'Pulti';
-    }
-}
-
-/**
- * Picks the best auto-battle action based on simple tactics:
- * - Use potion if HP <= 30% and has potions
- * - Power attack if enemy HP is low (1-2 hits from death)
- * - Normal attack otherwise
- */
-function pickAutoBattleAction() {
-    const monster = gameState.currentMonster;
-    const hpPct = gameState.hp / gameState.maxHp;
-
-    // Tactic: heal when HP is low
-    if (hpPct <= 0.3 && gameState.inventory.includes('Mikstūra')) {
-        return 'potion';
-    }
-
-    // Tactic: power attack when enemy is almost dead (within one good hit)
-    if (monster) {
-        const avgDamage = getDieSides(gameState.playerDamage) / 2 + gameState.playerDamageBonus;
-        if (monster.currentHp <= avgDamage + 2) {
-            return 'power';
-        }
-    }
-
-    return 'attack';
-}
-
-/**
- * Runs the auto-battle loop with smart tactics.
- * Like Loop Hero — battles resolve automatically, player watches.
- */
-async function runAutoBattle() {
-    while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
-        if (gameState.monsterDying) {
-            await sleep(200);
-            continue;
-        }
-
-        const action = pickAutoBattleAction();
-        if (action === 'potion') {
-            await usePotion();
-        } else if (action === 'power') {
-            await performAttack(true);
-        } else {
-            await performAttack(false);
-        }
-
-        if (gameState.autoBattle && gameState.inCombat) {
-            await sleep(gameState.autoBattleDelay);
-        }
-    }
-    // Combat ended — turn off auto-battle and update button
-    gameState.autoBattle = false;
-    const btn = document.getElementById('auto-battle-btn');
-    if (btn) {
-        btn.classList.remove('active');
-        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> <span>Manual</span>';
-    }
-}
-
-/**
- * The current monster attacks the player.
- */
-async function monsterAttack() {
-    const monster = gameState.currentMonster;
-    setTurnIndicator('enemy');
-    animateBattleAttack('enemy');
-    const damageRoll = rollDamage(monster.damage);
-    const defense = gameState.playerDefense;
-    const isCrit = damageRoll === getDieSides(monster.damage);
-    const critBonus = isCrit ? 1 : 0;
-    const damage = Math.max(0, damageRoll + critBonus - defense);
-
-    await sleep(150);
-    const combatLogEl = document.getElementById('combat-log');
-    if (combatLogEl) {
-        const detailStr = `${isCrit ? 'Kritinis smūgis! ' : ''}${defense > 0 ? `Apsauga: \u2212${defense}` : ''}`.trim();
-        combatLogEl.insertAdjacentHTML('beforeend', `<p class='info' style="color: var(--accent-red)">${monster.name} Puola: [${damageRoll}] ${detailStr ? `(${detailStr})` : ''}</p>`);
-    }
-
-    if (damage > 0) {
-        gameState.hp -= damage;
-        showFloatingCombatText('player', damage, { crit: isCrit });
-        playPlayerHitSound();
-        triggerDamageEffect();
-        if (isCrit) {
-            triggerCritFlash();
-            shakeBattleScreen('hard');
-        }
-    } else {
-        showFloatingCombatText('player', 0);
-    }
-
-    log(`${monster.name} tau smogė ir padarė ${damage} žalos.${isCrit ? ' Kritinis smūgis!' : ''}`);
-    pushCombatFeed(damage > 0 ? 'enemy' : 'info', `${monster.name}: -${damage} HP tau`);
-
-    if(combatLogEl) {
-        if (damage > 0) {
-            combatLogEl.insertAdjacentHTML('beforeend', `<p class='warning'>${monster.name} atsako smūgiu, padarydamas tau ${damage} žalos.</p>`);
-        } else {
-            combatLogEl.insertAdjacentHTML('beforeend', `<p class='success'>${monster.name} smūgis blokuotas!</p>`);
-        }
-    }
-
-    if (gameState.hp <= 0) {
-        gameOver(`Tave nužudė ${monster.name}.`);
-    } else {
-        gameState.combatTurn++;
-        setTurnIndicator('player');
-        pulseRoundChip();
-    }
-    updateUI();
-}
-
-function showVictoryScreen(monster, lootItems, xp, silver) {
-    const lootHtml = lootItems.length > 0
-        ? lootItems.map((item, i) => `<span class="victory-loot-item" style="animation-delay:${1500 + i * 180}ms">${item}</span>`).join('')
-        : '<span class="victory-loot-empty">Nieko</span>';
-
-    const html = `
-        <div class="victory-screen" id="victory-screen-root">
-            <div class="victory-confetti" aria-hidden="true">
-                ${Array.from({ length: 14 }, (_, i) => `<span class="confetti-mote" style="--i:${i}"></span>`).join('')}
-            </div>
-            <h2 class="victory-title">PERGALĖ</h2>
-            <div class="victory-monster" id="victory-monster">
-                <img src="${getMonsterSprite(monster)}" alt="${monster.name}">
-                <div>Nugalėtas: <strong>${monster.name}</strong></div>
-            </div>
-
-            <div class="victory-rewards">
-                <p class="reward-row reward-xp">
-                    <span class="reward-icon"><span class="material-symbols-outlined">star</span></span>
-                    <span class="reward-value" id="reward-xp-value">+0</span>
-                    <span class="reward-label">Taškų</span>
-                </p>
-                <p class="reward-row reward-silver">
-                    <span class="reward-icon"><span class="material-symbols-outlined">paid</span></span>
-                    <span class="reward-value" id="reward-silver-value">+0</span>
-                    <span class="reward-label">Sidabro</span>
-                </p>
-                <div class="victory-loot">
-                    <span class="victory-loot-label">Grobis:</span>
-                    <span class="victory-loot-list">${lootHtml}</span>
-                </div>
-            </div>
-
-            <button class="victory-continue-btn" id="victory-continue-btn" onclick="endCombatEncounter()">
-                <span>Tęsti į tamsą</span>
-                <span class="material-symbols-outlined">arrow_forward</span>
-            </button>
-        </div>
-    `;
-
-    setGameText(html);
-    playVictorySound();
-    animateVictoryRewards(xp, silver);
-}
-
-/**
- * Counts a value up from 0 to `to` over `duration` ms with an ease-out curve,
- * writing into `el.textContent` each frame. Adds a brief "land" pulse class
- * on completion so the value feels rewarding instead of just appearing.
- */
-function animateCountUp(el, to, duration, prefix = '+') {
-    if (!el) return;
-    const start = performance.now();
-    const tick = (now) => {
-        const t = Math.min(1, (now - start) / duration);
-        const eased = 1 - Math.pow(1 - t, 3);
-        const value = Math.round(to * eased);
-        el.textContent = `${prefix}${value}`;
-        if (t < 1) {
-            requestAnimationFrame(tick);
-        } else {
-            el.classList.add('reward-value-landed');
-        }
-    };
-    requestAnimationFrame(tick);
-}
-
-/**
- * Drives the victory screen reveal — staggers row entry, runs count-ups,
- * and showers coin/star particles from the slain monster portrait into the
- * matching reward counters so the loop "monster → reward" closes visually.
- */
-function animateVictoryRewards(xp, silver) {
-    const xpEl = document.getElementById('reward-xp-value');
-    const silverEl = document.getElementById('reward-silver-value');
-    const sourceEl = document.getElementById('victory-monster');
-
-    // XP star shower — modest particle count, capped so big rewards don't spam
-    setTimeout(() => {
-        animateCountUp(xpEl, xp, 700);
-        spawnRewardShower(sourceEl, xpEl, 'star', Math.min(8, Math.max(3, xp)));
-    }, 700);
-
-    // Silver coin shower
-    setTimeout(() => {
-        animateCountUp(silverEl, silver, 800);
-        spawnRewardShower(sourceEl, silverEl, 'coin', Math.min(10, Math.max(3, silver)));
-    }, 1100);
-}
-
-function endCombatEncounter() {
-    gameState.autoBattle = false;
-    combatActionBusy = false;
-    gameState.inVictory = false;
-    gameState.inCombat = false;
-    gameState.currentMonster = null;
-    document.body.classList.remove('in-combat');
-
-    setGameText("<p>Kova baigta. Aplink tyla. Ką darysi toliau?</p>");
-    updateUI();
-
-    if (gameState.autoExplore) {
-        runAutoExplore();
-    }
-}
-
-function winCombat(killingBlowDamage) {
-    const monster = gameState.currentMonster;
-    gameState.monstersDefeated++;
-    gameState.points += monster.points;
-    updateChallengeProgress('slay', monster.name, 1);
-    updateChallengeProgress('slayAny', 'monster', 1);
-    
-    const silverFound = rollDie(6) + monster.difficulty;
-    gameState.silver += silverFound;
-    gameState.totalSilverCollected += silverFound;
-    updateChallengeProgress('collect', 'silver', silverFound);
-
-    let lootItems = [];
-
-    if (Math.random() < 0.2 + (monster.difficulty * 0.1)) {
-        const droppedItem = { ...LOOT_DROPS[rollDie(LOOT_DROPS.length) - 1] };
-        lootItems.push(droppedItem.name);
-        gameState.inventory.push(droppedItem.name);
-        log(`Pabaisa išmetė ${droppedItem.name}!`);
-    }
-
-    log(`Nugalėjai ${monster.name}!`);
-
-    if (monster.name === FORTRESS_LORD.name) {
-        winGame();
-        return;
-    }
-    
-    gameState.inVictory = true;
-    showVictoryScreen(monster, lootItems, monster.points, silverFound);
-    updateUI();
-}
-
-
-// -----------------------------------------------------------------------------
-// SHOP ACTIONS
-// -----------------------------------------------------------------------------
-
-
-function openShop(isFirstTime = false, tab = 'buy') {
-    gameState.inShop = true;
-
-    const intro = isFirstTime ? "<p class='success'>Atsiranda paslaptingas prekeivis, siūlantis savo prekes.</p>" : "";
-
-    const tabs = `
-        <div class="shop-tabs">
-            <button class="${tab === 'buy' ? 'active' : ''}" onclick="openShop(false, 'buy')">Pirkti</button>
-            <button class="${tab === 'sell' ? 'active' : ''}" onclick="openShop(false, 'sell')">Parduoti</button>
-        </div>
-    `;
-
-    // Helper to generate item HTML
-    const createShopItemHTML = (item, isBuying, count = 1) => {
-        let icon = 'help';
-        let statInfo = '';
-        let price = 0;
-        let action = '';
-        let disabledClass = '';
-        let btnText = '';
-
-        if (isBuying) {
-            price = item.price;
-            const canAfford = gameState.silver >= price;
-            action = canAfford ? `onclick="buyItem('${item.name}')"` : '';
-            disabledClass = canAfford ? '' : 'disabled';
-            btnText = `${price} <span class="material-symbols-outlined icon-small">paid</span>`;
-        } else {
-            price = Math.floor((item.price || 5) / 2);
-            action = `onclick="sellItem('${item.name}', ${price})"`;
-            btnText = `+${price} <span class="material-symbols-outlined icon-small">paid</span>`;
-        }
-
-        // Determine icon and stats
-        if (item.type === 'weapon') {
-            icon = 'flash_on';
-            statInfo = `<span class="stat-badge damage" title="Žala">${item.value} <span class="material-symbols-outlined icon-small">flash_on</span></span>`;
-        } else if (item.type === 'armor') {
-            icon = 'shield';
-            statInfo = `<span class="stat-badge defense" title="Gynyba">+${item.value} <span class="material-symbols-outlined icon-small">shield</span></span>`;
-        } else if (item.type === 'potion') {
-            icon = 'local_pharmacy';
-            statInfo = `<span class="stat-badge healing" title="Gydymas">HP <span class="material-symbols-outlined icon-small">favorite</span></span>`;
-        } else {
-            icon = 'backpack';
-            statInfo = `<span class="stat-badge utility" title="Naudingas"><span class="material-symbols-outlined icon-small">build</span></span>`;
-        }
-
-        const nameDisplay = isBuying ? item.name : `${item.name} ${count > 1 ? `(x${count})` : ''}`;
-
-        return `<div class="shop-item ${disabledClass}" ${action}>
-            <div class="shop-item-info">
-                <span class="material-symbols-outlined item-icon">${icon}</span>
-                <div class="item-details">
-                    <div class="item-header">
-                        <span class="item-name">${nameDisplay}</span>
-                        ${statInfo}
-                    </div>
-                    <div class="item-desc">${item.description || 'Nėra aprašymo.'}</div>
-                </div>
-            </div>
-            <div class="shop-item-price">
-                ${btnText}
-            </div>
-        </div>`;
-    };
-
-    let content = "";
-    if (tab === 'buy') {
-        const items = SHOP_ITEMS.map(item => createShopItemHTML(item, true)).join('');
-        content = `<h4><span class="material-symbols-outlined">storefront</span> Prekeivio Prekės</h4>${items}`;
-    } else { // Sell tab
-        if (gameState.inventory.length === 0) {
-            content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4><p>Neturi nieko parduoti.</p>`;
-        } else {
-            // Count item frequencies in a single pass O(N)
-            const itemCounts = gameState.inventory.reduce((acc, itemName) => {
-                acc[itemName] = (acc[itemName] || 0) + 1;
-                return acc;
-            }, {});
-
-            const items = Object.entries(itemCounts).map(([itemName, count]) => {
-                let itemDetails = ITEM_LOOKUP[itemName];
-
-                // Fallback if item details missing
-                if (!itemDetails) {
-                    itemDetails = { name: itemName, type: 'misc', description: 'Paprastas daiktas.', price: 2 };
-                }
-
-                return createShopItemHTML(itemDetails, false, count);
-            }).join('');
-
-            content = `<h4><span class="material-symbols-outlined">backpack</span> Tavo Prekės</h4>${items}`;
-        }
-    }
-
-    const footer = `<button onclick="closeShop()">Išeiti iš Parduotuvės</button>`;
-    setGameText(intro + tabs + content + footer);
-    updateUI();
-}
-
-function buyItem(itemName) {
-    const item = ITEM_LOOKUP[itemName];
-    if (item && gameState.silver >= item.price) {
-        playBuySound();
-        gameState.silver -= item.price;
-        gameState.inventory.push(itemName);
-        log(`Nusipirkai ${itemName}.`);
-        // showToast(`Nusipirkai: ${itemName}`, "success");
-        // Player must now equip manually from inventory
-        openShop(false, 'buy'); // Refresh shop view
-    }
-}
-
-function sellItem(itemName, sellPrice) {
-    const itemIndex = gameState.inventory.indexOf(itemName);
-    if (itemIndex > -1) {
-        playSellSound();
-        // If selling equipped item, unequip it
-        if (itemName === gameState.equippedWeapon) gameState.equippedWeapon = null;
-        if (itemName === gameState.equippedArmor) gameState.equippedArmor = null;
-
-        gameState.inventory.splice(itemIndex, 1);
-        gameState.silver += sellPrice;
-        gameState.totalSilverCollected += sellPrice;
-        updateChallengeProgress('collect', 'silver', sellPrice);
-        log(`Pardavei ${itemName} už ${sellPrice} sidabro.`);
-        // showToast(`Pardavei: ${itemName} (+${sellPrice})`, "info");
-        recalculateStats(); // Recalculate stats after selling
-        openShop(false, 'sell');
-    }
-}
-
-function toggleEquip(itemName, itemType) {
-    const slot = itemType === 'weapon' ? 'equippedWeapon' : 'equippedArmor';
-
-    if (gameState[slot] === itemName) {
-        // Unequip if clicking the same item
-        gameState[slot] = null;
-        log(`Nusiėmei ${itemName}.`);
-        showToast(`Nusiėmei: ${itemName}`, "info");
-    } else {
-        // Equip new item
-        gameState[slot] = itemName;
-        log(`Užsidėjai ${itemName}.`);
-        showToast(`Užsidėjai: ${itemName}`, "success");
-    }
-    recalculateStats();
-}
-
-function recalculateStats() {
-    // Reset stats to base values, considering level but not items
-    gameState.playerDamage = getBaseDamageDieForLevel(gameState.level);
-    gameState.playerDefense = gameState.level - 1; // 0 at level 1, 1 at level 2, etc.
-
-    // Apply equipped items' stats
-    if (gameState.equippedWeapon) {
-        const weaponDetails = ITEM_LOOKUP[gameState.equippedWeapon];
-        if (weaponDetails) gameState.playerDamage = weaponDetails.value;
-    }
-
-    if (gameState.equippedArmor) {
-        const armorDetails = ITEM_LOOKUP[gameState.equippedArmor];
-        if (armorDetails) gameState.playerDefense += armorDetails.value;
-    }
-
-    // Apply meta-progression and level bonus
-    gameState.playerDamageBonus = gameState.metaDamageBonus + (gameState.level - 1);
-    gameState.playerDefense += gameState.metaDefenseBonus;
-
-    updateUI();
-}
-
-function closeShop() {
-    gameState.inShop = false;
-    setGameText("<p>Palieki prekeivį ir toliau keliauji į tamsą.</p>");
-    updateUI();
-
-    if (gameState.autoExplore) {
-        runAutoExplore();
-    }
-}
-
-
-// -----------------------------------------------------------------------------
-// MAP ACTIONS
-// -----------------------------------------------------------------------------
-
-function getRoomIcon(type) {
-    switch (type) {
-        case 'Priešas': return '<span class="material-symbols-outlined">skull</span>';
-        case 'Spąstai': return '<span class="material-symbols-outlined">warning</span>';
-        case 'Parduotuvė': return '<span class="material-symbols-outlined">storefront</span>';
-        case 'Lobis': return '<span class="material-symbols-outlined">diamond</span>';
-        case 'Tuščias': return '<span class="material-symbols-outlined">door_front</span>';
-        default: return '<span class="material-symbols-outlined">help</span>';
-    }
-}
-
-function openMap() {
-    const mapGridEl = document.getElementById('mapGrid');
-    const mapModalEl = document.getElementById('mapModal');
-
-    const currentRenderedCount = mapGridEl.children.length;
-
-    // If the map has been reset (e.g. new game) or shrunk, clear the grid
-    if (currentRenderedCount > gameState.map.length) {
-        mapGridEl.innerHTML = '';
-    }
-
-    const startIndex = mapGridEl.children.length;
-
-    if (startIndex < gameState.map.length) {
-        let newRoomsHtml = '';
-        for (let i = startIndex; i < gameState.map.length; i++) {
-            const room = gameState.map[i];
-            newRoomsHtml += `
-        <div class="map-cell">
-            <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
-            <div class="map-cell-room-number">${room.room}</div>
-            <div class="map-cell-details">${room.details}</div>
-        </div>`;
-        }
-        mapGridEl.insertAdjacentHTML('beforeend', newRoomsHtml);
-    }
-
-    mapModalEl.style.display = 'block';
-}
-
-function closeMap() {
-    const mapModalEl = document.getElementById('mapModal');
-    mapModalEl.style.display = 'none';
-}
-
-
-// -----------------------------------------------------------------------------
-// PLAYER AND CHARACTER ACTIONS
-// -----------------------------------------------------------------------------
-
-function levelUp() {
-    if (!canLevelUpNow()) return;
-    
-    gameState.level++;
-    gameState.points -= LEVEL_UP_COST;
-
-    updateChallengeProgress('level', 'player', 1);
-
-    log(`PASIEKEI NAUJĄ LYGĮ! Dabar esi ${gameState.level} lygio!`);
-    // showToast(`LYGIS PAKILO! (${gameState.level})`, "success");
-    setGameText(`<p class='success'>Pasiekei ${gameState.level} lygį! Tavo žala padidėjo 1, o bazinė gynyba ir kiti atributai galėjo pagerėti.</p>`);
-
-    recalculateStats(); // Recalculate all stats to apply level benefits
-}
-
-
-// -----------------------------------------------------------------------------
-// GAME STATE MANAGEMENT
+// END STATE
 // -----------------------------------------------------------------------------
 
 function showEndGameScreen(isVictory, message) {
-    const title = isVictory ? "PERGALĖ!" : "ŽAIDIMAS BAIGTAS";
-    const cssClass = isVictory ? "victory" : "defeat";
-    const imageUrl = isVictory ? getMonsterSprite(FORTRESS_LORD) : getMonsterSprite(gameState.currentMonster);
+    const title = isVictory ? 'MISSION COMPLETE' : 'MISSION FAILED';
+    const cssClass = isVictory ? 'victory' : 'defeat';
+    const imageUrl = isVictory ? PLAYER_SPRITE : getMonsterSprite(gameState.currentMonster);
+    const threatPoints = gameState.threatPoints || gameState.points || 0;
+    const credits = gameState.totalCreditsCollected || gameState.totalSilverCollected || gameState.credits || 0;
+    const rooms = gameState.roomsExplored || 0;
+    const defeated = gameState.monstersDefeated || 0;
 
-    // Stats HTML
-    const statsHtml = `
-        <div class="end-screen-stats">
-            <div class="stat-row">
-                <span><span class="material-symbols-outlined icon-small">star</span> Taškai</span>
-                <span>${gameState.points}</span>
-            </div>
-            <div class="stat-row">
-                <span><span class="material-symbols-outlined icon-small">emoji_events</span> Lygis</span>
-                <span>${gameState.level}</span>
-            </div>
-            <div class="stat-row">
-                <span><span class="material-symbols-outlined icon-small">paid</span> Surinktas Auksas</span>
-                <span>${gameState.totalSilverCollected}</span>
-            </div>
-            <div class="stat-row">
-                <span><span class="material-symbols-outlined icon-small">skull</span> Nugalėti Priešai</span>
-                <span>${gameState.monstersDefeated}</span>
-            </div>
-        </div>
-    `;
-
-    const html = `
+    setGameText(`
         <div class="end-screen ${cssClass}">
             <h2>${title}</h2>
-            <div class="end-screen-visual">
-                <img src="${imageUrl}" alt="${title}">
+            <div class="end-screen-visual"><img src="${imageUrl}" alt="${title}"></div>
+            <p>${escapeHtml(message)}</p>
+            <div class="end-screen-stats">
+                <div class="stat-row"><span><span class="material-symbols-outlined icon-small">star</span> Threat Points</span><span>${threatPoints}</span></div>
+                <div class="stat-row"><span><span class="material-symbols-outlined icon-small">emoji_events</span> Advancements</span><span>${gameState.level || 0}</span></div>
+                <div class="stat-row"><span><span class="material-symbols-outlined icon-small">paid</span> Credits Recovered</span><span>${credits}</span></div>
+                <div class="stat-row"><span><span class="material-symbols-outlined icon-small">door_front</span> Rooms Explored</span><span>${rooms}</span></div>
+                <div class="stat-row"><span><span class="material-symbols-outlined icon-small">skull</span> Threats Defeated</span><span>${defeated}</span></div>
             </div>
-
-            <p>${message}</p>
-
-            ${statsHtml}
-
-            <button onclick="resetGame()">Pradėti Naują Nuotykį</button>
+            <button onclick="resetGame()">Start New Mission</button>
         </div>
-    `;
-
-    setGameText(html);
+    `);
 }
 
-/**
- * Ends the game in victory.
- */
-function winGame() {
+function winGame(message = 'You reach the airlock with the mission target.') {
     gameState.gameWon = true;
-    log(`PERGALĖ! Nugalėjai Tvirtovės Valdovą!`);
-    showToast("PERGALĖ!", "success");
-    saveChallenges();
     gameState.inCombat = false;
-    document.body.classList.remove('in-combat');
-    showEndGameScreen(true, "Nugalėjai Tvirtovės Valdovą ir užkariavai Tamsiąją Tvirtovę!");
-    updateUI();
-}
-
-/**
- * Ends the game in defeat.
- * @param {string} reason - The reason for the game over.
- */
-function gameOver(reason) {
+    gameState.inShop = false;
+    gameState.inVictory = false;
     gameState.autoBattle = false;
-    combatActionBusy = false;
-    gameState.playerIsDead = true;
-    saveChallenges();
+    gameState.autoExplore = false;
     document.body.classList.remove('in-combat');
-    log(`ŽAIDIMAS BAIGTAS: ${reason}`);
-    showToast("ŽAIDIMAS BAIGTAS", "danger");
-    showEndGameScreen(false, `${reason} Tavo nuotykis čia baigiasi.`);
+    log(`MISSION COMPLETE: ${message}`);
+    showToast('Mission complete', 'success');
+    saveChallenges();
+    showEndGameScreen(true, message);
     updateUI();
 }
 
-/**
- * Resets the game to its initial state for a new adventure.
- */
+function gameOver(reason) {
+    gameState.playerIsDead = true;
+    gameState.autoBattle = false;
+    gameState.autoExplore = false;
+    combatActionBusy = false;
+    document.body.classList.remove('in-combat');
+    log(`MISSION FAILED: ${reason}`);
+    showToast('Mission failed', 'danger');
+    saveChallenges();
+    showEndGameScreen(false, `${reason}`);
+    updateUI();
+}
+
 function resetGame() {
-    // Show Title
     const titleEl = document.querySelector('h1.cyber-glitch');
     if (titleEl) titleEl.style.display = 'block';
-
     gameState = createInitialGameState();
+    combatActionBusy = false;
+    lastInventorySnapshot = [];
+    lastEquippedWeapon = null;
+    lastEquippedArmor = null;
     document.body.classList.remove('in-combat');
-    logEl.innerHTML = "";
-    setGameText('<p>Sveikas atvykęs į Tamsiąją Tvirtovę!</p><p>Spausk "Pradėti Nuotykį" ir leiskis į pavojingą kelionę...</p>');
+    if (logEl) logEl.innerHTML = '';
+    setGameText('<p>Welcome to Dark Fort: Moon Devils.</p><p>Start a mission, recover the target, and decide whether one more room is worth the air.</p>');
     updateUI();
 }
 
-
-/**
- * Toggles a collapsible panel open/closed.
- */
 function togglePanel(panelId) {
     const panel = document.getElementById(panelId);
     if (panel) panel.classList.toggle('expanded');
 }
 
-// --- INITIALIZE ---
 document.addEventListener('DOMContentLoaded', () => {
     gameTextEl = document.getElementById('gameText');
     logEl = document.getElementById('log');

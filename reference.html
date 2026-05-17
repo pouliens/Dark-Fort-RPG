@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Fort: Moon Devils — Pen &amp; Paper Reference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Pirata+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="reference-body">
+    <div class="reference-container">
+        <header class="reference-header">
+            <a class="reference-back" href="index.html"><span class="material-symbols-outlined">arrow_back</span> Back to Game</a>
+            <h1 class="cyber-glitch game-title">PEN &amp; PAPER REFERENCE</h1>
+            <p class="reference-subtitle">Dark Fort: Moon Devils — tables &amp; rules for tabletop play</p>
+        </header>
+
+        <!-- Sticky dice tray -->
+        <div class="dice-tray" id="diceTray">
+            <div class="dice-tray-inner">
+                <div class="dice-tray-buttons">
+                    <button class="dice-btn" data-die="4">d4</button>
+                    <button class="dice-btn" data-die="6">d6</button>
+                    <button class="dice-btn" data-die="6" data-count="2">2d6</button>
+                    <button class="dice-btn" data-die="12">d12</button>
+                    <button class="dice-btn" data-die="20">d20</button>
+                    <button class="dice-btn" data-die="100">d100</button>
+                </div>
+                <div class="dice-tray-result" id="diceTrayResult">
+                    <span class="dice-tray-label">Last roll</span>
+                    <span class="dice-tray-value" id="diceTrayValue">—</span>
+                    <span class="dice-tray-detail" id="diceTrayDetail"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules section -->
+        <section class="reference-section" id="rules-section">
+            <h2><span class="material-symbols-outlined">menu_book</span> Rules at a Glance</h2>
+
+            <div class="rules-grid">
+                <div class="rule-card">
+                    <h3>The Four Pools</h3>
+                    <ul>
+                        <li><strong>Body</strong> — physical wounds, hauling, climbing.</li>
+                        <li><strong>Mind</strong> — focus, signals, anomalies.</li>
+                        <li><strong>Soul</strong> — ghosts, omens, prayer.</li>
+                        <li><strong>Oxygen</strong> — fuel for everything. Spent to explore, fight, push tests.</li>
+                    </ul>
+                    <p class="rule-note">If any pool hits 0, you fall to that kind of damage. Run out of Oxygen and you suffocate.</p>
+                </div>
+
+                <div class="rule-card">
+                    <h3>Character Creation</h3>
+                    <ol>
+                        <li>Roll <strong>3d6</strong> each for Body, Mind, Soul. Roll <strong>12 + d6</strong> for Oxygen.</li>
+                        <li>Roll <strong>15 + d6</strong> credits.</li>
+                        <li>Roll a Mission, a Faction, a starting Weapon and starting Kit item (d6 each).</li>
+                        <li>Take the Base map.</li>
+                    </ol>
+                </div>
+
+                <div class="rule-card">
+                    <h3>Attribute Tests</h3>
+                    <p>Roll <strong>d6 + bonuses</strong>. Meet or beat the threshold for the pool tested.</p>
+                    <table class="rule-mini-table" id="testTargetsTable">
+                        <thead><tr><th>Pool current</th><th>Target</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <p class="rule-note">You may spend 1 Oxygen to add +1 to any test after seeing it.</p>
+                </div>
+
+                <div class="rule-card">
+                    <h3>Combat</h3>
+                    <ul>
+                        <li><strong>To hit:</strong> roll d6, compare to enemy points (lower points = easier).</li>
+                        <li><strong>Damage:</strong> roll the weapon die. Route enemy damage to the listed pool.</li>
+                        <li><strong>Push:</strong> spend 1 Oxygen for +1 to an attack.</li>
+                        <li><strong>Flee:</strong> take the enemy's damage once; the room becomes a fled room (-1 to extraction later).</li>
+                        <li><strong>Armor:</strong> Hardsuit plating absorbs d4 Body per physical hit.</li>
+                    </ul>
+                </div>
+
+                <div class="rule-card">
+                    <h3>Room Procedure</h3>
+                    <ol>
+                        <li>Spend 1 Oxygen to enter.</li>
+                        <li>Roll <strong>2d6</strong> on Room Shapes.</li>
+                        <li>Roll <strong>d4</strong> on Doors (unless shape fixes it).</li>
+                        <li>Roll <strong>d6</strong> on the Room Table for the encounter.</li>
+                        <li>Resolve. Mark <em>safe</em> or <em>unsafe</em> as appropriate.</li>
+                    </ol>
+                </div>
+
+                <div class="rule-card">
+                    <h3>Target &amp; Extraction</h3>
+                    <ul>
+                        <li>Target room appears once you've explored 6+ rooms on a Quiet Salvage roll, or auto after 12 rooms (non-combat results).</li>
+                        <li>Pass the mission test to grab the target cleanly; fail and take d4 of its pool.</li>
+                        <li><strong>Extract:</strong> spend Oxygen equal to (path − safe rooms − 1). Roll d6 + modifier, target 4+:
+                            <br><span class="rule-inline">+1 safe room found · +1 multi-door room · −1 fled · −1 living threat behind · −1 stayed after target</span>
+                        </li>
+                        <li>Fail extraction → roll on Extraction Complications.</li>
+                        <li>Earn 15 threat points to scratch an Advancement.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tables -->
+        <section class="reference-section" id="character-tables">
+            <h2><span class="material-symbols-outlined">history_edu</span> Character Tables</h2>
+
+            <div class="table-block" data-table-key="missions">
+                <div class="table-header">
+                    <h3>Mission Briefings <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="missions">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="missions">
+                    <thead><tr><th class="col-roll">d6</th><th>Briefing</th><th>Target</th><th>Twist</th><th class="col-pay">Pay</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="factions">
+                <div class="table-header">
+                    <h3>Faction Ties <span class="table-die">d4</span></h3>
+                    <button class="table-roll-btn" data-table="factions">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="factions">
+                    <thead><tr><th class="col-roll">d4</th><th>Faction</th><th>Edge</th><th>Debt</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="playerNames">
+                <div class="table-header">
+                    <h3>Names <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="playerNames">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="playerNames">
+                    <thead><tr><th class="col-roll">d6</th><th>Name</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="playerProfessions">
+                <div class="table-header">
+                    <h3>Professions <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="playerProfessions">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="playerProfessions">
+                    <thead><tr><th class="col-roll">d6</th><th>Profession</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="reference-section" id="room-tables">
+            <h2><span class="material-symbols-outlined">explore</span> Room Tables</h2>
+
+            <div class="table-block" data-table-key="roomTable">
+                <div class="table-header">
+                    <h3>Room Roll <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="roomTable">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="roomTable">
+                    <thead><tr><th class="col-roll">d6</th><th>Result</th><th>Effect</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="roomShapes">
+                <div class="table-header">
+                    <h3>Room Shapes <span class="table-die">2d6</span></h3>
+                    <button class="table-roll-btn" data-table="roomShapes" data-die="6" data-count="2">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="roomShapes">
+                    <thead><tr><th class="col-roll">2d6</th><th>Shape</th><th>Effect</th><th class="col-pay">Threat</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="doorsTable">
+                <div class="table-header">
+                    <h3>Doors <span class="table-die">d4</span></h3>
+                    <button class="table-roll-btn" data-table="doorsTable" data-die="4">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="doorsTable">
+                    <thead><tr><th class="col-roll">d4</th><th>Doors</th><th>Note</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="reference-section" id="threat-tables">
+            <h2><span class="material-symbols-outlined">swords</span> Threats</h2>
+
+            <div class="table-block" data-table-key="weakMonsters">
+                <div class="table-header">
+                    <h3>Weak Threats <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="weakMonsters">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="weakMonsters">
+                    <thead><tr><th class="col-roll">d6</th><th>Name</th><th>Type</th><th class="col-pay">HP</th><th class="col-pay">Pts</th><th>Damage</th><th>Special</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="toughMonsters">
+                <div class="table-header">
+                    <h3>Tough Threats <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="toughMonsters">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="toughMonsters">
+                    <thead><tr><th class="col-roll">d6</th><th>Name</th><th>Type</th><th class="col-pay">HP</th><th class="col-pay">Pts</th><th>Damage</th><th>Special</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="reference-section" id="loot-tables">
+            <h2><span class="material-symbols-outlined">inventory_2</span> Items &amp; Gear</h2>
+
+            <div class="table-block" data-table-key="weapons">
+                <div class="table-header">
+                    <h3>Weapons <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="weapons">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="weapons">
+                    <thead><tr><th class="col-roll">d6</th><th>Weapon</th><th class="col-pay">Die</th><th class="col-pay">Price</th><th>Notes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="suits">
+                <div class="table-header">
+                    <h3>Suits &amp; Armor <span class="table-die">d5</span></h3>
+                    <button class="table-roll-btn" data-table="suits">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="suits">
+                    <thead><tr><th class="col-roll">d5</th><th>Suit</th><th class="col-pay">Price</th><th>Notes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="consumables">
+                <div class="table-header">
+                    <h3>Consumables <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="consumables">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="consumables">
+                    <thead><tr><th class="col-roll">d6</th><th>Item</th><th class="col-pay">Price</th><th>Notes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="gear">
+                <div class="table-header">
+                    <h3>Gear <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="gear">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="gear">
+                    <thead><tr><th class="col-roll">d6</th><th>Item</th><th class="col-pay">Price</th><th>Notes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="devices">
+                <div class="table-header">
+                    <h3>Devices <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="devices">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="devices">
+                    <thead><tr><th class="col-roll">d6</th><th>Device</th><th class="col-pay">Price</th><th>Notes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="lootCategory">
+                <div class="table-header">
+                    <h3>Random Loot Category <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="lootCategory">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="lootCategory">
+                    <thead><tr><th class="col-roll">d6</th><th>Category</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="reference-section" id="extract-tables">
+            <h2><span class="material-symbols-outlined">output</span> Extraction &amp; Advancement</h2>
+
+            <div class="table-block" data-table-key="extractionComplications">
+                <div class="table-header">
+                    <h3>Extraction Complications <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="extractionComplications">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="extractionComplications">
+                    <thead><tr><th class="col-roll">d6</th><th>Complication</th><th>Effect</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="table-block" data-table-key="advancements">
+                <div class="table-header">
+                    <h3>Advancements <span class="table-die">d6</span></h3>
+                    <button class="table-roll-btn" data-table="advancements">Roll</button>
+                </div>
+                <table class="ref-table" data-table-body="advancements">
+                    <thead><tr><th class="col-roll">d6</th><th>Advancement</th><th>Effect</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="reference-footer">
+            <p>Bring dice. Bring a sheet of paper. The base waits below.</p>
+        </footer>
+    </div>
+
+    <script src="game-data.js"></script>
+    <script src="reference.js"></script>
+</body>
+</html>

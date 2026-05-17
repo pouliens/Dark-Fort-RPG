@@ -1,13 +1,13 @@
 {
   "name": "app",
   "version": "1.0.0",
-  "description": "**Dark Fort RPG** is a solo dungeon crawler web game inspired by the precursor to MÖRK BORG. Explore a cursed catacomb, battle monsters, collect treasures, and see how long you can survive!",
+  "description": "A solo Moon Devils mission-crawl web game with routed pools, Oxygen pressure, target recovery, and extraction.",
   "main": "benchmark_final.js",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --check game-data.js && node --check game.js"
   },
   "repository": {
     "type": "git",
