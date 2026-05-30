@@ -48,6 +48,9 @@ function showDiceResult({ total, rolls, label }, extra = '') {
 
 function initDiceTray() {
     document.querySelectorAll('.dice-btn').forEach(btn => {
+        btn.type = 'button';
+        const die = btn.dataset.count ? `${btn.dataset.count}d${btn.dataset.die}` : `d${btn.dataset.die}`;
+        btn.setAttribute('aria-label', `Roll ${die}`);
         btn.addEventListener('click', () => {
             const die = parseInt(btn.dataset.die, 10);
             const count = parseInt(btn.dataset.count || '1', 10);
@@ -254,6 +257,30 @@ function renderTestTargets() {
     ).join('');
 }
 
+function getTableTitle(block) {
+    const heading = block?.querySelector('.table-header h3');
+    if (!heading) return '';
+    return Array.from(heading.childNodes)
+        .filter(node => node.nodeType === Node.TEXT_NODE)
+        .map(node => node.textContent.trim())
+        .filter(Boolean)
+        .join(' ');
+}
+
+function initTableScrollers() {
+    document.querySelectorAll('.ref-table').forEach(table => {
+        if (table.parentElement?.classList.contains('table-scroll')) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-scroll';
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('role', 'region');
+        const tableTitle = getTableTitle(table.closest('.table-block'));
+        if (tableTitle) wrapper.setAttribute('aria-label', `${tableTitle} table`);
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+    });
+}
+
 // -----------------------------------------------------------------------------
 // Per-table "Roll" button — rolls the table's die and highlights the row
 // -----------------------------------------------------------------------------
@@ -274,6 +301,10 @@ function highlightRow(key, roll) {
 
 function initTableRollers() {
     document.querySelectorAll('.table-roll-btn').forEach(btn => {
+        btn.type = 'button';
+        const block = btn.closest('.table-block');
+        const tableTitle = getTableTitle(block);
+        if (tableTitle) btn.setAttribute('aria-label', `Roll on ${tableTitle}`);
         btn.addEventListener('click', () => {
             const key = btn.dataset.table;
             const def = TABLES[key];
@@ -281,7 +312,7 @@ function initTableRollers() {
             const sides = parseInt(btn.dataset.die || def.die.sides, 10);
             const count = parseInt(btn.dataset.count || def.die.count || '1', 10);
             const result = rollDice(sides, count);
-            showDiceResult(result, `${key} table`);
+            showDiceResult(result, tableTitle || `${key} table`);
             highlightRow(key, result.total);
         });
     });
@@ -292,6 +323,7 @@ function initTableRollers() {
 // -----------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
+    initTableScrollers();
     Object.keys(TABLES).forEach(renderTable);
     renderTestTargets();
     initDiceTray();
