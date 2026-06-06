@@ -108,7 +108,7 @@
                             <br><span class="rule-inline">+1 safe room found · +1 multi-door room · −1 fled · −1 living threat behind · −1 stayed after target</span>
                         </li>
                         <li>Fail extraction → roll on Extraction Complications.</li>
-                        <li>Earn 15 threat points to scratch an Advancement.</li>
+                        <li>Earn 15 threat points, then draft an Advancement: draw three, keep one.</li>
                     </ul>
                 </div>
             </div>
@@ -312,11 +312,12 @@
 
             <div class="table-block" data-table-key="advancements">
                 <div class="table-header">
-                    <h3>Advancements <span class="table-die">d6</span></h3>
-                    <button class="table-roll-btn" data-table="advancements">Roll</button>
+                    <h3>Advancements <span class="table-die">draft</span></h3>
+                    <button class="table-roll-btn" data-table="advancements">Draw</button>
                 </div>
+                <p class="rule-inline">At 15 threat points, draw <strong>three</strong> advancements at random and <strong>keep one</strong> (solo: roll d12 three times, ignoring repeats; pick your favourite). Reset your threat to 0.</p>
                 <table class="ref-table" data-table-body="advancements">
-                    <thead><tr><th class="col-roll">d6</th><th>Advancement</th><th>Effect</th></tr></thead>
+                    <thead><tr><th class="col-roll">d12</th><th>Path</th><th>Advancement</th><th>Effect</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>

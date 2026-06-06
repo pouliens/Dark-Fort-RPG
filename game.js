@@ -75,6 +75,14 @@ function createInitialGameState() {
         coldMindAvailable: false,
         oldSoulAvailable: false,
         exitSaintAvailable: false,
+        bulwark: false,
+        breaker: false,
+        adrenaline: false,
+        scavenger: false,
+        hasCounterstrike: false,
+        counterReady: false,
+        lastBreathAvailable: false,
+        pendingAdvancementChoices: null,
         mirrorVisorAvailable: false,
         sealantAvailable: false,
         breached: false,
@@ -836,6 +844,16 @@ async function applyDamage(pool, amount, source, options = {}) {
 
 function checkDefeat(source) {
     if (gameState.playerIsDead || gameState.gameWon) return;
+    // Last Breath: the first lethal blow each mission leaves you clinging at 1.
+    if (gameState.lastBreathAvailable) {
+        const failing = POOLS.find(pool => pool !== 'oxygen' && gameState.pools[pool].current <= 0);
+        if (failing) {
+            gameState.pools[failing].current = 1;
+            gameState.lastBreathAvailable = false;
+            log(`Last Breath holds your ${POOL_LABELS[failing]} at 1.`);
+            showToast('Last Breath keeps you alive', 'success');
+        }
+    }
     if (gameState.pools.body.current <= 0) {
         gameOver(`Body reached 0. ${source}`);
     } else if (gameState.pools.mind.current <= 0) {
@@ -1133,9 +1151,10 @@ async function resolveRoomRoll(room, roll) {
 
 async function resolveQuietSalvage(room) {
     room.type = 'Quiet salvage';
+    const salvageSoul = gameState.scavenger ? 2 : 1;
     if (gameState.pools.soul.current < gameState.pools.soul.max) {
-        restorePool('soul', 1);
-        room.details = '+1 Soul';
+        restorePool('soul', salvageSoul);
+        room.details = `+${salvageSoul} Soul`;
     } else {
         const credits = rollExpression('d6', 1);
         addCredits(credits, 'quiet salvage');
@@ -1431,6 +1450,7 @@ async function performAttack(pushWithOxygen) {
     }
 
     const intent = monster.intent;
+    const firstRoundSurge = gameState.adrenaline && gameState.combatTurn === 1;
     let pushBonus = 0;
     if (pushWithOxygen) {
         spendOxygen(1, 'pushing an attack');
@@ -1443,8 +1463,8 @@ async function performAttack(pushWithOxygen) {
     if (combatLogEl) combatLogEl.innerHTML = '';
 
     const roll = rollDie(6);
-    // A charging threat is committed and easier to hit.
-    const attackBonus = getAttackBonus(monster) + pushBonus + (intent === 'charge' ? 1 : 0);
+    // A charging threat is committed and easier to hit; Adrenal Surge adds +1 on the opening round.
+    const attackBonus = getAttackBonus(monster) + pushBonus + (intent === 'charge' ? 1 : 0) + (firstRoundSurge ? 1 : 0);
     const total = roll + attackBonus;
     const hit = total >= monster.points;
 
@@ -1458,8 +1478,15 @@ async function performAttack(pushWithOxygen) {
         let damage = rollExpression(weapon.value, 0);
         if (weapon.machineDamageBonus && monster.type === 'Machine') damage += weapon.machineDamageBonus;
         // Push drives through; otherwise a guarding threat soaks part of the blow.
-        if (pushWithOxygen) damage += 2;
+        if (pushWithOxygen) damage += gameState.breaker ? 3 : 2;
         else if (intent === 'guard') damage = Math.max(1, damage - 2);
+        if (firstRoundSurge) damage += 2;
+        if (gameState.counterReady) {
+            damage += 3;
+            gameState.counterReady = false;
+            log('Counterstrike lands for +3 damage.');
+            pushCombatFeed('player', 'Counterstrike +3');
+        }
         monster.currentHp -= damage;
         showFloatingCombatText('enemy', damage);
         log(`Hit ${monster.name} for ${damage} damage.`);
@@ -1488,8 +1515,8 @@ async function performAttack(pushWithOxygen) {
         pushCombatFeed('warning', `Missed ${monster.name}`);
         if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss.</p>`);
         await applyWeaponMissCost();
-        // Overextending on a Push that whiffs leaves you exposed.
-        if (pushWithOxygen && !gameState.playerIsDead) {
+        // Overextending on a Push that whiffs leaves you exposed — unless Breaker keeps you steady.
+        if (pushWithOxygen && !gameState.breaker && !gameState.playerIsDead) {
             await applyDamage(monster.damagePool, 1, 'overextended push', { bypassArmor: true });
         }
     }
@@ -1526,6 +1553,11 @@ async function brace() {
 
     if (!gameState.playerIsDead && monster.currentHp > 0) {
         await resolveMonsterAction(intent, true);
+        // Counterstrike: a clean block sets up your next swing.
+        if (gameState.hasCounterstrike && !gameState.playerIsDead) {
+            gameState.counterReady = true;
+            pushCombatFeed('info', 'Counterstrike primed');
+        }
     }
     if (!gameState.playerIsDead && monster.currentHp > 0) {
         advanceCombatRound();
@@ -1584,8 +1616,8 @@ async function resolveMonsterAction(intent = 'strike', braced = false) {
     if (gameState.currentRoom?.doors === 0) damage += 1;
     if (gameState.currentRoom?.shape?.name === 'Oval shrine-lab' && monster.damagePool === 'soul') damage += 1;
     // Bracing reads the telegraph: a clean hit is turned aside; even a heavy
-    // charge is reduced to a glancing blow.
-    if (braced) damage = intent === 'charge' ? 1 : 0;
+    // charge is reduced to a glancing blow (Bulwark blocks it outright).
+    if (braced) damage = (intent === 'charge' && !gameState.bulwark) ? 1 : 0;
     damage = Math.max(0, damage);
 
     await sleep(150);
@@ -1715,7 +1747,7 @@ function resolveMonsterSpecials(monster) {
         gameState.hunterHandAvailable = false;
     }
 
-    if (Math.random() < 0.25) {
+    if (Math.random() < (gameState.scavenger ? 0.5 : 0.25)) {
         const item = rollRandomLoot();
         if (item.name !== 'Artifact clue') {
             addItem(item.name);
@@ -1927,10 +1959,53 @@ function canLevelUpNow() {
     return gameState.threatPoints >= LEVEL_UP_COST && gameState.advancements.length < ADVANCEMENTS.length;
 }
 
+// Drafting: offer a hand of advancements and let the player keep one. This is
+// the core "interesting progression" lever — agency and build identity instead
+// of a random stat bump.
 function levelUp() {
     if (!canLevelUpNow()) return;
-    const available = ADVANCEMENTS.filter(adv => !gameState.advancements.includes(adv.id));
-    const advancement = available[rollDie(available.length) - 1];
+    const choices = draftAdvancements(3);
+    if (!choices.length) return;
+    gameState.pendingAdvancementChoices = choices.map(adv => adv.id);
+    renderAdvancementDraft(choices);
+}
+
+function draftAdvancements(count) {
+    const pool = ADVANCEMENTS.filter(adv => !gameState.advancements.includes(adv.id));
+    const picks = [];
+    while (pool.length && picks.length < count) {
+        picks.push(pool.splice(rollDie(pool.length) - 1, 1)[0]);
+    }
+    return picks;
+}
+
+function renderAdvancementDraft(choices) {
+    const cards = choices.map(adv => `
+        <button type="button" class="advancement-card" onclick="chooseAdvancement('${adv.id}')">
+            <span class="advancement-card-path">${escapeHtml(adv.path || 'Advancement')}</span>
+            <span class="advancement-card-name">${escapeHtml(adv.name)}</span>
+            <span class="advancement-card-desc">${escapeHtml(adv.description)}</span>
+        </button>
+    `).join('');
+    setGameText(`
+        <div class="advancement-draft">
+            <h3><span class="material-symbols-outlined">upgrade</span> Scratch an Advancement</h3>
+            <p class="info">Choose one. The rest are lost until next time.</p>
+            <div class="advancement-card-row">${cards}</div>
+        </div>
+    `);
+    updateUI();
+}
+
+function chooseAdvancement(id) {
+    if (!gameState.pendingAdvancementChoices || !gameState.pendingAdvancementChoices.includes(id)) return;
+    const advancement = ADVANCEMENTS.find(adv => adv.id === id);
+    if (!advancement || gameState.advancements.includes(id)) return;
+    gameState.pendingAdvancementChoices = null;
+    applyAdvancement(advancement);
+}
+
+function applyAdvancement(advancement) {
     gameState.advancements.push(advancement.id);
     gameState.level = gameState.advancements.length;
     gameState.threatPoints = 0;
@@ -1946,17 +2021,30 @@ function levelUp() {
         log('Exit Saint marks the current room as a safe backtrack point.');
     }
 
-    gameState.ironBodyAvailable = gameState.advancements.includes('ironBody');
-    gameState.coldMindAvailable = gameState.advancements.includes('coldMind');
-    gameState.oldSoulAvailable = gameState.advancements.includes('oldSoul');
-    gameState.longBreathAvailable = gameState.advancements.includes('longBreath');
-    gameState.hunterHandAvailable = gameState.advancements.includes('huntersHand');
-    gameState.exitSaintAvailable = gameState.advancements.includes('exitSaint');
-
+    refreshAdvancementFlags();
     updateChallengeProgress('level', 'player', 1);
     log(`Advancement scratched: ${advancement.name}.`);
     setGameText(`<p class="success"><strong>${escapeHtml(advancement.name)}</strong></p><p>${escapeHtml(advancement.description)}</p>`);
+    safeSound('playVictorySound');
     updateUI();
+}
+
+// Re-derive the per-mission charges and passive flags from the chosen
+// advancements. Taking a new advancement also re-arms once-per-mission charges.
+function refreshAdvancementFlags() {
+    const has = id => gameState.advancements.includes(id);
+    gameState.ironBodyAvailable = has('ironBody');
+    gameState.coldMindAvailable = has('coldMind');
+    gameState.oldSoulAvailable = has('oldSoul');
+    gameState.longBreathAvailable = has('longBreath');
+    gameState.hunterHandAvailable = has('huntersHand');
+    gameState.exitSaintAvailable = has('exitSaint');
+    gameState.lastBreathAvailable = has('lastBreath');
+    gameState.bulwark = has('bulwark');
+    gameState.breaker = has('breaker');
+    gameState.adrenaline = has('adrenaline');
+    gameState.scavenger = has('scavenger');
+    gameState.hasCounterstrike = has('counterstrike');
 }
 
 // -----------------------------------------------------------------------------
@@ -2158,7 +2246,13 @@ function updateAutoExploreButton() {
 
 async function runAutoExplore() {
     while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory && !gameState.gameWon) {
-        if (canLevelUpNow()) levelUp();
+        if (canLevelUpNow()) {
+            levelUp();
+            // Auto mode drafts for you: take a random offered advancement.
+            if (gameState.pendingAdvancementChoices) {
+                chooseAdvancement(sample(gameState.pendingAdvancementChoices));
+            }
+        }
         await sleep(gameState.autoExploreDelay);
         if (gameState.targetRecovered) {
             gameState.autoExplore = false;

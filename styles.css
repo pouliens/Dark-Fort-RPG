@@ -492,6 +492,57 @@ button:hover:not(:disabled) .btn-sublabel { color: var(--sulfur-soft); }
     border-color: var(--sulfur);
 }
 
+/* Advancement draft — choose one of three on level-up */
+.advancement-draft h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--sulfur);
+    margin-bottom: 4px;
+}
+.advancement-card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+.advancement-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 6px;
+    background: rgba(0,0,0,0.25);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+    font-family: inherit;
+}
+.advancement-card:hover {
+    border-color: var(--sulfur);
+    background: rgba(217,180,65,0.08);
+    transform: translateY(-2px);
+}
+.advancement-card-path {
+    font-size: 0.6rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--sulfur);
+    opacity: 0.85;
+}
+.advancement-card-name {
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--paper);
+}
+.advancement-card-desc {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--paper-dim);
+}
+
 #braceBtn {
     color: var(--paper);
     border-color: rgba(96,140,168,0.5);
