@@ -420,6 +420,7 @@ function updateUI() {
     updateBattleUI();
     updateInventoryUI();
     updateDungeonTracker();
+    renderDoorChoices();
     updateChallengeUI();
     updateButtons();
 }
@@ -442,9 +443,12 @@ function updateButtons() {
     const levelUpBtn = document.getElementById('levelUpBtn');
     const extractBtn = document.getElementById('extractBtn');
 
+    // When the current room offers a real fork, the player picks a door instead
+    // of a generic Explore.
+    const doorChoiceOpen = hasDoorChoice();
     if (startBtn) startBtn.style.display = gameState.gameStarted ? 'none' : 'block';
     if (referenceLink) referenceLink.style.display = gameState.gameStarted ? 'none' : '';
-    if (exploreBtn) exploreBtn.style.display = inDowntime ? 'block' : 'none';
+    if (exploreBtn) exploreBtn.style.display = (inDowntime && !doorChoiceOpen) ? 'block' : 'none';
     if (autoExploreBtn) autoExploreBtn.style.display = inDowntime ? 'block' : 'none';
     if (attackBtn) attackBtn.style.display = showManualCombat ? 'block' : 'none';
     if (powerAttackBtn) powerAttackBtn.style.display = showManualCombat ? 'block' : 'none';
@@ -949,6 +953,63 @@ function rollDoors(shape) {
     return entry ? entry.doors : 2;
 }
 
+// A door telegraphs the broad character of what waits beyond it, derived from a
+// pre-rolled room-table result. Honest at the category level (so the choice is
+// readable) but leaves real uncertainty within a category — a "Danger" door
+// could be a pit, a weak threat, or a tough one.
+const DOOR_TELEGRAPHS = {
+    danger: { label: 'Danger', icon: 'skull', cls: 'door-danger' },
+    quiet: { label: 'Quiet', icon: 'self_improvement', cls: 'door-quiet' },
+    signal: { label: 'Signal', icon: 'settings_input_antenna', cls: 'door-signal' },
+    trade: { label: 'Peddler', icon: 'storefront', cls: 'door-trade' }
+};
+
+function doorTelegraph(roll) {
+    if (roll === 1) return { roll, category: 'quiet', ...DOOR_TELEGRAPHS.quiet };
+    if (roll === 3) return { roll, category: 'signal', ...DOOR_TELEGRAPHS.signal };
+    if (roll === 6) return { roll, category: 'trade', ...DOOR_TELEGRAPHS.trade };
+    return { roll, category: 'danger', ...DOOR_TELEGRAPHS.danger };
+}
+
+// Pre-roll the onward doors for a room so the next move is a real choice.
+function generateDoors(room) {
+    if (!room) return;
+    const count = Math.min(3, room.doors == null ? 1 : room.doors);
+    room.nextDoors = [];
+    for (let i = 0; i < count; i++) {
+        room.nextDoors.push(doorTelegraph(rollDie(6)));
+    }
+}
+
+function hasDoorChoice() {
+    return gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon
+        && !gameState.inCombat && !gameState.inShop && !gameState.inVictory
+        && !gameState.pendingInsertion && !gameState.pendingAdvancementChoices
+        && (gameState.currentRoom?.nextDoors?.length || 0) >= 2;
+}
+
+// Render the onward doors as a route choice. Each door telegraphs the broad
+// character of what waits beyond, so the player weighs risk against the air.
+function renderDoorChoices() {
+    const el = document.getElementById('doorChoices');
+    if (!el) return;
+    if (!hasDoorChoice()) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+    }
+    const exits = gameState.currentRoom.nextDoors;
+    el.style.display = 'flex';
+    el.innerHTML = `<span class="door-choices-label"><span class="material-symbols-outlined">fork_right</span> Choose a door</span>`
+        + exits.map((door, i) => `
+            <button type="button" class="door-choice ${door.cls}" onclick="exploreRoom(${i})" title="${escapeHtml(door.label)} beyond this door">
+                <span class="material-symbols-outlined door-choice-icon">${door.icon}</span>
+                <span class="door-choice-label">${escapeHtml(door.label)}</span>
+                <span class="door-choice-sub">Door ${i + 1} · 1 O2</span>
+            </button>
+        `).join('');
+}
+
 function markRoomExplored(room, reason = 'room explored') {
     if (!room || room.explored) return;
     room.explored = true;
@@ -974,14 +1035,26 @@ function addCredits(amount, reason) {
     }
 }
 
-async function exploreRoom() {
+async function exploreRoom(doorIndex = null) {
     if (!gameState.gameStarted || gameState.inCombat || gameState.inShop || gameState.playerIsDead) return;
 
     gameState.canScavenge = false;
 
     if (gameState.pendingInsertion) {
         await resolveInsertion();
+        generateDoors(gameState.currentRoom);
+        updateUI();
         return;
+    }
+
+    // Walk through the chosen door. Its pre-rolled telegraph fixes what waits
+    // beyond, so picking a door is a genuine route decision.
+    const prevRoom = gameState.currentRoom;
+    const exits = prevRoom?.nextDoors || [];
+    let chosenDoor = null;
+    if (exits.length) {
+        const idx = (doorIndex != null && exits[doorIndex]) ? doorIndex : 0;
+        chosenDoor = exits[idx];
     }
 
     const wasCarryingTarget = gameState.targetRecovered;
@@ -1005,7 +1078,7 @@ async function exploreRoom() {
     gameState.currentRoom = room;
     gameState.map.push(room);
 
-    const roomRoll = rollDie(6);
+    const roomRoll = chosenDoor ? chosenDoor.roll : rollDie(6);
     await showDiceRoll({
         context: 'Room Table',
         dice: [{ type: 'd6', result: roomRoll }],
@@ -1024,6 +1097,10 @@ async function exploreRoom() {
         const damage = rollExpression('d4', 1);
         await applyDamage(gameState.mission.pool, damage, 'the recovered artifact wakes');
     }
+
+    // Pre-roll this room's onward doors so the next move is a choice.
+    generateDoors(gameState.currentRoom);
+    updateUI();
 }
 
 async function resolveInsertion() {
@@ -2180,11 +2257,21 @@ function updateDungeonTracker() {
         return `${line}<div class="tracker-node-wrap"><div class="tracker-node ${classes}" title="Room ${room.room}: ${escapeHtml(room.type)}">
             <span class="material-symbols-outlined">${icon}</span><span class="tracker-node-label">${room.room}</span>
         </div></div>`;
-    }).join('') + `
-        <div class="tracker-line"></div>
-        <div class="tracker-node-wrap"><div class="tracker-node unknown" title="Next room"><span class="material-symbols-outlined">question_mark</span><span class="tracker-node-label">?</span></div></div>
-    `;
+    }).join('') + trackerTrailingNodes();
     containerEl.scrollLeft = containerEl.scrollWidth;
+}
+
+// The path ahead: telegraphed door(s) if we have them, else an unknown node.
+function trackerTrailingNodes() {
+    const exits = (!gameState.inCombat && !gameState.inShop && gameState.currentRoom?.nextDoors) || [];
+    if (!exits.length) {
+        return `<div class="tracker-line"></div>
+            <div class="tracker-node-wrap"><div class="tracker-node unknown" title="Next room"><span class="material-symbols-outlined">question_mark</span><span class="tracker-node-label">?</span></div></div>`;
+    }
+    return exits.map(door => `<div class="tracker-line"></div>
+        <div class="tracker-node-wrap"><div class="tracker-node ${door.cls}" title="${escapeHtml(door.label)} ahead">
+            <span class="material-symbols-outlined">${door.icon}</span><span class="tracker-node-label">${escapeHtml(door.label)}</span>
+        </div></div>`).join('');
 }
 
 function iconNameForRoom(room) {
@@ -2201,17 +2288,24 @@ function openMap() {
     const mapGridEl = document.getElementById('mapGrid');
     const mapModalEl = document.getElementById('mapModal');
     if (!mapGridEl || !mapModalEl) return;
-    mapGridEl.innerHTML = gameState.map.map(room => `
-        <div class="map-cell ${room.safe ? 'safe' : ''} ${room.unsafe ? 'unsafe' : ''}">
+    mapGridEl.innerHTML = gameState.map.map(room => {
+        const isCurrent = room === gameState.currentRoom;
+        const exits = isCurrent && room.nextDoors?.length
+            ? `<div class="map-cell-exits">${room.nextDoors.map(door =>
+                `<span class="material-symbols-outlined ${door.cls}" title="${escapeHtml(door.label)} ahead">${door.icon}</span>`).join('')}</div>`
+            : '';
+        return `
+        <div class="map-cell ${room.safe ? 'safe' : ''} ${room.unsafe ? 'unsafe' : ''} ${isCurrent ? 'current' : ''}">
             <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
-            <div class="map-cell-room-number">${room.room}</div>
+            <div class="map-cell-room-number">${room.room}${isCurrent ? ' · here' : ''}</div>
             <div class="map-cell-details">
                 <strong>${escapeHtml(room.type)}</strong><br>
                 ${escapeHtml(room.shape?.name || '')}<br>
                 ${escapeHtml(room.details || '')}
             </div>
-        </div>
-    `).join('');
+            ${exits}
+        </div>`;
+    }).join('');
     mapModalEl.style.display = 'block';
 }
 

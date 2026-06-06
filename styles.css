@@ -543,6 +543,102 @@ button:hover:not(:disabled) .btn-sublabel { color: var(--sulfur-soft); }
     color: var(--paper-dim);
 }
 
+/* Route choice — pick a door, each telegraphing what waits beyond */
+.door-choices {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 10px;
+    margin: 10px 0 4px;
+}
+.door-choices-label {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--paper-dim);
+}
+.door-choices-label .material-symbols-outlined { font-size: 1rem; }
+.door-choice {
+    flex: 1 1 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 12px 8px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 6px;
+    background: rgba(0,0,0,0.25);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+    font-family: inherit;
+    color: var(--paper);
+}
+.door-choice:hover { transform: translateY(-2px); }
+.door-choice-icon { font-size: 1.6rem; }
+.door-choice-label { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; }
+.door-choice-sub {
+    font-size: 0.58rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--paper-dim);
+}
+.door-choice.door-danger { border-color: rgba(181,40,40,0.5); }
+.door-choice.door-danger .door-choice-icon { color: var(--blood); }
+.door-choice.door-danger:hover { background: rgba(181,40,40,0.1); border-color: var(--blood); }
+.door-choice.door-quiet { border-color: rgba(120,160,120,0.45); }
+.door-choice.door-quiet .door-choice-icon { color: #8fbf8f; }
+.door-choice.door-quiet:hover { background: rgba(120,160,120,0.1); border-color: #8fbf8f; }
+.door-choice.door-signal { border-color: rgba(96,140,168,0.5); }
+.door-choice.door-signal .door-choice-icon { color: #9ecbe6; }
+.door-choice.door-signal:hover { background: rgba(96,140,168,0.1); border-color: #9ecbe6; }
+.door-choice.door-trade { border-color: rgba(217,180,65,0.5); }
+.door-choice.door-trade .door-choice-icon { color: var(--sulfur); }
+.door-choice.door-trade:hover { background: rgba(217,180,65,0.1); border-color: var(--sulfur); }
+
+/* Inline door telegraph tags (reference page) */
+.door-tag {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    font-weight: 700;
+    border: 1px solid currentColor;
+}
+.door-tag.door-danger { color: var(--blood); }
+.door-tag.door-quiet { color: #8fbf8f; }
+.door-tag.door-signal { color: #9ecbe6; }
+.door-tag.door-trade { color: var(--sulfur); }
+
+/* Telegraphed door nodes in the path tracker */
+.tracker-node.door-danger { border-color: rgba(181,40,40,0.55); color: var(--blood); }
+.tracker-node.door-quiet { border-color: rgba(120,160,120,0.5); color: #8fbf8f; }
+.tracker-node.door-signal { border-color: rgba(96,140,168,0.55); color: #9ecbe6; }
+.tracker-node.door-trade { border-color: rgba(217,180,65,0.55); color: var(--sulfur); }
+
+/* Map: current position + onward exits */
+.map-cell.current {
+    border-color: var(--sulfur);
+    box-shadow: 0 0 12px rgba(217,180,65,0.3);
+}
+.map-cell-exits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.map-cell-exits .material-symbols-outlined { font-size: 1.05rem; }
+.map-cell-exits .door-danger { color: var(--blood); }
+.map-cell-exits .door-quiet { color: #8fbf8f; }
+.map-cell-exits .door-signal { color: #9ecbe6; }
+.map-cell-exits .door-trade { color: var(--sulfur); }
+
 #braceBtn {
     color: var(--paper);
     border-color: rgba(96,140,168,0.5);
