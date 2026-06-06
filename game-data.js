@@ -87,7 +87,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'soul',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-1.png`,
         special: 'Loot 3d6 credits. After fight: 1-in-6 the mission ends and your body becomes an artifact.'
     },
@@ -97,7 +97,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6+1',
         damagePool: 'body',
-        hp: 9,
+        hp: 7,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-2.png`,
         special: 'Worth 7 threat points. Pry-hammer or Žaltys shock baton gets +1 attack against it.'
     },
@@ -107,7 +107,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'mind',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-3.png`,
         special: 'The first miss costs 1 Oxygen or makes this room unsafe.'
     },
@@ -117,7 +117,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'oxygen',
-        hp: 11,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-4.png`,
         special: 'After fight: 2-in-6 gain +10 threat points. Its hide can repair one suit breach.'
     },
@@ -127,7 +127,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6',
         damagePool: 'soul',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-5.png`,
         special: 'Before combat, test Soul to salute the dead. Success: it starts at half HP.'
     },
@@ -137,7 +137,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6',
         damagePool: 'body',
-        hp: 10,
+        hp: 7,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-6.png`,
         special: 'Hardsuit plating absorbs d4-1 Body. If Body damage gets through, also lose 1 Oxygen.'
     }

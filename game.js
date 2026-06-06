@@ -428,6 +428,7 @@ function updateButtons() {
     const autoExploreBtn = document.getElementById('autoExploreBtn');
     const attackBtn = document.getElementById('attackBtn');
     const powerAttackBtn = document.getElementById('powerAttackBtn');
+    const braceBtn = document.getElementById('braceBtn');
     const scavengeBtn = document.getElementById('scavengeBtn');
     const fleeBtn = document.getElementById('fleeBtn');
     const levelUpBtn = document.getElementById('levelUpBtn');
@@ -439,6 +440,7 @@ function updateButtons() {
     if (autoExploreBtn) autoExploreBtn.style.display = inDowntime ? 'block' : 'none';
     if (attackBtn) attackBtn.style.display = showManualCombat ? 'block' : 'none';
     if (powerAttackBtn) powerAttackBtn.style.display = showManualCombat ? 'block' : 'none';
+    if (braceBtn) braceBtn.style.display = showManualCombat ? 'block' : 'none';
     if (scavengeBtn) scavengeBtn.style.display = inDowntime && gameState.canScavenge ? 'block' : 'none';
     if (fleeBtn) fleeBtn.style.display = showManualCombat ? 'block' : 'none';
     if (levelUpBtn) levelUpBtn.style.display = inDowntime && canLevelUpNow() ? 'block' : 'none';
@@ -1217,6 +1219,25 @@ function rollRandomLoot() {
 // COMBAT
 // -----------------------------------------------------------------------------
 
+const COMBAT_INTENTS = {
+    strike: { label: 'Strike', icon: 'swords', hint: 'A plain blow — trade with Attack.', css: 'intent-strike' },
+    charge: { label: 'Charge', icon: 'bolt', hint: 'Winding up a heavy hit — Brace it, or Push to drop it first.', css: 'intent-charge' },
+    guard: { label: 'Guard', icon: 'shield', hint: 'Defending — Push to break through its guard.', css: 'intent-guard' }
+};
+
+function rollMonsterIntent() {
+    // d6: 1-3 Strike, 4-5 Charge, 6 Guard. Telegraphed a round ahead so the
+    // player can read it and pick a counter (Attack / Brace / Push).
+    const roll = rollDie(6);
+    if (roll === 6) return 'guard';
+    if (roll >= 4) return 'charge';
+    return 'strike';
+}
+
+function intentVerb(intent) {
+    return intent === 'charge' ? 'charges' : intent === 'guard' ? 'jabs' : 'strikes';
+}
+
 function startCombat(monster, room = gameState.currentRoom) {
     const armor = getItem(gameState.equippedArmor);
     if (armor?.skipFights && gameState.itemUses[gameState.equippedArmor] > 0) {
@@ -1234,7 +1255,7 @@ function startCombat(monster, room = gameState.currentRoom) {
 
     gameState.inCombat = true;
     gameState.currentRoom = room;
-    gameState.currentMonster = { ...monster, currentHp: monster.hp, difficulty: monster.points, firstMiss: true };
+    gameState.currentMonster = { ...monster, currentHp: monster.hp, difficulty: monster.points, intent: rollMonsterIntent(monster) };
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
     gameState.autoBattle = false;
@@ -1278,6 +1299,7 @@ function startCombat(monster, room = gameState.currentRoom) {
                             <div class="arena-hp-text"><span id="monster-hp">${m.currentHp}</span>/${m.hp}</div>
                         </div>
                     </div>
+                    <div class="enemy-intent hidden" id="enemy-intent"></div>
                 </div>
             </div>
             <div class="battle-stats-bar">
@@ -1312,10 +1334,29 @@ function startCombat(monster, room = gameState.currentRoom) {
 
     pushCombatFeed('info', `${m.name} blocks the route.`);
     updateUI();
+    updateMonsterIntentUI();
     setTimeout(() => {
         document.getElementById('battle-player-actor')?.classList.remove('arena-sprite-enter-player');
         document.getElementById('battle-enemy-actor')?.classList.remove('arena-sprite-enter-enemy');
     }, 700);
+}
+
+function updateMonsterIntentUI() {
+    const el = document.getElementById('enemy-intent');
+    if (!el) return;
+    const monster = gameState.currentMonster;
+    if (!monster || !gameState.inCombat || gameState.monsterDying) {
+        el.classList.add('hidden');
+        return;
+    }
+    const intent = COMBAT_INTENTS[monster.intent] || COMBAT_INTENTS.strike;
+    el.classList.remove('hidden', 'intent-strike', 'intent-charge', 'intent-guard');
+    el.classList.add(intent.css);
+    el.innerHTML = `
+        <span class="intent-caption">Next move</span>
+        <span class="intent-main"><span class="material-symbols-outlined">${intent.icon}</span>${intent.label}</span>
+        <span class="intent-hint">${escapeHtml(intent.hint)}</span>
+    `;
 }
 
 function poolPercent(pool) {
@@ -1346,11 +1387,13 @@ function updateBattleUI() {
         if (hpBar) hpBar.style.width = `${clamp((monster.currentHp / monster.hp) * 100, 0, 100)}%`;
         const hitEl = document.getElementById('battle-hit-chance');
         if (hitEl) {
-            const needed = Math.max(2, monster.points - getAttackBonus(monster));
+            const chargeBonus = monster.intent === 'charge' ? 1 : 0;
+            const needed = Math.max(2, monster.points - getAttackBonus(monster) - chargeBonus);
             const chance = clamp(Math.round(((7 - needed) / 6) * 100), 0, 100);
             hitEl.textContent = `${chance}%`;
         }
     }
+    updateMonsterIntentUI();
     updateBattleIntent();
 }
 
@@ -1387,6 +1430,7 @@ async function performAttack(pushWithOxygen) {
         return;
     }
 
+    const intent = monster.intent;
     let pushBonus = 0;
     if (pushWithOxygen) {
         spendOxygen(1, 'pushing an attack');
@@ -1399,7 +1443,8 @@ async function performAttack(pushWithOxygen) {
     if (combatLogEl) combatLogEl.innerHTML = '';
 
     const roll = rollDie(6);
-    const attackBonus = getAttackBonus(monster) + pushBonus;
+    // A charging threat is committed and easier to hit.
+    const attackBonus = getAttackBonus(monster) + pushBonus + (intent === 'charge' ? 1 : 0);
     const total = roll + attackBonus;
     const hit = total >= monster.points;
 
@@ -1412,6 +1457,9 @@ async function performAttack(pushWithOxygen) {
         const weapon = getEquippedWeapon();
         let damage = rollExpression(weapon.value, 0);
         if (weapon.machineDamageBonus && monster.type === 'Machine') damage += weapon.machineDamageBonus;
+        // Push drives through; otherwise a guarding threat soaks part of the blow.
+        if (pushWithOxygen) damage += 2;
+        else if (intent === 'guard') damage = Math.max(1, damage - 2);
         monster.currentHp -= damage;
         showFloatingCombatText('enemy', damage);
         log(`Hit ${monster.name} for ${damage} damage.`);
@@ -1428,23 +1476,73 @@ async function performAttack(pushWithOxygen) {
         if (monster.currentHp <= 0) {
             monster.currentHp = 0;
             await finishMonsterDeath(damage);
-        } else {
-            triggerMonsterHitEffect();
-            if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="success">Hit for ${damage}.</p>`);
-            gameState.combatTurn += 1;
-            pulseRoundChip();
+            combatActionBusy = false;
+            updateUI();
+            return;
         }
+        triggerMonsterHitEffect();
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="success">Hit for ${damage}.</p>`);
     } else {
         showFloatingCombatText('enemy', 0, { miss: true });
         log(`Missed ${monster.name}.`);
         pushCombatFeed('warning', `Missed ${monster.name}`);
-        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss. The threat hits back.</p>`);
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss.</p>`);
         await applyWeaponMissCost();
-        await monsterAttack();
+        // Overextending on a Push that whiffs leaves you exposed.
+        if (pushWithOxygen && !gameState.playerIsDead) {
+            await applyDamage(monster.damagePool, 1, 'overextended push', { bypassArmor: true });
+        }
+    }
+
+    // Both sides act: the threat now follows through on its telegraphed intent.
+    if (!gameState.playerIsDead && !gameState.monsterDying && monster.currentHp > 0) {
+        await resolveMonsterAction(intent, false);
+    }
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        advanceCombatRound();
     }
 
     combatActionBusy = false;
     updateUI();
+}
+
+async function brace() {
+    const monster = gameState.currentMonster;
+    if (!monster || gameState.monsterDying || combatActionBusy) return;
+    combatActionBusy = true;
+    setTurnIndicator('player');
+    await oxygenCollapseTick('combat round');
+    if (gameState.playerIsDead) {
+        combatActionBusy = false;
+        return;
+    }
+
+    const intent = monster.intent;
+    safeSound('playAttackSound');
+    animateBattleAttack('player');
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) combatLogEl.innerHTML = '<p class="info">You set your stance and brace behind cover.</p>';
+    pushCombatFeed('info', 'You brace for the hit.');
+
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        await resolveMonsterAction(intent, true);
+    }
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        advanceCombatRound();
+    }
+
+    combatActionBusy = false;
+    updateUI();
+}
+
+function advanceCombatRound() {
+    const monster = gameState.currentMonster;
+    if (!monster) return;
+    gameState.combatTurn += 1;
+    monster.intent = rollMonsterIntent(monster);
+    setTurnIndicator('player');
+    pulseRoundChip();
+    updateMonsterIntentUI();
 }
 
 async function applyWeaponMissCost() {
@@ -1474,20 +1572,36 @@ async function finishMonsterDeath(killingBlowDamage) {
     winCombat(killingBlowDamage);
 }
 
-async function monsterAttack() {
+async function resolveMonsterAction(intent = 'strike', braced = false) {
     const monster = gameState.currentMonster;
     if (!monster) return;
     setTurnIndicator('enemy');
     animateBattleAttack('enemy');
 
     let damage = rollExpression(monster.damage, 0);
+    if (intent === 'charge') damage += 2;
+    else if (intent === 'guard') damage = Math.floor(damage / 2);
     if (gameState.currentRoom?.doors === 0) damage += 1;
     if (gameState.currentRoom?.shape?.name === 'Oval shrine-lab' && monster.damagePool === 'soul') damage += 1;
+    // Bracing reads the telegraph: a clean hit is turned aside; even a heavy
+    // charge is reduced to a glancing blow.
+    if (braced) damage = intent === 'charge' ? 1 : 0;
+    damage = Math.max(0, damage);
 
     await sleep(150);
     const combatLogEl = document.getElementById('combat-log');
     if (combatLogEl) {
-        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">${escapeHtml(monster.name)} damage: ${damage} ${POOL_LABELS[monster.damagePool]}</p>`);
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">${escapeHtml(monster.name)} ${intentVerb(intent)}: ${damage} ${POOL_LABELS[monster.damagePool]}${braced ? ' (braced)' : ''}</p>`);
+    }
+
+    if (damage <= 0) {
+        showFloatingCombatText('player', 0, { miss: true });
+        pushCombatFeed('info', braced ? 'Blocked!' : `${monster.name} holds back`);
+        if (!gameState.playerIsDead) {
+            setTurnIndicator('player');
+        }
+        updateUI();
+        return;
     }
 
     await applyDamage(monster.damagePool, damage, monster.name);
@@ -1516,9 +1630,7 @@ async function monsterAttack() {
     }
 
     if (!gameState.playerIsDead) {
-        gameState.combatTurn += 1;
         setTurnIndicator('player');
-        pulseRoundChip();
     }
     updateUI();
 }
@@ -1678,7 +1790,8 @@ function updateBattleIntent() {
         return;
     }
     intentEl.classList.remove('hidden');
-    valueEl.textContent = pickAutoBattleAction() === 'potion' ? 'Use item' : 'Attack';
+    const action = pickAutoBattleAction();
+    valueEl.textContent = action === 'potion' ? 'Use item' : action === 'brace' ? 'Brace' : action === 'push' ? 'Push' : 'Attack';
 }
 
 function pickAutoBattleAction() {
@@ -1688,6 +1801,14 @@ function pickAutoBattleAction() {
             .find(itemName => countItem(itemName) > 0 && getItem(itemName)?.restores?.pool === lowPool);
         if (item) return 'potion';
     }
+    const monster = gameState.currentMonster;
+    if (monster) {
+        const routed = gameState.pools[monster.damagePool];
+        const routedLow = routed && routed.current / routed.max <= 0.45;
+        // Read the intent: cover up against a charge, push through a guard.
+        if (monster.intent === 'charge' && routedLow) return 'brace';
+        if (monster.intent === 'guard' && gameState.pools.oxygen.current > 2) return 'push';
+    }
     return 'attack';
 }
 
@@ -1695,6 +1816,8 @@ async function runAutoBattle() {
     while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
         const action = pickAutoBattleAction();
         if (action === 'potion') await usePotion();
+        else if (action === 'brace') await brace();
+        else if (action === 'push') await performAttack(true);
         else await performAttack(false);
         if (gameState.autoBattle && gameState.inCombat) await sleep(gameState.autoBattleDelay);
     }

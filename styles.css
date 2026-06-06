@@ -492,6 +492,16 @@ button:hover:not(:disabled) .btn-sublabel { color: var(--sulfur-soft); }
     border-color: var(--sulfur);
 }
 
+#braceBtn {
+    color: var(--paper);
+    border-color: rgba(96,140,168,0.5);
+}
+#braceBtn:hover:not(:disabled) {
+    background: rgba(96,140,168,0.12);
+    color: #9ecbe6;
+    border-color: #9ecbe6;
+}
+
 #scavengeBtn:hover:not(:disabled) {
     background: rgba(232,225,207,0.04);
     color: var(--paper);
@@ -1484,6 +1494,51 @@ body.in-combat .log {
 .battle-intent .material-symbols-outlined { font-size: 0.9rem; }
 .battle-intent.hidden { display: none; }
 
+/* Telegraphed monster intent shown on the enemy side */
+.enemy-intent {
+    margin-top: 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.28);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    text-align: center;
+    max-width: 150px;
+}
+.enemy-intent.hidden { display: none; }
+.enemy-intent .intent-caption {
+    font-size: 0.54rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--paper-dim);
+}
+.enemy-intent .intent-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.enemy-intent .intent-main .material-symbols-outlined { font-size: 1.05rem; }
+.enemy-intent .intent-hint {
+    font-size: 0.58rem;
+    line-height: 1.2;
+    color: var(--paper-dim);
+    opacity: 0.85;
+}
+.enemy-intent.intent-strike { border-color: rgba(181,40,40,0.55); }
+.enemy-intent.intent-strike .intent-main { color: var(--blood); }
+.enemy-intent.intent-charge { border-color: rgba(217,180,65,0.6); box-shadow: 0 0 10px rgba(217,180,65,0.18); }
+.enemy-intent.intent-charge .intent-main { color: var(--sulfur); }
+.enemy-intent.intent-guard { border-color: rgba(96,140,168,0.6); }
+.enemy-intent.intent-guard .intent-main { color: #9ecbe6; }
+
 /* Battle feed */
 .battle-feed {
     display: flex;
@@ -1571,6 +1626,7 @@ body.in-combat .actions {
 
 body.in-combat #attackBtn,
 body.in-combat #powerAttackBtn,
+body.in-combat #braceBtn,
 body.in-combat #fleeBtn {
     margin: 0;
     padding: 10px 6px;
