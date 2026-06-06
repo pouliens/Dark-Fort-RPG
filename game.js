@@ -75,6 +75,14 @@ function createInitialGameState() {
         coldMindAvailable: false,
         oldSoulAvailable: false,
         exitSaintAvailable: false,
+        bulwark: false,
+        breaker: false,
+        adrenaline: false,
+        scavenger: false,
+        hasCounterstrike: false,
+        counterReady: false,
+        lastBreathAvailable: false,
+        pendingAdvancementChoices: null,
         mirrorVisorAvailable: false,
         sealantAvailable: false,
         breached: false,
@@ -412,6 +420,7 @@ function updateUI() {
     updateBattleUI();
     updateInventoryUI();
     updateDungeonTracker();
+    renderDoorChoices();
     updateChallengeUI();
     updateButtons();
 }
@@ -428,17 +437,22 @@ function updateButtons() {
     const autoExploreBtn = document.getElementById('autoExploreBtn');
     const attackBtn = document.getElementById('attackBtn');
     const powerAttackBtn = document.getElementById('powerAttackBtn');
+    const braceBtn = document.getElementById('braceBtn');
     const scavengeBtn = document.getElementById('scavengeBtn');
     const fleeBtn = document.getElementById('fleeBtn');
     const levelUpBtn = document.getElementById('levelUpBtn');
     const extractBtn = document.getElementById('extractBtn');
 
+    // When the current room offers a real fork, the player picks a door instead
+    // of a generic Explore.
+    const doorChoiceOpen = hasDoorChoice();
     if (startBtn) startBtn.style.display = gameState.gameStarted ? 'none' : 'block';
     if (referenceLink) referenceLink.style.display = gameState.gameStarted ? 'none' : '';
-    if (exploreBtn) exploreBtn.style.display = inDowntime ? 'block' : 'none';
+    if (exploreBtn) exploreBtn.style.display = (inDowntime && !doorChoiceOpen) ? 'block' : 'none';
     if (autoExploreBtn) autoExploreBtn.style.display = inDowntime ? 'block' : 'none';
     if (attackBtn) attackBtn.style.display = showManualCombat ? 'block' : 'none';
     if (powerAttackBtn) powerAttackBtn.style.display = showManualCombat ? 'block' : 'none';
+    if (braceBtn) braceBtn.style.display = showManualCombat ? 'block' : 'none';
     if (scavengeBtn) scavengeBtn.style.display = inDowntime && gameState.canScavenge ? 'block' : 'none';
     if (fleeBtn) fleeBtn.style.display = showManualCombat ? 'block' : 'none';
     if (levelUpBtn) levelUpBtn.style.display = inDowntime && canLevelUpNow() ? 'block' : 'none';
@@ -834,6 +848,16 @@ async function applyDamage(pool, amount, source, options = {}) {
 
 function checkDefeat(source) {
     if (gameState.playerIsDead || gameState.gameWon) return;
+    // Last Breath: the first lethal blow each mission leaves you clinging at 1.
+    if (gameState.lastBreathAvailable) {
+        const failing = POOLS.find(pool => pool !== 'oxygen' && gameState.pools[pool].current <= 0);
+        if (failing) {
+            gameState.pools[failing].current = 1;
+            gameState.lastBreathAvailable = false;
+            log(`Last Breath holds your ${POOL_LABELS[failing]} at 1.`);
+            showToast('Last Breath keeps you alive', 'success');
+        }
+    }
     if (gameState.pools.body.current <= 0) {
         gameOver(`Body reached 0. ${source}`);
     } else if (gameState.pools.mind.current <= 0) {
@@ -929,6 +953,63 @@ function rollDoors(shape) {
     return entry ? entry.doors : 2;
 }
 
+// A door telegraphs the broad character of what waits beyond it, derived from a
+// pre-rolled room-table result. Honest at the category level (so the choice is
+// readable) but leaves real uncertainty within a category — a "Danger" door
+// could be a pit, a weak threat, or a tough one.
+const DOOR_TELEGRAPHS = {
+    danger: { label: 'Danger', icon: 'skull', cls: 'door-danger' },
+    quiet: { label: 'Quiet', icon: 'self_improvement', cls: 'door-quiet' },
+    signal: { label: 'Signal', icon: 'settings_input_antenna', cls: 'door-signal' },
+    trade: { label: 'Peddler', icon: 'storefront', cls: 'door-trade' }
+};
+
+function doorTelegraph(roll) {
+    if (roll === 1) return { roll, category: 'quiet', ...DOOR_TELEGRAPHS.quiet };
+    if (roll === 3) return { roll, category: 'signal', ...DOOR_TELEGRAPHS.signal };
+    if (roll === 6) return { roll, category: 'trade', ...DOOR_TELEGRAPHS.trade };
+    return { roll, category: 'danger', ...DOOR_TELEGRAPHS.danger };
+}
+
+// Pre-roll the onward doors for a room so the next move is a real choice.
+function generateDoors(room) {
+    if (!room) return;
+    const count = Math.min(3, room.doors == null ? 1 : room.doors);
+    room.nextDoors = [];
+    for (let i = 0; i < count; i++) {
+        room.nextDoors.push(doorTelegraph(rollDie(6)));
+    }
+}
+
+function hasDoorChoice() {
+    return gameState.gameStarted && !gameState.playerIsDead && !gameState.gameWon
+        && !gameState.inCombat && !gameState.inShop && !gameState.inVictory
+        && !gameState.pendingInsertion && !gameState.pendingAdvancementChoices
+        && (gameState.currentRoom?.nextDoors?.length || 0) >= 2;
+}
+
+// Render the onward doors as a route choice. Each door telegraphs the broad
+// character of what waits beyond, so the player weighs risk against the air.
+function renderDoorChoices() {
+    const el = document.getElementById('doorChoices');
+    if (!el) return;
+    if (!hasDoorChoice()) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+    }
+    const exits = gameState.currentRoom.nextDoors;
+    el.style.display = 'flex';
+    el.innerHTML = `<span class="door-choices-label"><span class="material-symbols-outlined">fork_right</span> Choose a door</span>`
+        + exits.map((door, i) => `
+            <button type="button" class="door-choice ${door.cls}" onclick="exploreRoom(${i})" title="${escapeHtml(door.label)} beyond this door">
+                <span class="material-symbols-outlined door-choice-icon">${door.icon}</span>
+                <span class="door-choice-label">${escapeHtml(door.label)}</span>
+                <span class="door-choice-sub">Door ${i + 1} · 1 O2</span>
+            </button>
+        `).join('');
+}
+
 function markRoomExplored(room, reason = 'room explored') {
     if (!room || room.explored) return;
     room.explored = true;
@@ -954,14 +1035,26 @@ function addCredits(amount, reason) {
     }
 }
 
-async function exploreRoom() {
+async function exploreRoom(doorIndex = null) {
     if (!gameState.gameStarted || gameState.inCombat || gameState.inShop || gameState.playerIsDead) return;
 
     gameState.canScavenge = false;
 
     if (gameState.pendingInsertion) {
         await resolveInsertion();
+        generateDoors(gameState.currentRoom);
+        updateUI();
         return;
+    }
+
+    // Walk through the chosen door. Its pre-rolled telegraph fixes what waits
+    // beyond, so picking a door is a genuine route decision.
+    const prevRoom = gameState.currentRoom;
+    const exits = prevRoom?.nextDoors || [];
+    let chosenDoor = null;
+    if (exits.length) {
+        const idx = (doorIndex != null && exits[doorIndex]) ? doorIndex : 0;
+        chosenDoor = exits[idx];
     }
 
     const wasCarryingTarget = gameState.targetRecovered;
@@ -985,7 +1078,7 @@ async function exploreRoom() {
     gameState.currentRoom = room;
     gameState.map.push(room);
 
-    const roomRoll = rollDie(6);
+    const roomRoll = chosenDoor ? chosenDoor.roll : rollDie(6);
     await showDiceRoll({
         context: 'Room Table',
         dice: [{ type: 'd6', result: roomRoll }],
@@ -1004,6 +1097,10 @@ async function exploreRoom() {
         const damage = rollExpression('d4', 1);
         await applyDamage(gameState.mission.pool, damage, 'the recovered artifact wakes');
     }
+
+    // Pre-roll this room's onward doors so the next move is a choice.
+    generateDoors(gameState.currentRoom);
+    updateUI();
 }
 
 async function resolveInsertion() {
@@ -1131,9 +1228,10 @@ async function resolveRoomRoll(room, roll) {
 
 async function resolveQuietSalvage(room) {
     room.type = 'Quiet salvage';
+    const salvageSoul = gameState.scavenger ? 2 : 1;
     if (gameState.pools.soul.current < gameState.pools.soul.max) {
-        restorePool('soul', 1);
-        room.details = '+1 Soul';
+        restorePool('soul', salvageSoul);
+        room.details = `+${salvageSoul} Soul`;
     } else {
         const credits = rollExpression('d6', 1);
         addCredits(credits, 'quiet salvage');
@@ -1217,6 +1315,25 @@ function rollRandomLoot() {
 // COMBAT
 // -----------------------------------------------------------------------------
 
+const COMBAT_INTENTS = {
+    strike: { label: 'Strike', icon: 'swords', hint: 'A plain blow — trade with Attack.', css: 'intent-strike' },
+    charge: { label: 'Charge', icon: 'bolt', hint: 'Winding up a heavy hit — Brace it, or Push to drop it first.', css: 'intent-charge' },
+    guard: { label: 'Guard', icon: 'shield', hint: 'Defending — Push to break through its guard.', css: 'intent-guard' }
+};
+
+function rollMonsterIntent() {
+    // d6: 1-3 Strike, 4-5 Charge, 6 Guard. Telegraphed a round ahead so the
+    // player can read it and pick a counter (Attack / Brace / Push).
+    const roll = rollDie(6);
+    if (roll === 6) return 'guard';
+    if (roll >= 4) return 'charge';
+    return 'strike';
+}
+
+function intentVerb(intent) {
+    return intent === 'charge' ? 'charges' : intent === 'guard' ? 'jabs' : 'strikes';
+}
+
 function startCombat(monster, room = gameState.currentRoom) {
     const armor = getItem(gameState.equippedArmor);
     if (armor?.skipFights && gameState.itemUses[gameState.equippedArmor] > 0) {
@@ -1234,7 +1351,7 @@ function startCombat(monster, room = gameState.currentRoom) {
 
     gameState.inCombat = true;
     gameState.currentRoom = room;
-    gameState.currentMonster = { ...monster, currentHp: monster.hp, difficulty: monster.points, firstMiss: true };
+    gameState.currentMonster = { ...monster, currentHp: monster.hp, difficulty: monster.points, intent: rollMonsterIntent(monster) };
     gameState.combatTurn = 1;
     gameState.combatFeed = [];
     gameState.autoBattle = false;
@@ -1278,6 +1395,7 @@ function startCombat(monster, room = gameState.currentRoom) {
                             <div class="arena-hp-text"><span id="monster-hp">${m.currentHp}</span>/${m.hp}</div>
                         </div>
                     </div>
+                    <div class="enemy-intent hidden" id="enemy-intent"></div>
                 </div>
             </div>
             <div class="battle-stats-bar">
@@ -1312,10 +1430,29 @@ function startCombat(monster, room = gameState.currentRoom) {
 
     pushCombatFeed('info', `${m.name} blocks the route.`);
     updateUI();
+    updateMonsterIntentUI();
     setTimeout(() => {
         document.getElementById('battle-player-actor')?.classList.remove('arena-sprite-enter-player');
         document.getElementById('battle-enemy-actor')?.classList.remove('arena-sprite-enter-enemy');
     }, 700);
+}
+
+function updateMonsterIntentUI() {
+    const el = document.getElementById('enemy-intent');
+    if (!el) return;
+    const monster = gameState.currentMonster;
+    if (!monster || !gameState.inCombat || gameState.monsterDying) {
+        el.classList.add('hidden');
+        return;
+    }
+    const intent = COMBAT_INTENTS[monster.intent] || COMBAT_INTENTS.strike;
+    el.classList.remove('hidden', 'intent-strike', 'intent-charge', 'intent-guard');
+    el.classList.add(intent.css);
+    el.innerHTML = `
+        <span class="intent-caption">Next move</span>
+        <span class="intent-main"><span class="material-symbols-outlined">${intent.icon}</span>${intent.label}</span>
+        <span class="intent-hint">${escapeHtml(intent.hint)}</span>
+    `;
 }
 
 function poolPercent(pool) {
@@ -1346,11 +1483,13 @@ function updateBattleUI() {
         if (hpBar) hpBar.style.width = `${clamp((monster.currentHp / monster.hp) * 100, 0, 100)}%`;
         const hitEl = document.getElementById('battle-hit-chance');
         if (hitEl) {
-            const needed = Math.max(2, monster.points - getAttackBonus(monster));
+            const chargeBonus = monster.intent === 'charge' ? 1 : 0;
+            const needed = Math.max(2, monster.points - getAttackBonus(monster) - chargeBonus);
             const chance = clamp(Math.round(((7 - needed) / 6) * 100), 0, 100);
             hitEl.textContent = `${chance}%`;
         }
     }
+    updateMonsterIntentUI();
     updateBattleIntent();
 }
 
@@ -1387,6 +1526,8 @@ async function performAttack(pushWithOxygen) {
         return;
     }
 
+    const intent = monster.intent;
+    const firstRoundSurge = gameState.adrenaline && gameState.combatTurn === 1;
     let pushBonus = 0;
     if (pushWithOxygen) {
         spendOxygen(1, 'pushing an attack');
@@ -1399,7 +1540,8 @@ async function performAttack(pushWithOxygen) {
     if (combatLogEl) combatLogEl.innerHTML = '';
 
     const roll = rollDie(6);
-    const attackBonus = getAttackBonus(monster) + pushBonus;
+    // A charging threat is committed and easier to hit; Adrenal Surge adds +1 on the opening round.
+    const attackBonus = getAttackBonus(monster) + pushBonus + (intent === 'charge' ? 1 : 0) + (firstRoundSurge ? 1 : 0);
     const total = roll + attackBonus;
     const hit = total >= monster.points;
 
@@ -1412,6 +1554,16 @@ async function performAttack(pushWithOxygen) {
         const weapon = getEquippedWeapon();
         let damage = rollExpression(weapon.value, 0);
         if (weapon.machineDamageBonus && monster.type === 'Machine') damage += weapon.machineDamageBonus;
+        // Push drives through; otherwise a guarding threat soaks part of the blow.
+        if (pushWithOxygen) damage += gameState.breaker ? 3 : 2;
+        else if (intent === 'guard') damage = Math.max(1, damage - 2);
+        if (firstRoundSurge) damage += 2;
+        if (gameState.counterReady) {
+            damage += 3;
+            gameState.counterReady = false;
+            log('Counterstrike lands for +3 damage.');
+            pushCombatFeed('player', 'Counterstrike +3');
+        }
         monster.currentHp -= damage;
         showFloatingCombatText('enemy', damage);
         log(`Hit ${monster.name} for ${damage} damage.`);
@@ -1428,23 +1580,78 @@ async function performAttack(pushWithOxygen) {
         if (monster.currentHp <= 0) {
             monster.currentHp = 0;
             await finishMonsterDeath(damage);
-        } else {
-            triggerMonsterHitEffect();
-            if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="success">Hit for ${damage}.</p>`);
-            gameState.combatTurn += 1;
-            pulseRoundChip();
+            combatActionBusy = false;
+            updateUI();
+            return;
         }
+        triggerMonsterHitEffect();
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="success">Hit for ${damage}.</p>`);
     } else {
         showFloatingCombatText('enemy', 0, { miss: true });
         log(`Missed ${monster.name}.`);
         pushCombatFeed('warning', `Missed ${monster.name}`);
-        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss. The threat hits back.</p>`);
+        if (combatLogEl) combatLogEl.insertAdjacentHTML('beforeend', `<p class="warning">Miss.</p>`);
         await applyWeaponMissCost();
-        await monsterAttack();
+        // Overextending on a Push that whiffs leaves you exposed — unless Breaker keeps you steady.
+        if (pushWithOxygen && !gameState.breaker && !gameState.playerIsDead) {
+            await applyDamage(monster.damagePool, 1, 'overextended push', { bypassArmor: true });
+        }
+    }
+
+    // Both sides act: the threat now follows through on its telegraphed intent.
+    if (!gameState.playerIsDead && !gameState.monsterDying && monster.currentHp > 0) {
+        await resolveMonsterAction(intent, false);
+    }
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        advanceCombatRound();
     }
 
     combatActionBusy = false;
     updateUI();
+}
+
+async function brace() {
+    const monster = gameState.currentMonster;
+    if (!monster || gameState.monsterDying || combatActionBusy) return;
+    combatActionBusy = true;
+    setTurnIndicator('player');
+    await oxygenCollapseTick('combat round');
+    if (gameState.playerIsDead) {
+        combatActionBusy = false;
+        return;
+    }
+
+    const intent = monster.intent;
+    safeSound('playAttackSound');
+    animateBattleAttack('player');
+    const combatLogEl = document.getElementById('combat-log');
+    if (combatLogEl) combatLogEl.innerHTML = '<p class="info">You set your stance and brace behind cover.</p>';
+    pushCombatFeed('info', 'You brace for the hit.');
+
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        await resolveMonsterAction(intent, true);
+        // Counterstrike: a clean block sets up your next swing.
+        if (gameState.hasCounterstrike && !gameState.playerIsDead) {
+            gameState.counterReady = true;
+            pushCombatFeed('info', 'Counterstrike primed');
+        }
+    }
+    if (!gameState.playerIsDead && monster.currentHp > 0) {
+        advanceCombatRound();
+    }
+
+    combatActionBusy = false;
+    updateUI();
+}
+
+function advanceCombatRound() {
+    const monster = gameState.currentMonster;
+    if (!monster) return;
+    gameState.combatTurn += 1;
+    monster.intent = rollMonsterIntent(monster);
+    setTurnIndicator('player');
+    pulseRoundChip();
+    updateMonsterIntentUI();
 }
 
 async function applyWeaponMissCost() {
@@ -1474,20 +1681,36 @@ async function finishMonsterDeath(killingBlowDamage) {
     winCombat(killingBlowDamage);
 }
 
-async function monsterAttack() {
+async function resolveMonsterAction(intent = 'strike', braced = false) {
     const monster = gameState.currentMonster;
     if (!monster) return;
     setTurnIndicator('enemy');
     animateBattleAttack('enemy');
 
     let damage = rollExpression(monster.damage, 0);
+    if (intent === 'charge') damage += 2;
+    else if (intent === 'guard') damage = Math.floor(damage / 2);
     if (gameState.currentRoom?.doors === 0) damage += 1;
     if (gameState.currentRoom?.shape?.name === 'Oval shrine-lab' && monster.damagePool === 'soul') damage += 1;
+    // Bracing reads the telegraph: a clean hit is turned aside; even a heavy
+    // charge is reduced to a glancing blow (Bulwark blocks it outright).
+    if (braced) damage = (intent === 'charge' && !gameState.bulwark) ? 1 : 0;
+    damage = Math.max(0, damage);
 
     await sleep(150);
     const combatLogEl = document.getElementById('combat-log');
     if (combatLogEl) {
-        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">${escapeHtml(monster.name)} damage: ${damage} ${POOL_LABELS[monster.damagePool]}</p>`);
+        combatLogEl.insertAdjacentHTML('beforeend', `<p class="info">${escapeHtml(monster.name)} ${intentVerb(intent)}: ${damage} ${POOL_LABELS[monster.damagePool]}${braced ? ' (braced)' : ''}</p>`);
+    }
+
+    if (damage <= 0) {
+        showFloatingCombatText('player', 0, { miss: true });
+        pushCombatFeed('info', braced ? 'Blocked!' : `${monster.name} holds back`);
+        if (!gameState.playerIsDead) {
+            setTurnIndicator('player');
+        }
+        updateUI();
+        return;
     }
 
     await applyDamage(monster.damagePool, damage, monster.name);
@@ -1516,9 +1739,7 @@ async function monsterAttack() {
     }
 
     if (!gameState.playerIsDead) {
-        gameState.combatTurn += 1;
         setTurnIndicator('player');
-        pulseRoundChip();
     }
     updateUI();
 }
@@ -1603,7 +1824,7 @@ function resolveMonsterSpecials(monster) {
         gameState.hunterHandAvailable = false;
     }
 
-    if (Math.random() < 0.25) {
+    if (Math.random() < (gameState.scavenger ? 0.5 : 0.25)) {
         const item = rollRandomLoot();
         if (item.name !== 'Artifact clue') {
             addItem(item.name);
@@ -1678,7 +1899,8 @@ function updateBattleIntent() {
         return;
     }
     intentEl.classList.remove('hidden');
-    valueEl.textContent = pickAutoBattleAction() === 'potion' ? 'Use item' : 'Attack';
+    const action = pickAutoBattleAction();
+    valueEl.textContent = action === 'potion' ? 'Use item' : action === 'brace' ? 'Brace' : action === 'push' ? 'Push' : 'Attack';
 }
 
 function pickAutoBattleAction() {
@@ -1688,6 +1910,14 @@ function pickAutoBattleAction() {
             .find(itemName => countItem(itemName) > 0 && getItem(itemName)?.restores?.pool === lowPool);
         if (item) return 'potion';
     }
+    const monster = gameState.currentMonster;
+    if (monster) {
+        const routed = gameState.pools[monster.damagePool];
+        const routedLow = routed && routed.current / routed.max <= 0.45;
+        // Read the intent: cover up against a charge, push through a guard.
+        if (monster.intent === 'charge' && routedLow) return 'brace';
+        if (monster.intent === 'guard' && gameState.pools.oxygen.current > 2) return 'push';
+    }
     return 'attack';
 }
 
@@ -1695,6 +1925,8 @@ async function runAutoBattle() {
     while (gameState.autoBattle && gameState.inCombat && !gameState.playerIsDead && !gameState.inVictory) {
         const action = pickAutoBattleAction();
         if (action === 'potion') await usePotion();
+        else if (action === 'brace') await brace();
+        else if (action === 'push') await performAttack(true);
         else await performAttack(false);
         if (gameState.autoBattle && gameState.inCombat) await sleep(gameState.autoBattleDelay);
     }
@@ -1804,10 +2036,53 @@ function canLevelUpNow() {
     return gameState.threatPoints >= LEVEL_UP_COST && gameState.advancements.length < ADVANCEMENTS.length;
 }
 
+// Drafting: offer a hand of advancements and let the player keep one. This is
+// the core "interesting progression" lever — agency and build identity instead
+// of a random stat bump.
 function levelUp() {
     if (!canLevelUpNow()) return;
-    const available = ADVANCEMENTS.filter(adv => !gameState.advancements.includes(adv.id));
-    const advancement = available[rollDie(available.length) - 1];
+    const choices = draftAdvancements(3);
+    if (!choices.length) return;
+    gameState.pendingAdvancementChoices = choices.map(adv => adv.id);
+    renderAdvancementDraft(choices);
+}
+
+function draftAdvancements(count) {
+    const pool = ADVANCEMENTS.filter(adv => !gameState.advancements.includes(adv.id));
+    const picks = [];
+    while (pool.length && picks.length < count) {
+        picks.push(pool.splice(rollDie(pool.length) - 1, 1)[0]);
+    }
+    return picks;
+}
+
+function renderAdvancementDraft(choices) {
+    const cards = choices.map(adv => `
+        <button type="button" class="advancement-card" onclick="chooseAdvancement('${adv.id}')">
+            <span class="advancement-card-path">${escapeHtml(adv.path || 'Advancement')}</span>
+            <span class="advancement-card-name">${escapeHtml(adv.name)}</span>
+            <span class="advancement-card-desc">${escapeHtml(adv.description)}</span>
+        </button>
+    `).join('');
+    setGameText(`
+        <div class="advancement-draft">
+            <h3><span class="material-symbols-outlined">upgrade</span> Scratch an Advancement</h3>
+            <p class="info">Choose one. The rest are lost until next time.</p>
+            <div class="advancement-card-row">${cards}</div>
+        </div>
+    `);
+    updateUI();
+}
+
+function chooseAdvancement(id) {
+    if (!gameState.pendingAdvancementChoices || !gameState.pendingAdvancementChoices.includes(id)) return;
+    const advancement = ADVANCEMENTS.find(adv => adv.id === id);
+    if (!advancement || gameState.advancements.includes(id)) return;
+    gameState.pendingAdvancementChoices = null;
+    applyAdvancement(advancement);
+}
+
+function applyAdvancement(advancement) {
     gameState.advancements.push(advancement.id);
     gameState.level = gameState.advancements.length;
     gameState.threatPoints = 0;
@@ -1823,17 +2098,30 @@ function levelUp() {
         log('Exit Saint marks the current room as a safe backtrack point.');
     }
 
-    gameState.ironBodyAvailable = gameState.advancements.includes('ironBody');
-    gameState.coldMindAvailable = gameState.advancements.includes('coldMind');
-    gameState.oldSoulAvailable = gameState.advancements.includes('oldSoul');
-    gameState.longBreathAvailable = gameState.advancements.includes('longBreath');
-    gameState.hunterHandAvailable = gameState.advancements.includes('huntersHand');
-    gameState.exitSaintAvailable = gameState.advancements.includes('exitSaint');
-
+    refreshAdvancementFlags();
     updateChallengeProgress('level', 'player', 1);
     log(`Advancement scratched: ${advancement.name}.`);
     setGameText(`<p class="success"><strong>${escapeHtml(advancement.name)}</strong></p><p>${escapeHtml(advancement.description)}</p>`);
+    safeSound('playVictorySound');
     updateUI();
+}
+
+// Re-derive the per-mission charges and passive flags from the chosen
+// advancements. Taking a new advancement also re-arms once-per-mission charges.
+function refreshAdvancementFlags() {
+    const has = id => gameState.advancements.includes(id);
+    gameState.ironBodyAvailable = has('ironBody');
+    gameState.coldMindAvailable = has('coldMind');
+    gameState.oldSoulAvailable = has('oldSoul');
+    gameState.longBreathAvailable = has('longBreath');
+    gameState.hunterHandAvailable = has('huntersHand');
+    gameState.exitSaintAvailable = has('exitSaint');
+    gameState.lastBreathAvailable = has('lastBreath');
+    gameState.bulwark = has('bulwark');
+    gameState.breaker = has('breaker');
+    gameState.adrenaline = has('adrenaline');
+    gameState.scavenger = has('scavenger');
+    gameState.hasCounterstrike = has('counterstrike');
 }
 
 // -----------------------------------------------------------------------------
@@ -1969,11 +2257,21 @@ function updateDungeonTracker() {
         return `${line}<div class="tracker-node-wrap"><div class="tracker-node ${classes}" title="Room ${room.room}: ${escapeHtml(room.type)}">
             <span class="material-symbols-outlined">${icon}</span><span class="tracker-node-label">${room.room}</span>
         </div></div>`;
-    }).join('') + `
-        <div class="tracker-line"></div>
-        <div class="tracker-node-wrap"><div class="tracker-node unknown" title="Next room"><span class="material-symbols-outlined">question_mark</span><span class="tracker-node-label">?</span></div></div>
-    `;
+    }).join('') + trackerTrailingNodes();
     containerEl.scrollLeft = containerEl.scrollWidth;
+}
+
+// The path ahead: telegraphed door(s) if we have them, else an unknown node.
+function trackerTrailingNodes() {
+    const exits = (!gameState.inCombat && !gameState.inShop && gameState.currentRoom?.nextDoors) || [];
+    if (!exits.length) {
+        return `<div class="tracker-line"></div>
+            <div class="tracker-node-wrap"><div class="tracker-node unknown" title="Next room"><span class="material-symbols-outlined">question_mark</span><span class="tracker-node-label">?</span></div></div>`;
+    }
+    return exits.map(door => `<div class="tracker-line"></div>
+        <div class="tracker-node-wrap"><div class="tracker-node ${door.cls}" title="${escapeHtml(door.label)} ahead">
+            <span class="material-symbols-outlined">${door.icon}</span><span class="tracker-node-label">${escapeHtml(door.label)}</span>
+        </div></div>`).join('');
 }
 
 function iconNameForRoom(room) {
@@ -1990,17 +2288,24 @@ function openMap() {
     const mapGridEl = document.getElementById('mapGrid');
     const mapModalEl = document.getElementById('mapModal');
     if (!mapGridEl || !mapModalEl) return;
-    mapGridEl.innerHTML = gameState.map.map(room => `
-        <div class="map-cell ${room.safe ? 'safe' : ''} ${room.unsafe ? 'unsafe' : ''}">
+    mapGridEl.innerHTML = gameState.map.map(room => {
+        const isCurrent = room === gameState.currentRoom;
+        const exits = isCurrent && room.nextDoors?.length
+            ? `<div class="map-cell-exits">${room.nextDoors.map(door =>
+                `<span class="material-symbols-outlined ${door.cls}" title="${escapeHtml(door.label)} ahead">${door.icon}</span>`).join('')}</div>`
+            : '';
+        return `
+        <div class="map-cell ${room.safe ? 'safe' : ''} ${room.unsafe ? 'unsafe' : ''} ${isCurrent ? 'current' : ''}">
             <div class="map-cell-icon">${getRoomIcon(room.type)}</div>
-            <div class="map-cell-room-number">${room.room}</div>
+            <div class="map-cell-room-number">${room.room}${isCurrent ? ' · here' : ''}</div>
             <div class="map-cell-details">
                 <strong>${escapeHtml(room.type)}</strong><br>
                 ${escapeHtml(room.shape?.name || '')}<br>
                 ${escapeHtml(room.details || '')}
             </div>
-        </div>
-    `).join('');
+            ${exits}
+        </div>`;
+    }).join('');
     mapModalEl.style.display = 'block';
 }
 
@@ -2035,7 +2340,13 @@ function updateAutoExploreButton() {
 
 async function runAutoExplore() {
     while (gameState.autoExplore && gameState.gameStarted && !gameState.playerIsDead && !gameState.inCombat && !gameState.inShop && !gameState.inVictory && !gameState.gameWon) {
-        if (canLevelUpNow()) levelUp();
+        if (canLevelUpNow()) {
+            levelUp();
+            // Auto mode drafts for you: take a random offered advancement.
+            if (gameState.pendingAdvancementChoices) {
+                chooseAdvancement(sample(gameState.pendingAdvancementChoices));
+            }
+        }
         await sleep(gameState.autoExploreDelay);
         if (gameState.targetRecovered) {
             gameState.autoExplore = false;

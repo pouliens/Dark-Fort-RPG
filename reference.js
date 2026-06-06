@@ -226,10 +226,10 @@ const TABLES = {
     },
     advancements: {
         data: () => ADVANCEMENTS,
-        die: { sides: 6 },
+        die: { sides: 12 },
         rollToIndex: roll => roll - 1,
         rowKey: (_item, i) => i + 1,
-        cells: item => [escapeHtml(item.name), escapeHtml(item.description)]
+        cells: item => [escapeHtml(item.path || ''), escapeHtml(item.name), escapeHtml(item.description)]
     }
 };
 

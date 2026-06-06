@@ -492,6 +492,163 @@ button:hover:not(:disabled) .btn-sublabel { color: var(--sulfur-soft); }
     border-color: var(--sulfur);
 }
 
+/* Advancement draft — choose one of three on level-up */
+.advancement-draft h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--sulfur);
+    margin-bottom: 4px;
+}
+.advancement-card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+.advancement-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 6px;
+    background: rgba(0,0,0,0.25);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+    font-family: inherit;
+}
+.advancement-card:hover {
+    border-color: var(--sulfur);
+    background: rgba(217,180,65,0.08);
+    transform: translateY(-2px);
+}
+.advancement-card-path {
+    font-size: 0.6rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--sulfur);
+    opacity: 0.85;
+}
+.advancement-card-name {
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--paper);
+}
+.advancement-card-desc {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--paper-dim);
+}
+
+/* Route choice — pick a door, each telegraphing what waits beyond */
+.door-choices {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 10px;
+    margin: 10px 0 4px;
+}
+.door-choices-label {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--paper-dim);
+}
+.door-choices-label .material-symbols-outlined { font-size: 1rem; }
+.door-choice {
+    flex: 1 1 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 12px 8px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 6px;
+    background: rgba(0,0,0,0.25);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+    font-family: inherit;
+    color: var(--paper);
+}
+.door-choice:hover { transform: translateY(-2px); }
+.door-choice-icon { font-size: 1.6rem; }
+.door-choice-label { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; }
+.door-choice-sub {
+    font-size: 0.58rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--paper-dim);
+}
+.door-choice.door-danger { border-color: rgba(181,40,40,0.5); }
+.door-choice.door-danger .door-choice-icon { color: var(--blood); }
+.door-choice.door-danger:hover { background: rgba(181,40,40,0.1); border-color: var(--blood); }
+.door-choice.door-quiet { border-color: rgba(120,160,120,0.45); }
+.door-choice.door-quiet .door-choice-icon { color: #8fbf8f; }
+.door-choice.door-quiet:hover { background: rgba(120,160,120,0.1); border-color: #8fbf8f; }
+.door-choice.door-signal { border-color: rgba(96,140,168,0.5); }
+.door-choice.door-signal .door-choice-icon { color: #9ecbe6; }
+.door-choice.door-signal:hover { background: rgba(96,140,168,0.1); border-color: #9ecbe6; }
+.door-choice.door-trade { border-color: rgba(217,180,65,0.5); }
+.door-choice.door-trade .door-choice-icon { color: var(--sulfur); }
+.door-choice.door-trade:hover { background: rgba(217,180,65,0.1); border-color: var(--sulfur); }
+
+/* Inline door telegraph tags (reference page) */
+.door-tag {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    font-weight: 700;
+    border: 1px solid currentColor;
+}
+.door-tag.door-danger { color: var(--blood); }
+.door-tag.door-quiet { color: #8fbf8f; }
+.door-tag.door-signal { color: #9ecbe6; }
+.door-tag.door-trade { color: var(--sulfur); }
+
+/* Telegraphed door nodes in the path tracker */
+.tracker-node.door-danger { border-color: rgba(181,40,40,0.55); color: var(--blood); }
+.tracker-node.door-quiet { border-color: rgba(120,160,120,0.5); color: #8fbf8f; }
+.tracker-node.door-signal { border-color: rgba(96,140,168,0.55); color: #9ecbe6; }
+.tracker-node.door-trade { border-color: rgba(217,180,65,0.55); color: var(--sulfur); }
+
+/* Map: current position + onward exits */
+.map-cell.current {
+    border-color: var(--sulfur);
+    box-shadow: 0 0 12px rgba(217,180,65,0.3);
+}
+.map-cell-exits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.map-cell-exits .material-symbols-outlined { font-size: 1.05rem; }
+.map-cell-exits .door-danger { color: var(--blood); }
+.map-cell-exits .door-quiet { color: #8fbf8f; }
+.map-cell-exits .door-signal { color: #9ecbe6; }
+.map-cell-exits .door-trade { color: var(--sulfur); }
+
+#braceBtn {
+    color: var(--paper);
+    border-color: rgba(96,140,168,0.5);
+}
+#braceBtn:hover:not(:disabled) {
+    background: rgba(96,140,168,0.12);
+    color: #9ecbe6;
+    border-color: #9ecbe6;
+}
+
 #scavengeBtn:hover:not(:disabled) {
     background: rgba(232,225,207,0.04);
     color: var(--paper);
@@ -1484,6 +1641,51 @@ body.in-combat .log {
 .battle-intent .material-symbols-outlined { font-size: 0.9rem; }
 .battle-intent.hidden { display: none; }
 
+/* Telegraphed monster intent shown on the enemy side */
+.enemy-intent {
+    margin-top: 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--rust-soft);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.28);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    text-align: center;
+    max-width: 150px;
+}
+.enemy-intent.hidden { display: none; }
+.enemy-intent .intent-caption {
+    font-size: 0.54rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--paper-dim);
+}
+.enemy-intent .intent-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.enemy-intent .intent-main .material-symbols-outlined { font-size: 1.05rem; }
+.enemy-intent .intent-hint {
+    font-size: 0.58rem;
+    line-height: 1.2;
+    color: var(--paper-dim);
+    opacity: 0.85;
+}
+.enemy-intent.intent-strike { border-color: rgba(181,40,40,0.55); }
+.enemy-intent.intent-strike .intent-main { color: var(--blood); }
+.enemy-intent.intent-charge { border-color: rgba(217,180,65,0.6); box-shadow: 0 0 10px rgba(217,180,65,0.18); }
+.enemy-intent.intent-charge .intent-main { color: var(--sulfur); }
+.enemy-intent.intent-guard { border-color: rgba(96,140,168,0.6); }
+.enemy-intent.intent-guard .intent-main { color: #9ecbe6; }
+
 /* Battle feed */
 .battle-feed {
     display: flex;
@@ -1571,6 +1773,7 @@ body.in-combat .actions {
 
 body.in-combat #attackBtn,
 body.in-combat #powerAttackBtn,
+body.in-combat #braceBtn,
 body.in-combat #fleeBtn {
     margin: 0;
     padding: 10px 6px;

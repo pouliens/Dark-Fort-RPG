@@ -75,11 +75,15 @@
 
                 <div class="rule-card">
                     <h3>Combat</h3>
+                    <p class="rule-inline">Both sides act each round. At the start of a round, roll the enemy's <strong>Intent</strong>, then choose your response.</p>
                     <ul>
-                        <li><strong>To hit:</strong> roll d6, compare to enemy points (lower points = easier).</li>
-                        <li><strong>Damage:</strong> roll the weapon die. Route enemy damage to the listed pool.</li>
-                        <li><strong>Push:</strong> spend 1 Oxygen for +1 to an attack.</li>
-                        <li><strong>Flee:</strong> take the enemy's damage once; the room becomes a fled room (-1 to extraction later).</li>
+                        <li><strong>Enemy Intent (d6):</strong> 1–3 <em>Strike</em> (normal hit) · 4–5 <em>Charge</em> (hit +2, but you get +1 to hit it) · 6 <em>Guard</em> (its hit is halved, and it soaks 2 off your damage).</li>
+                        <li><strong>Attack:</strong> roll d6 vs enemy points (lower = easier). On a hit, roll your weapon die for damage.</li>
+                        <li><strong>Push:</strong> spend 1 Oxygen — +1 to hit and +2 damage, and ignore Guard's soak. Miss and you take 1 extra to the routed pool.</li>
+                        <li><strong>Brace:</strong> deal no damage this round, but the enemy's hit is fully blocked (a Charge is reduced to 1).</li>
+                        <li>After your action, the enemy resolves its Intent and routes damage to its listed pool.</li>
+                        <li><strong>Read it:</strong> Charge → Brace it, or Push to drop it first · Guard → Push through · Strike → trade blows.</li>
+                        <li><strong>Flee:</strong> take the enemy's damage once; the room becomes a fled room (−1 to extraction later).</li>
                         <li><strong>Armor:</strong> Hardsuit plating absorbs d4 Body per physical hit.</li>
                     </ul>
                 </div>
@@ -90,9 +94,10 @@
                         <li>Spend 1 Oxygen to enter.</li>
                         <li>Roll <strong>2d6</strong> on Room Shapes.</li>
                         <li>Roll <strong>d4</strong> on Doors (unless shape fixes it).</li>
-                        <li>Roll <strong>d6</strong> on the Room Table for the encounter.</li>
-                        <li>Resolve. Mark <em>safe</em> or <em>unsafe</em> as appropriate.</li>
+                        <li>Resolve the room, then <strong>scout each onward door</strong> (below).</li>
+                        <li>Mark <em>safe</em> or <em>unsafe</em> as appropriate.</li>
                     </ol>
+                    <p class="rule-inline"><strong>Scouting doors (route choice):</strong> for each onward door roll <strong>d6</strong> and set it face-up beside that door as its telegraph — <span class="door-tag door-danger">Danger</span> (2/4/5), <span class="door-tag door-quiet">Quiet</span> (1), <span class="door-tag door-signal">Signal</span> (3), <span class="door-tag door-trade">Peddler</span> (6). On your next move, choose which door to open; that door's d6 is the new room's Room Table result. Danger is risk for threat points and loot; Quiet is safety; weigh it against your air.</p>
                 </div>
 
                 <div class="rule-card">
@@ -104,7 +109,7 @@
                             <br><span class="rule-inline">+1 safe room found · +1 multi-door room · −1 fled · −1 living threat behind · −1 stayed after target</span>
                         </li>
                         <li>Fail extraction → roll on Extraction Complications.</li>
-                        <li>Earn 15 threat points to scratch an Advancement.</li>
+                        <li>Earn 15 threat points, then draft an Advancement: draw three, keep one.</li>
                     </ul>
                 </div>
             </div>
@@ -308,11 +313,12 @@
 
             <div class="table-block" data-table-key="advancements">
                 <div class="table-header">
-                    <h3>Advancements <span class="table-die">d6</span></h3>
-                    <button class="table-roll-btn" data-table="advancements">Roll</button>
+                    <h3>Advancements <span class="table-die">draft</span></h3>
+                    <button class="table-roll-btn" data-table="advancements">Draw</button>
                 </div>
+                <p class="rule-inline">At 15 threat points, draw <strong>three</strong> advancements at random and <strong>keep one</strong> (solo: roll d12 three times, ignoring repeats; pick your favourite). Reset your threat to 0.</p>
                 <table class="ref-table" data-table-body="advancements">
-                    <thead><tr><th class="col-roll">d6</th><th>Advancement</th><th>Effect</th></tr></thead>
+                    <thead><tr><th class="col-roll">d12</th><th>Path</th><th>Advancement</th><th>Effect</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>

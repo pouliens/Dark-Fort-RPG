@@ -87,7 +87,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'soul',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-1.png`,
         special: 'Loot 3d6 credits. After fight: 1-in-6 the mission ends and your body becomes an artifact.'
     },
@@ -97,7 +97,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6+1',
         damagePool: 'body',
-        hp: 9,
+        hp: 7,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-2.png`,
         special: 'Worth 7 threat points. Pry-hammer or Žaltys shock baton gets +1 attack against it.'
     },
@@ -107,7 +107,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'mind',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-3.png`,
         special: 'The first miss costs 1 Oxygen or makes this room unsafe.'
     },
@@ -117,7 +117,7 @@ const TOUGH_MONSTERS = [
         points: 4,
         damage: 'd6',
         damagePool: 'oxygen',
-        hp: 11,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-4.png`,
         special: 'After fight: 2-in-6 gain +10 threat points. Its hide can repair one suit breach.'
     },
@@ -127,7 +127,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6',
         damagePool: 'soul',
-        hp: 8,
+        hp: 6,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-5.png`,
         special: 'Before combat, test Soul to salute the dead. Success: it starts at half HP.'
     },
@@ -137,7 +137,7 @@ const TOUGH_MONSTERS = [
         points: 5,
         damage: 'd6',
         damagePool: 'body',
-        hp: 10,
+        hp: 7,
         sprite: `${ENEMY_SPRITE_DIR}/tough-threat-6.png`,
         special: 'Hardsuit plating absorbs d4-1 Body. If Body damage gets through, also lose 1 Oxygen.'
     }
@@ -346,11 +346,14 @@ const PLAYER_PROFESSIONS = [
     'signal hunter'
 ];
 
+// Advancements are drafted: on reaching the threat threshold you are offered a
+// hand of three and keep one. Each leans into a build identity — Vanguard
+// (defense), Duelist (combat tempo), Warden (survival), or Operator (utility).
 const ADVANCEMENTS = [
     {
         id: 'ironBody',
         name: 'Iron Body',
-        pool: 'body',
+        path: 'Vanguard',
         description: '+3 maximum Body. Once per mission, reduce one Body damage roll by 1 after armor.',
         maxPool: 'body',
         amount: 3
@@ -358,7 +361,7 @@ const ADVANCEMENTS = [
     {
         id: 'coldMind',
         name: 'Cold Mind',
-        pool: 'mind',
+        path: 'Operator',
         description: '+3 maximum Mind. Once per mission, reroll one Mind test.',
         maxPool: 'mind',
         amount: 3
@@ -366,7 +369,7 @@ const ADVANCEMENTS = [
     {
         id: 'oldSoul',
         name: 'Old Soul',
-        pool: 'soul',
+        path: 'Operator',
         description: '+3 maximum Soul. Once per mission, reroll one Soul test.',
         maxPool: 'soul',
         amount: 3
@@ -374,7 +377,7 @@ const ADVANCEMENTS = [
     {
         id: 'longBreath',
         name: 'Long Breath',
-        pool: 'oxygen',
+        path: 'Operator',
         description: '+3 maximum Oxygen. Once per mission, one room entry or backtrack costs 0 Oxygen.',
         maxPool: 'oxygen',
         amount: 3
@@ -382,16 +385,56 @@ const ADVANCEMENTS = [
     {
         id: 'huntersHand',
         name: "Hunter's Hand",
-        pool: 'body',
+        path: 'Duelist',
         description: '+1 attack vs all threats. Once per mission, restore 1 pool after a kill.',
         attackBonus: 1
     },
     {
         id: 'exitSaint',
         name: 'Exit Saint',
-        pool: 'mind',
+        path: 'Operator',
         description: '+1 to Extraction Rolls. Once per mission, mark one explored room as a safe backtrack point.',
         extractionBonus: 1
+    },
+    {
+        id: 'bulwark',
+        name: 'Bulwark',
+        path: 'Vanguard',
+        description: '+2 maximum Body. When you Brace, the hit is fully blocked — even a Charge deals 0.',
+        maxPool: 'body',
+        amount: 2
+    },
+    {
+        id: 'counterstrike',
+        name: 'Counterstrike',
+        path: 'Duelist',
+        description: 'After you Brace and block a hit, your next Attack lands for +3 damage.'
+    },
+    {
+        id: 'breaker',
+        name: 'Breaker',
+        path: 'Duelist',
+        description: '+2 maximum Oxygen. Push deals +1 extra damage and never costs you the overextend penalty on a miss.',
+        maxPool: 'oxygen',
+        amount: 2
+    },
+    {
+        id: 'adrenaline',
+        name: 'Adrenal Surge',
+        path: 'Duelist',
+        description: 'On the first round of every fight, attack with +1 to hit and +2 damage.'
+    },
+    {
+        id: 'lastBreath',
+        name: 'Last Breath',
+        path: 'Warden',
+        description: 'Once per mission, the first time any pool would drop to 0 it holds at 1 instead.'
+    },
+    {
+        id: 'scavenger',
+        name: 'Scavenger',
+        path: 'Warden',
+        description: 'Defeated threats drop loot far more often, and each Quiet Salvage restores +1.'
     }
 ];
 
