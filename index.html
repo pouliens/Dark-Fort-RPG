@@ -2,130 +2,97 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0a09">
+    <meta name="description" content="A fast, brutal solo dungeon-crawl on the Moon. Pick a door, spend your air, get out alive.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Dark Fort: Moon Devils</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Pirata+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/icon-180.png">
+    <link rel="preload" href="assets/fonts/pirata-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="assets/fonts/oswald-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-    <div class="container">
-        <h1 class="cyber-glitch game-title">DARK FORT: MOON DEVILS</h1>
-        
-        <!-- Character Stats -->
-        <div class="character-sheet">
-            <h3 id="playerName"><span class="material-symbols-outlined">history_edu</span></h3>
-            <div class="stats">
-                <div class="stat" data-tooltip="Body" data-pool="body"><span class="material-symbols-outlined">favorite</span> <span id="body">0</span>/<span id="maxBody">0</span></div>
-                <div class="stat" data-tooltip="Mind" data-pool="mind"><span class="material-symbols-outlined">psychology</span> <span id="mind">0</span>/<span id="maxMind">0</span></div>
-                <div class="stat" data-tooltip="Soul" data-pool="soul"><span class="material-symbols-outlined">flare</span> <span id="soul">0</span>/<span id="maxSoul">0</span></div>
-                <div class="stat" data-tooltip="Oxygen" data-pool="oxygen"><span class="material-symbols-outlined">air</span> <span id="oxygen">0</span>/<span id="maxOxygen">0</span></div>
-                <div class="stat" data-tooltip="Credits"><span class="material-symbols-outlined">paid</span> <span id="credits">0</span></div>
-                <div class="stat" data-tooltip="Threat Points"><span class="material-symbols-outlined">star</span> <span id="points">0</span>/<span id="maxPoints">15</span></div>
-                <div class="stat" data-tooltip="Weapon Damage"><span class="material-symbols-outlined">flash_on</span> <span id="playerDamage">d4-1</span></div>
-                <div class="stat" data-tooltip="Suit Mod"><span class="material-symbols-outlined">shield</span> <span id="playerDefense">None</span></div>
-                <div class="stat" data-tooltip="Advancements"><span class="material-symbols-outlined">emoji_events</span> <span id="level">0</span></div>
-            </div>
-        </div>
+<body data-depth="1">
+    <div class="grain" aria-hidden="true"></div>
 
-        <!-- Game Content -->
-        <div class="main-content">
-            <!-- Dungeon Path Tracker -->
-            <div class="dungeon-tracker-container" id="dungeonTrackerContainer" style="display: none;">
-                <div class="dungeon-tracker" id="dungeonTracker">
-                    <!-- Tracker nodes injected here -->
+    <!-- ============================== TITLE ============================== -->
+    <section id="title" class="screen title-screen" aria-label="Title">
+        <div class="moon" aria-hidden="true">
+            <div class="crater c1"></div><div class="crater c2"></div><div class="crater c3"></div><div class="crater c4"></div>
+        </div>
+        <h1 class="logo"><span class="logo-dark">Dark Fort</span><span class="logo-sub">Moon Devils</span></h1>
+        <p class="tagline">Pick a door. Spend your air. Get out alive.</p>
+        <div class="title-menu">
+            <button id="continueBtn" class="btn btn-primary" hidden data-action="continue"></button>
+            <button id="newRunBtn" class="btn btn-primary" data-action="new">New descent</button>
+            <button id="dailyBtn" class="btn" data-action="daily"></button>
+            <div class="title-row">
+                <button class="btn btn-small" data-action="graveyard"></button>
+                <button class="btn btn-small" data-action="records"></button>
+                <button class="btn btn-small" data-action="howto"></button>
+            </div>
+            <a class="title-link" href="reference.html">Pen &amp; paper rules</a>
+        </div>
+        <p class="title-foot" id="titleFoot"></p>
+    </section>
+
+    <!-- ============================== GAME =============================== -->
+    <section id="game" class="screen game-screen" aria-label="Game" hidden>
+        <header class="hud" id="hud">
+            <div class="hud-top">
+                <div class="depth-chip" id="depthChip"></div>
+                <div class="hud-meta" id="hudMeta"></div>
+                <button class="icon-btn" data-action="menu" aria-label="Menu"></button>
+            </div>
+            <div class="pools" id="pools"></div>
+            <div class="o2-row">
+                <div class="o2-meter" id="o2Meter" role="meter" aria-label="Oxygen">
+                    <div class="o2-fill" id="o2Fill"></div>
+                    <div class="o2-escape" id="o2Escape"></div>
+                    <div class="o2-label" id="o2Label"></div>
                 </div>
             </div>
-
-            <div class="game-area">
-                <div id="gameText">
-                    <p>Welcome to Dark Fort: Moon Devils.</p>
-                    <p>Start a mission, recover the target, and decide whether one more room is worth the air.</p>
-                </div>
+            <div class="hud-bottom">
+                <div class="xp" id="xp"></div>
+                <div class="credits" id="credits"></div>
+                <div class="statuses" id="statuses"></div>
             </div>
+        </header>
 
-            <!-- Door / route choices -->
-            <div id="doorChoices" class="door-choices" style="display: none;"></div>
+        <main class="stage" id="stage" aria-live="polite"></main>
 
-            <div class="actions" id="gameActions">
-                <button id="startBtn" onclick="startGame()"><span class="material-symbols-outlined">door_open</span> Start Mission</button>
-                <a id="referenceLink" href="reference.html" role="button" title="Open the pen-and-paper reference"><span class="material-symbols-outlined">menu_book</span> Pen &amp; Paper<small class="btn-sublabel">Tables &amp; rules</small></a>
-                <button id="exploreBtn" onclick="exploreRoom()" style="display: none;" title="Enter a new room"><span class="material-symbols-outlined">search</span> Explore<small class="btn-sublabel">Spend Oxygen</small></button>
-                <button id="autoExploreBtn" onclick="toggleAutoExplore()" style="display: none;" title="Automatic exploration"><span class="material-symbols-outlined">directions_run</span> Auto<small class="btn-sublabel">Auto explore</small></button>
-                <button id="attackBtn" onclick="attack()" style="display: none;"><span class="material-symbols-outlined">flash_on</span> Attack<small class="btn-sublabel">d6 vs Threat</small></button>
-                <button id="powerAttackBtn" onclick="powerAttack()" style="display: none;"><span class="material-symbols-outlined">air</span> Push<small class="btn-sublabel">1 O2 · +1 hit, +2 dmg</small></button>
-                <button id="braceBtn" onclick="brace()" style="display: none;"><span class="material-symbols-outlined">shield</span> Brace<small class="btn-sublabel">Block this turn</small></button>
-                <button id="scavengeBtn" onclick="scavenge()" style="display: none;" title="Rush the quiet salvage"><span class="material-symbols-outlined">manage_search</span> Scavenge<small class="btn-sublabel">Mind test</small></button>
-                <button id="fleeBtn" onclick="flee()" style="display: none;"><span class="material-symbols-outlined">sprint</span> Flee<small class="btn-sublabel">Take routed damage</small></button>
-                <button id="levelUpBtn" onclick="levelUp()" style="display: none;" title="Scratch an advancement at 15 threat points"><span class="material-symbols-outlined">upgrade</span> Advance<small class="btn-sublabel">15 threat points</small></button>
-                <button id="extractBtn" onclick="extractMission()" style="display: none;" title="Trace the route back to the airlock"><span class="material-symbols-outlined">output</span> Extract<small class="btn-sublabel">Return to airlock</small></button>
-            </div>
+        <div class="dice-tray" id="diceTray" aria-hidden="true"></div>
+
+        <footer class="dock" id="dock"></footer>
+
+        <nav class="tabbar" id="tabbar">
+            <button class="tab" data-action="pack"></button>
+            <button class="tab" data-action="map"></button>
+            <button class="tab" data-action="log"></button>
+        </nav>
+    </section>
+
+    <!-- ============================== SHEETS ============================= -->
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+    <aside class="sheet" id="sheet" role="dialog" aria-modal="true" hidden>
+        <div class="sheet-grip" aria-hidden="true"></div>
+        <div class="sheet-head">
+            <h2 id="sheetTitle"></h2>
+            <button class="icon-btn" data-action="closeSheet" aria-label="Close"></button>
         </div>
-        
-        <!-- Inventory -->
-        <div class="inventory">
-            <h4><span class="material-symbols-outlined">backpack</span> Inventory:</h4>
-            <div id="inventory">Empty</div>
-        </div>
+        <div class="sheet-body" id="sheetBody"></div>
+    </aside>
 
-        <!-- Map Modal -->
-        <div id="mapModal" class="modal-overlay" style="display: none;">
-            <div class="modal-content">
-                <span class="modal-close" onclick="closeMap()">&times;</span>
-                <h3>Base Map</h3>
-                <div id="mapGrid" class="map-grid">
-                    <!-- Map will be generated here -->
-                </div>
-            </div>
-        </div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
 
-        <!-- Collapsible panels -->
-        <div class="side-panels">
-            <div class="challenges" id="challenges-panel">
-                <h4 class="collapsible-header" onclick="togglePanel('challenges-panel')">
-                    <span class="material-symbols-outlined">emoji_events</span> Records
-                    <span class="collapse-arrow material-symbols-outlined">expand_more</span>
-                </h4>
-                <div class="collapsible-body" id="challenges">Loading...</div>
-            </div>
-
-            <div class="log" id="log-panel">
-                <h4 class="collapsible-header" onclick="togglePanel('log-panel')">
-                    <span class="material-symbols-outlined">menu_book</span> Log
-                    <span class="collapse-arrow material-symbols-outlined">expand_more</span>
-                </h4>
-                <div class="collapsible-body log-body" id="log"></div>
-            </div>
-        </div>
-        
-    </div>
-
-    <!-- Dice Roll Overlay -->
-    <div id="dice-overlay" class="dice-overlay" role="status" aria-live="polite">
-        <div class="dice-roll-panel">
-            <div class="dice-roll-context" id="dice-context"></div>
-            <div class="dice-roll-body">
-                <div class="dice-faces-row" id="dice-faces-row"></div>
-                <div class="dice-vs-wrap" id="dice-vs-wrap">
-                    <span class="dice-vs-label">vs</span>
-                    <div class="dice-threshold-box"><span id="dice-threshold"></span></div>
-                </div>
-            </div>
-            <div class="dice-detail" id="dice-detail"></div>
-            <div class="dice-roll-outcome" id="dice-outcome"></div>
-            <div class="dice-tap-hint">Tap to continue</div>
-        </div>
-    </div>
-
-    <div id="toast-container"></div>
-
-    <!-- Sound Effects Library - sfxr.js -->
-    <script src="https://sfxr.me/riffwave.js"></script>
-    <script src="https://sfxr.me/sfxr.js"></script>
-    <script src="sounds.js"></script>
+    <script src="icons.js"></script>
     <script src="game-data.js"></script>
-    <script src="game.js"></script>
+    <script src="engine.js"></script>
+    <script src="sfx.js"></script>
+    <script src="ui.js"></script>
 </body>
 </html>

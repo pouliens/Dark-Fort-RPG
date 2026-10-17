@@ -1,27 +1,21 @@
 {
-  "name": "app",
-  "version": "1.0.0",
-  "description": "A solo Moon Devils mission-crawl web game with routed pools, Oxygen pressure, target recovery, and extraction.",
-  "main": "benchmark_final.js",
-  "directories": {
-    "test": "tests"
-  },
+  "name": "dark-fort-moon-devils",
+  "version": "2.0.0",
+  "description": "A fast, brutal solo dungeon-crawl on the Moon, in the Dark Fort / Mörk Borg tradition. Pick a door, spend your air, get out alive.",
+  "private": true,
   "scripts": {
-    "test": "node --check game-data.js && node --check game.js"
+    "test": "node --check game-data.js && node --check engine.js && node --check ui.js && node --check sfx.js && node --check reference.js && node tests/sim.js",
+    "sim": "node tests/sim.js 5000 -v",
+    "icons": "node tools/build-icons.js",
+    "serve": "python3 -m http.server 8000 --bind 0.0.0.0"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pouliens/Dark-Fort-RPG.git"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/pouliens/Dark-Fort-RPG/issues"
-  },
-  "homepage": "https://github.com/pouliens/Dark-Fort-RPG#readme",
-  "dependencies": {
-    "jsdom": "^29.0.1"
+  "homepage": "https://pouliens.github.io/Dark-Fort-RPG/",
+  "devDependencies": {
+    "@iconify-json/game-icons": "^1.2.0"
   }
 }
