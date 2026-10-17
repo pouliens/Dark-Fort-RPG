@@ -141,8 +141,8 @@ const INTENTS = {
 const ITEMS = [
     // ---- Weapons -----------------------------------------------------------
     { id: 'fists', name: 'Bare hands', kind: 'weapon', dmg: 'd3', price: 0, hidden: true, text: 'd3 damage. Better than nothing.' },
-    { id: 'wolfTooth', name: 'Wolf-tooth blade', kind: 'weapon', dmg: 'd4', hit: 1, price: 6,
-      text: 'd4, +1 to hit. Kills restore 1 Soul.' },
+    { id: 'wolfTooth', name: 'Wolf-tooth blade', kind: 'weapon', dmg: 'd4+1', hit: 1, price: 7,
+      text: 'd4+1, +1 to hit. Kills restore 1 Soul.' },
     { id: 'pryHammer', name: 'Pry-hammer', kind: 'weapon', dmg: 'd6', price: 8, crushing: true,
       text: 'd6. Crushing: ignores plating. +1 to Body tests.' },
     { id: 'pistol', name: 'Perkūnas service pistol', kind: 'weapon', dmg: 'd6', price: 11, ranged: true,
@@ -234,19 +234,19 @@ const RELICS = [
 const BACKGROUNDS = [
     { id: 'drift', name: 'Drift Salvager', faction: 'The Drift Syndicate', icon: 'swap-bag',
       blurb: 'You have stripped a hundred bases. This one owes you.',
-      mods: { body: 0, mind: 0, soul: 0, o2: 0 }, credits: 12, weapon: 'pryHammer', armor: null, kit: ['patchKit', 'redStim'],
-      perk: 'haggler', perkText: 'Haggler: Peddlers charge you 25% less.' },
+      mods: { body: 2, mind: 0, soul: 1, o2: 0 }, credits: 14, weapon: 'pryHammer', armor: 'sealant', kit: ['gateCharge', 'patchKit', 'redStim'],
+      perk: 'haggler', perkText: 'Haggler: Peddlers charge you 25% less. Salvage finds +2 credits.' },
     { id: 'scout', name: 'Base-born Scout', faction: 'Base-born', icon: 'footsteps',
       blurb: 'Born in these corridors. You know which doors breathe.',
-      mods: { body: 0, mind: 1, soul: 0, o2: 2 }, credits: 4, weapon: 'wolfTooth', armor: null, kit: ['climbingLine', 'redStim'],
+      mods: { body: 0, mind: 1, soul: 0, o2: 2 }, credits: 4, weapon: 'wolfTooth', armor: 'phaseCloak', kit: ['climbingLine', 'redStim'],
       perk: 'pathfinder', perkText: 'Pathfinder: Dark doors are revealed. Lifts appear a room sooner.' },
     { id: 'penitent', name: 'Eclipse Penitent', faction: 'The Cult of the Long Eclipse', icon: 'candles',
       blurb: 'You came down here to be closer to the dark. It noticed.',
-      mods: { body: -2, mind: 0, soul: 3, o2: 0 }, credits: 6, weapon: 'carbine', armor: 'shroud', kit: ['soilCharm'],
+      mods: { body: -3, mind: 0, soul: 3, o2: 0 }, credits: 6, weapon: 'carbine', armor: null, kit: ['soilCharm'],
       perk: 'faith', perkText: 'Faith: +1 to Soul tests. You start Blessed.' },
     { id: 'hauler', name: 'Void Hauler', faction: 'The Drift Syndicate', icon: 'lungs',
       blurb: 'Big lungs, bigger back. You carry what others leave behind.',
-      mods: { body: 2, mind: -1, soul: 0, o2: 4 }, credits: 6, weapon: 'rootSaw', armor: null, kit: ['o2Canister'],
+      mods: { body: 2, mind: -1, soul: 0, o2: 4 }, credits: 6, weapon: 'rootSaw', armor: null, kit: ['o2Canister', 'redStim'],
       perk: 'packMule', perkText: 'Pack mule: +3 pack slots.' },
     { id: 'hunter', name: 'Signal Hunter', faction: 'The Council', icon: 'radar-sweep',
       blurb: 'You chase the broadcasts nobody else will answer.',
@@ -289,6 +289,21 @@ const MISSIONS = [
       boss: 'eclipseMother', payout: 40, twist: 'hunted', twistText: 'Hunted: Threat doors appear twice as often.' },
     { id: 'reactor', briefing: 'Steal the reactor heart', target: 'A thumb-sized star in a lead jar',
       boss: 'perkunasEngine', payout: 50, twist: 'hot', twistText: 'Hot: each room costs +1 Oxygen to keep it cool.' }
+];
+
+// -----------------------------------------------------------------------------
+// OMENS — one per run, rolled with the mission. The whole base feels it.
+// -----------------------------------------------------------------------------
+
+const OMENS = [
+    { id: 'calm', name: 'A Quiet Shift', text: 'No omen. The base is merely deadly.' },
+    { id: 'bloodMoon', name: 'Blood Moon', text: 'Every threat hits 1 harder. Every kill gives +2 XP.' },
+    { id: 'thinAir', name: 'Thin Air', text: 'Start with 4 less Oxygen. Lift lockers hold 3 more.' },
+    { id: 'sauleDay', name: "Saulė's Day", text: 'Shrine doors appear twice as often.' },
+    { id: 'velniasFair', name: "Velnias' Fair", text: 'Peddlers appear twice as often and always offer a relic.' },
+    { id: 'staticStorm', name: 'Static Storm', text: 'Strange doors appear twice as often and give +1 XP.' },
+    { id: 'swarm', name: 'The Swarm', text: 'Threat doors appear twice as often, but every threat is Weak.' },
+    { id: 'leanTimes', name: 'Lean Times', text: 'Salvage pays half. You start with 15 extra credits.' }
 ];
 
 // -----------------------------------------------------------------------------
@@ -565,7 +580,7 @@ if (typeof module !== 'undefined') {
     module.exports = {
         ENEMY_SPRITE_DIR, GAME_RULES, POOLS, POOL_LABELS, POOL_SHORT, TEST_TARGETS, DEPTHS, DOOR_TYPES,
         ENEMIES, ELITE_AFFIXES, ENEMY_XP, ENEMY_CREDITS, ENEMY_LOOT_CHANCE, INTENTS, ITEMS, RELICS,
-        BACKGROUNDS, BASE_POOLS, PLAYER_NAMES, PLAYER_EPITHETS, MISSIONS, SALVAGE_FLAVOR, SHRINE_TYPES,
+        BACKGROUNDS, BASE_POOLS, PLAYER_NAMES, PLAYER_EPITHETS, MISSIONS, OMENS, SALVAGE_FLAVOR, SHRINE_TYPES,
         PEDDLER_LINES, EVENTS, EXTRACTION_COMPLICATIONS, ADVANCEMENTS, RECORDS
     };
 }

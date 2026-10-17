@@ -81,7 +81,7 @@
 }
 
 body[data-depth="2"] { --acc: #34f0c5; --acc-soft: rgba(52, 240, 197, 0.14); }
-body[data-depth="3"] { --acc: #ff2d55; --acc-soft: rgba(255, 45, 85, 0.16); --acc-ink: #0b0a09; }
+body[data-depth="3"] { --acc: #ff45c8; --acc-soft: rgba(255, 69, 200, 0.15); --acc-ink: #0b0a09; }
 
 /* ---- Base ----------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -329,6 +329,12 @@ small { font-size: 0.78em; }
 .banner-title { margin: 4px 0 8px; font-family: var(--f-display); font-weight: 400; font-size: 2.6rem; line-height: 1; transform: rotate(-1.5deg); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.notes { margin-top: 10px; display: grid; gap: 4px; }
+.note-line { margin: 0; padding: 4px 8px; border-left: 3px solid var(--bone-2); background: var(--bg-3); font-family: var(--f-ui); font-size: 0.86rem; letter-spacing: 0.02em; text-align: left; }
+.note-line .ico { margin-right: 6px; color: var(--violet); }
+.note-line.tone-good { border-color: var(--teal); }
+.note-line.tone-bad { border-color: var(--blood); }
+.note-line.saved { border-color: var(--violet); color: var(--violet); }
 .chip {
     display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
     font-family: var(--f-ui); font-weight: 500; font-size: 0.8rem; letter-spacing: 0.03em;
@@ -360,6 +366,9 @@ small { font-size: 0.78em; }
 
 /* Mission / character choice */
 .mission-card .stamp { position: absolute; top: -12px; right: 12px; }
+.omen { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; padding: 8px 10px; border: 1.5px dashed var(--violet); color: var(--bone); font-size: 0.98rem; }
+.omen .ico { color: var(--violet); font-size: 1.4rem; flex: none; }
+.omen b { color: var(--violet); }
 .candidates { display: grid; gap: 12px; }
 .candidate { cursor: pointer; color: var(--bone); font: inherit; transition: border-color 0.15s, transform 0.1s; }
 .candidate:active { transform: translate(2px, 2px); }
@@ -374,8 +383,19 @@ small { font-size: 0.78em; }
 .cand-kit { margin: 0; font-size: 0.85rem; color: var(--dim); font-style: italic; }
 
 /* Events */
-.event-art { float: right; margin: -4px -4px 4px 10px; }
-.event-icon { font-size: 4.2rem; color: var(--acc); filter: drop-shadow(3px 3px 0 rgba(0,0,0,0.9)); }
+.event-card { text-align: center; }
+.event-art { position: relative; width: 128px; height: 128px; margin: 2px auto 8px; display: grid; place-items: center; }
+.event-halo {
+    position: absolute; inset: 0; border-radius: 50%; opacity: 0.55;
+    background: radial-gradient(circle, currentColor 1.3px, transparent 1.8px) 0 0 / 7px 7px;
+    -webkit-mask: radial-gradient(circle, #000 40%, transparent 71%); mask: radial-gradient(circle, #000 40%, transparent 71%);
+    color: var(--acc);
+}
+.event-icon { position: relative; font-size: 5.4rem; color: var(--acc); filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.9)); }
+.cat-strange .event-halo { color: var(--violet); }
+.cat-salvage .event-halo { color: var(--gold); }
+.cat-shrine .event-halo { color: var(--teal); }
+.event-card .chips { justify-content: center; }
 .cat-strange .event-icon, .cat-strange .card-kicker { color: var(--violet); }
 .cat-salvage .event-icon, .cat-salvage .card-kicker { color: var(--gold); }
 .cat-shrine .event-icon, .cat-shrine .card-kicker { color: var(--teal); }
@@ -776,6 +796,8 @@ small { font-size: 0.78em; }
     .door { min-height: 116px; padding-top: 10px; }
     .door-arch { width: 50px; height: 50px; }
     .door-icon { font-size: 1.9rem; }
+    .event-art { width: 84px; height: 84px; }
+    .event-icon { font-size: 3.6rem; }
     .enemy-portrait { width: 92px; height: 92px; }
     .enemy-portrait.tier-boss { width: 104px; height: 104px; }
     .act { min-height: 50px; padding: 6px 10px; }

@@ -87,7 +87,7 @@
     const RULES = [
         ['heart-organ', 'Your salvager', `
             <ol>
-                <li>Roll a <b>Mission</b> (d6). It names the target, the Vault guardian and a twist.</li>
+                <li>Roll a <b>Mission</b> (d6). It names the target, the Vault guardian and a twist. Roll an <b>Omen</b> (d8) too.</li>
                 <li>Roll three <b>Backgrounds</b> (d6). For each, roll Body <b>${BASE_POOLS.body}</b>, Mind <b>${BASE_POOLS.mind}</b>, Soul <b>${BASE_POOLS.soul}</b>, Oxygen <b>${BASE_POOLS.o2}</b>, then apply its modifiers. Keep one.</li>
                 <li>Take its kit and its perk, and roll its credits + d6.</li>
             </ol>
@@ -158,6 +158,9 @@
               esc([b.weapon, b.armor, ...b.kit].filter(Boolean).map(id => ITEMS.find(i => i.id === id).name).join(', ')) + `<br><small>${b.credits} + d6 credits</small>`,
               esc(b.perkText)
           ]) },
+        { group: 'Character', key: 'omens', title: 'Omens', icon: 'evil-moon', die: [8],
+          head: ['Omen', 'Effect'], rows: numbered(OMENS, o => [`<b>${esc(o.name)}</b>`, esc(o.text)]),
+          note: 'Roll one with the Mission. It lasts the whole run.' },
         { group: 'Character', key: 'names', title: 'Names', icon: 'scroll-unfurled', die: [12],
           head: ['Name', 'Epithet'],
           rows: numbered(PLAYER_EPITHETS, (ep, i) => [esc(PLAYER_NAMES[i]), esc(ep)]),

@@ -97,6 +97,7 @@ const Engine = (() => {
     const weapon = S => ITEM[S.hero.weapon] || ITEM.fists;
     const armor = S => ITEM[S.hero.armor] || null;
     const mission = S => MISSION[S.mission];
+    const omen = (S, id) => S.omen === id;
     const carrying = S => S.target && !S.over;
 
     function beat(S, b) {
@@ -468,6 +469,7 @@ const Engine = (() => {
             lastDoors: null
         };
         S.mission = pick(S, MISSIONS).id;
+        S.omen = pick(S, OMENS).id;
         const bgs = shuffle(S, BACKGROUNDS).slice(0, 3);
         S.scene = { kind: 'choose', candidates: bgs.map(bg => rollCandidate(S, bg)) };
         return S;
@@ -491,7 +493,11 @@ const Engine = (() => {
             relics: [],
             status: { breached: false, cursed: false, blessed: bg.perk === 'faith' }
         };
-        S.hero.credits = bg.credits + roll(S, 'd6');
+        S.hero.credits = bg.credits + roll(S, 'd6') + (omen(S, 'leanTimes') ? 15 : 0);
+        if (omen(S, 'thinAir')) {
+            pools.o2.max = Math.max(8, pools.o2.max - 4);
+            pools.o2.cur = pools.o2.max;
+        }
         bg.kit.forEach(id => {
             const entry = { id };
             if (ITEM[id].charges) entry.charges = ITEM[id].charges;
@@ -521,6 +527,7 @@ const Engine = (() => {
     }
 
     function rollThreatTier(S) {
+        if (omen(S, 'swarm')) return 'weak';
         const toughChance = [S.roomsAtDepth >= 2 ? 1 / 6 : 0, 3 / 6, 4 / 6][S.depth - 1];
         return rand(S) < toughChance ? 'tough' : 'weak';
     }
@@ -559,6 +566,8 @@ const Engine = (() => {
                 .map(([type, def]) => {
                     let w = def.weights[di];
                     if (type === 'threat' && hunted) w *= 2;
+                    if ((type === 'threat' && omen(S, 'swarm')) || (type === 'shrine' && omen(S, 'sauleDay'))
+                        || (type === 'peddler' && omen(S, 'velniasFair')) || (type === 'strange' && omen(S, 'staticStorm'))) w *= 2;
                     if (type === 'peddler' && doors.some(d => d.type === 'peddler')) w = 0;
                     if (first && (type === 'elite' || type === 'peddler')) w = 0;
                     return [type, w];
@@ -664,7 +673,7 @@ const Engine = (() => {
         say(S, `Descended to Depth ${S.depth}: ${d.name}.`);
         if (hasRelic(S, 'ryeSeed')) heal(S, 'all', 2);
         // Every lift car keeps an emergency locker: diving deeper buys a little air.
-        heal(S, 'o2', roll(S, 'd4'));
+        heal(S, 'o2', roll(S, 'd4') + (omen(S, 'thinAir') ? 3 : 0));
         S.outcome = { title: d.name, text: `${d.blurb} The lift's emergency locker still holds air.`, icon: 'stairs', tone: 'info', banner: S.depth };
         afterRoom(S);
     }
@@ -690,6 +699,7 @@ const Engine = (() => {
         const ev = EVENT[eventId];
         if (!S.seenEvents.includes(eventId)) S.seenEvents.push(eventId);
         if (perk(S, 'static')) gainXp(S, 2);
+        if (omen(S, 'staticStorm')) gainXp(S, 1);
         S.scene = {
             kind: 'event',
             category: 'strange',
@@ -701,7 +711,9 @@ const Engine = (() => {
     }
 
     function openSalvage(S) {
-        const base = roll(S, `d6+${S.depth * 2}`) + (hasAdv(S, 'scavenger') ? 3 : 0);
+        let base = roll(S, `d6+${S.depth * 2}`) + (hasAdv(S, 'scavenger') ? 3 : 0);
+        if (perk(S, 'haggler')) base += 2;
+        if (omen(S, 'leanTimes')) base = Math.ceil(base / 2);
         S.scene = {
             kind: 'event',
             category: 'salvage',
@@ -888,6 +900,7 @@ const Engine = (() => {
             e.dmgBonus += a.dmgBonus || 0;
             e.hungry = Boolean(a.hungry);
         }
+        if (omen(S, 'bloodMoon')) e.dmgBonus += 1;
         e.maxHp = e.hp;
         S.scene = {
             kind: 'combat',
@@ -1163,7 +1176,7 @@ const Engine = (() => {
         beat(S, { t: 'kill', name: e.name, peaceful });
         say(S, `${e.name} ${peaceful ? 'is at rest' : 'is slain'}.`);
 
-        gainXp(S, ENEMY_XP[e.tier] + (e.affix ? ENEMY_XP.eliteBonus : 0));
+        gainXp(S, ENEMY_XP[e.tier] + (e.affix ? ENEMY_XP.eliteBonus : 0) + (omen(S, 'bloodMoon') && !peaceful ? 2 : 0));
         if (!peaceful) {
             gainCredits(S, roll(S, ENEMY_CREDITS[e.tier]) + (e.id === 'rootDoctor' ? roll(S, '3d6') : 0));
             const w = weapon(S);
@@ -1310,7 +1323,7 @@ const Engine = (() => {
             if (!stock.some(s => s.id === id)) stock.push({ id });
         }
         stock.forEach(s => { s.price = price(S, ITEM[s.id].price); });
-        if (S.depth >= 2 && rand(S) < 0.5) {
+        if ((S.depth >= 2 && rand(S) < 0.5) || omen(S, 'velniasFair')) {
             const options = RELICS.filter(r => !hasRelic(S, r.id));
             if (options.length) stock.push({ relic: pick(S, options).id, price: price(S, 20 + 4 * S.depth) });
         }

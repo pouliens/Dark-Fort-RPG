@@ -334,15 +334,8 @@ const UI = (() => {
                 case 'spend': floatAt($('credits'), `−${b.amount}`, 'bad'); sfx('coin'); break;
                 case 'item': sfx('item'); break;
                 case 'relic': sfx('relic'); break;
-                case 'msg':
-                    if (S.scene?.kind !== 'combat') toast(esc(b.text), b.tone || 'info', 2400);
-                    await wait(120);
-                    break;
-                case 'saved':
-                    if (S.scene?.kind !== 'combat') toast(`${icon('angel-wings')} ${esc(b.text)}`, 'relic', 3200);
-                    sfx('relic');
-                    await wait(300);
-                    break;
+                case 'msg': await wait(120); break;
+                case 'saved': sfx('relic'); await wait(300); break;
                 case 'use': sfx('tap'); break;
                 case 'equip': sfx('item'); break;
                 case 'levelup': sfx('levelup'); break;
@@ -566,13 +559,21 @@ const UI = (() => {
             if (b.t === 'lose') items.push(['lose', b.name]);
             if (b.t === 'status') items.push([b.on && b.name !== 'blessed' ? 'lose' : 'item', `${b.on ? '' : 'no longer '}${statusLabel(b.name)}`]);
         });
+        const notes = beats.filter(b => b.t === 'msg' || b.t === 'saved')
+            .map(b => `<p class="note-line ${b.t === 'saved' ? 'saved' : `tone-${b.tone || 'info'}`}">${b.t === 'saved' ? icon('angel-wings') : ''}${esc(b.text)}</p>`).join('');
         const chips = [];
         Object.entries(dmg).forEach(([p, n]) => chips.push(`<span class="chip chip-bad">−${n} ${POOL_SHORT[p]}</span>`));
         Object.entries(heal).forEach(([p, n]) => chips.push(`<span class="chip chip-good">+${n} ${POOL_SHORT[p]}</span>`));
         if (credits) chips.push(`<span class="chip ${credits > 0 ? 'chip-gold' : 'chip-bad'}">${credits > 0 ? '+' : '−'}${Math.abs(credits)} ${icon('two-coins')}</span>`);
         if (xp) chips.push(`<span class="chip chip-xp">+${xp} XP</span>`);
         items.forEach(([k, name]) => chips.push(`<span class="chip chip-${k}">${k === 'relic' ? icon('gem-pendant') : ''}${esc(name)}</span>`));
-        return chips.length ? `<div class="chips">${chips.join('')}</div>` : '';
+        return (notes ? `<div class="notes">${notes}</div>` : '') + (chips.length ? `<div class="chips">${chips.join('')}</div>` : '');
+    }
+
+    function omenLine() {
+        const o = OMENS.find(x => x.id === S.omen);
+        if (!o || o.id === 'calm') return '';
+        return `<p class="omen">${icon('evil-moon')}<span><b>Omen: ${esc(o.name)}.</b> ${esc(o.text)}</span></p>`;
     }
 
     function stageChoose() {
@@ -587,6 +588,7 @@ const UI = (() => {
                 <h2 class="card-title">${esc(m.briefing)}</h2>
                 <p class="flavor">${esc(m.target)}. It waits in the Vault at Depth III, guarded by <b>${esc(boss.name)}</b>.</p>
                 <p class="small-print">Pays ${m.payout} credits. ${esc(m.twistText)}</p>
+                ${omenLine()}
             </article>
             <h3 class="section-label">Choose who goes down</h3>
             <div class="candidates">
@@ -628,7 +630,7 @@ const UI = (() => {
     }
 
     function depthProgress() {
-        if (S.target) return 'You have the target. Every credit is doubled. Extract when you dare.';
+        if (S.target) return `${icon('locked-door')} Carrying the target. ${esc(Engine.mission(S).twistText)}`;
         const min = GAME_RULES.liftMinRooms - (Engine.BG[S.hero.bg].perk === 'pathfinder' ? 1 : 0);
         const sure = GAME_RULES.liftGuaranteedRooms - (Engine.BG[S.hero.bg].perk === 'pathfinder' ? 1 : 0);
         const what = S.depth < GAME_RULES.depths ? 'Lift' : 'Vault';
@@ -654,7 +656,7 @@ const UI = (() => {
         const kicker = { strange: 'Strange', salvage: 'Salvage', shrine: 'Shrine' }[sc.category] || '';
         return `
             <article class="card event-card cat-${sc.category}">
-                <div class="event-art">${icon(sc.icon, 'event-icon')}</div>
+                <div class="event-art"><span class="event-halo"></span>${icon(sc.icon, 'event-icon')}</div>
                 <div class="card-kicker">${kicker}</div>
                 <h2 class="card-title">${esc(sc.title)}</h2>
                 <p class="flavor">${esc(sc.text)}</p>
@@ -671,6 +673,7 @@ const UI = (() => {
                 <h2 class="card-title">So close.</h2>
                 <div class="test-dice"><div class="die die-static"><span>${t.roll}</span></div>${t.bonus ? `<span class="roll-bonus">${t.bonus > 0 ? '+' : '−'}${Math.abs(t.bonus)}</span>` : ''}<span class="roll-vs">need</span><span class="roll-need">${t.need}+</span></div>
                 <p class="flavor">${esc(t.label)}. ${sc.canPush ? 'You missed by one. Burn some air and force it?' : 'The mirror script could give you another try.'}</p>
+                ${beatSummary(lastBeats)}
             </article>`;
     }
 
@@ -744,7 +747,7 @@ const UI = (() => {
                 out.push(`<span>${esc(e.name)} ${verbs[b.intent]}</span>`);
             } else if (b.t === 'dmg') {
                 out.push(`<span class="f-bad">You −${b.amount} ${POOL_SHORT[b.pool]}</span>`);
-            } else if (b.t === 'o2') {
+            } else if (b.t === 'o2' && b.reason !== 'room') {
                 out.push(`<span class="f-o2">−${b.amount} O2</span>`);
             } else if (b.t === 'block') {
                 out.push('<span class="f-good">Blocked</span>');
@@ -1087,6 +1090,7 @@ const UI = (() => {
                 <b>${esc(m.briefing)}</b>
                 <p>${esc(m.target)} · Vault guardian: ${esc(Engine.ENEMY[m.boss].name)} · Pays ${m.payout}</p>
                 <p class="small-print">${esc(m.twistText)}</p>
+                ${omenLine()}
             </div>
             ${rows}
             <div class="map-legend">${Object.entries(DOOR_TYPES).map(([k, d]) => `<span>${icon(d.icon)} ${esc(d.label)}</span>`).join('')}</div>`];
@@ -1308,6 +1312,34 @@ const UI = (() => {
         }
     }
 
+    // Desktop: number keys pick the nth choice, letters drive combat.
+    function onKey(e) {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key === 'Escape') {
+            closeSheet();
+            return;
+        }
+        if (!S || sheetKind || $('game').hidden) return;
+        const kind = S.scene.kind;
+        const letters = { a: 'attack', p: 'push', b: 'brace', f: 'flee', s: 'parley', i: 'pack', e: 'extract', l: 'leave', m: 'map', g: 'log' };
+        let target = null;
+        if (/^[1-9]$/.test(e.key)) {
+            const pool = ['choose', 'levelup'].includes(kind)
+                ? [...document.querySelectorAll('#stage .candidate, #stage .adv-card')]
+                : [...document.querySelectorAll('#dock .door, #dock .option, #dock .act')];
+            target = pool[Number(e.key) - 1];
+        } else if (letters[e.key.toLowerCase()]) {
+            target = document.querySelector(`#dock [data-action="${letters[e.key.toLowerCase()]}"], .tabbar [data-action="${letters[e.key.toLowerCase()]}"]`);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+            if (document.activeElement?.closest?.('button')) return;
+            target = document.querySelector('#dock .btn-primary, #dock [data-action="climb"], #dock [data-action="again"]');
+        }
+        if (target && !target.disabled) {
+            e.preventDefault();
+            target.click();
+        }
+    }
+
     function init() {
         document.querySelector('[data-action="graveyard"]').innerHTML = `${icon('tombstone')} Graveyard`;
         document.querySelector('[data-action="records"]').innerHTML = `${icon('laurels-trophy')} Records`;
@@ -1317,9 +1349,7 @@ const UI = (() => {
         document.addEventListener('click', onClick);
         $('sheetBackdrop').addEventListener('click', closeSheet);
         observeHud();
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeSheet();
-        });
+        document.addEventListener('keydown', onKey);
         Sfx.setEnabled(settings.sound);
         Sfx.setAmbience(settings.ambience);
         showTitle();
