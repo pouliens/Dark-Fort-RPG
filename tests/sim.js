@@ -239,6 +239,36 @@ function playRunSeeded(seed) {
     });
 }
 
+// ---- Fuzz: random (often silly) actions must never crash or corrupt state ------
+{
+    const pickOne = list => list[Math.floor(Math.random() * list.length)];
+    for (let seed = 1; seed <= 400; seed++) {
+        let S = Engine.newRun({ seed });
+        for (let i = 0; i < 400 && !S.over; i++) {
+            const sc = S.scene;
+            const n = S.hero ? S.hero.pack.length : 0;
+            const generic = n ? [
+                { type: 'use', index: Math.floor(Math.random() * n) },
+                { type: 'equip', index: Math.floor(Math.random() * n) },
+                { type: 'drop', index: Math.floor(Math.random() * n) }
+            ] : [];
+            const specific = {
+                choose: () => [{ type: 'choose', index: Math.floor(Math.random() * 3) }],
+                doors: () => [{ type: 'door', index: Math.floor(Math.random() * sc.doors.length) }, { type: 'door', index: 0 }, { type: 'extract' }],
+                event: () => sc.options.map((_, idx) => ({ type: 'option', index: idx })),
+                test: () => [{ type: 'test', choice: pickOne(['push', 'reroll', 'accept']) }],
+                combat: () => ['attack', 'push', 'brace', 'flee', 'parley'].map(type => ({ type })),
+                shop: () => [{ type: 'buy', index: Math.floor(Math.random() * sc.stock.length) }, { type: 'sell', index: 0 }, { type: 'leave' }],
+                levelup: () => [{ type: 'advance', id: pickOne(sc.choices) }],
+                extract: () => [{ type: 'climb' }]
+            }[sc.kind]();
+            Engine.act(S, pickOne(Math.random() < 0.75 ? specific : [...specific, ...generic, { type: 'unequip', slot: 'armor' }]));
+            checkInvariants(S);
+            if (i % 5 === 0) S = JSON.parse(JSON.stringify(S));
+        }
+    }
+}
+
 // ---- Bulk runs ---------------------------------------------------------------
 const stats = { won: 0, aborted: 0, died: 0, rooms: 0, actions: 0, depth: [0, 0, 0, 0], level: 0, causes: {}, credits: 0, bossFights: 0, killers: {} };
 for (let i = 0; i < RUNS; i++) {

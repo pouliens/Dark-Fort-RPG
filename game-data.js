@@ -123,7 +123,7 @@ const ELITE_AFFIXES = [
 
 const ENEMY_XP = { weak: 2, tough: 4, boss: 8, eliteBonus: 2 };
 const ENEMY_CREDITS = { weak: 'd4', tough: 'd6+2', boss: '2d6+6' };
-const ENEMY_LOOT_CHANCE = { weak: 0.3, tough: 0.55, boss: 1 };
+const ENEMY_LOOT_CHANCE = { weak: 2 / 6, tough: 3 / 6, boss: 1 };
 
 // Intent table: d6 → move. Some traits swap the table.
 const INTENTS = {

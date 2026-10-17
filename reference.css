@@ -1,0 +1,77 @@
+/* =============================================================================
+   DARK FORT: MOON DEVILS — PEN & PAPER REFERENCE
+   Builds on the tokens and base in styles.css.
+   ========================================================================== */
+
+.ref { max-width: 860px; margin: 0 auto; padding: calc(18px + var(--safe-t)) 16px calc(40px + var(--safe-b)); }
+.ref-back { font-family: var(--f-ui); letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.85rem; text-decoration: none; }
+.ref-header { text-align: center; }
+.ref-title { margin: 18px 0 6px; line-height: 0.85; }
+.ref-title .logo-dark { font-size: clamp(3.2rem, 14vw, 5.4rem); }
+.ref-intro { max-width: 620px; margin: 20px auto 10px; color: var(--bone-2); font-size: 1.05rem; }
+.ref-toc { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin: 8px 0 4px; font-family: var(--f-ui); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.82rem; }
+
+.tray {
+    position: sticky; top: 0; z-index: 20; margin: 16px -16px 0; padding: 10px 16px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; justify-content: space-between;
+    background: rgba(11, 10, 9, 0.96); border-bottom: 2px solid var(--bone); backdrop-filter: blur(6px);
+}
+.tray-dice { display: flex; flex-wrap: wrap; gap: 6px; }
+.dice-btn {
+    min-width: 46px; min-height: 40px; padding: 4px 8px; cursor: pointer;
+    background: var(--bone); color: #000; border: 0; border-radius: 6px; box-shadow: 2px 2px 0 #000;
+    font-family: var(--f-ui); font-weight: 700; font-size: 0.95rem;
+}
+.dice-btn:active { transform: translate(1px, 1px); }
+.tray-result { display: flex; align-items: baseline; gap: 10px; }
+.tray-value { font-family: var(--f-display); font-size: 2.4rem; line-height: 1; color: var(--acc); min-width: 1.2em; text-align: right; }
+.tray-value.flash { animation: land 0.35s cubic-bezier(.2,1.6,.4,1); }
+.tray-detail { font-family: var(--f-ui); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bone-2); }
+
+.ref-section { margin-top: 34px; scroll-margin-top: 80px; }
+.ref-section > h2 {
+    display: inline-block; margin: 0 0 14px; padding: 2px 14px; transform: rotate(-1.5deg);
+    background: var(--acc); color: var(--acc-ink);
+    font-family: var(--f-ui); font-weight: 700; font-size: 1.1rem; letter-spacing: 0.24em; text-transform: uppercase;
+}
+
+.rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.rule-card { background: var(--bg-2); border: 2px solid var(--bone); padding: 12px 14px; box-shadow: 5px 5px 0 #000; }
+.rule-card h3, .table-head h3 {
+    margin: 0 0 6px; display: flex; align-items: center; gap: 8px;
+    font-family: var(--f-display); font-weight: 400; font-size: 1.5rem; line-height: 1.1;
+}
+.rule-card h3 .ico, .table-head h3 .ico { color: var(--acc); }
+.rule-card ul, .rule-card ol { margin: 6px 0; padding-left: 20px; }
+.rule-card li { margin: 4px 0; }
+.note { margin: 8px 0 0; color: var(--dim); font-size: 0.95rem; font-style: italic; }
+.mini { border-collapse: collapse; margin: 6px 0; font-family: var(--f-ui); }
+.mini td { padding: 2px 14px 2px 0; border-bottom: 1px solid var(--line); }
+
+.table-block { margin-bottom: 20px; scroll-margin-top: 90px; }
+.table-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.roll-btn { flex: none; }
+.table-scroll { overflow-x: auto; border: 2px solid var(--bone); background: var(--bg-2); box-shadow: 5px 5px 0 #000; }
+.ref-table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
+.ref-table th {
+    text-align: left; padding: 7px 10px; background: #000; color: var(--bone-2);
+    font-family: var(--f-ui); font-weight: 500; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+}
+.ref-table td { padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.ref-table td small { color: var(--dim); }
+.ref-table .col-roll { width: 1%; white-space: nowrap; font-family: var(--f-ui); font-weight: 700; color: var(--acc); }
+.ref-table tr.rolled td { background: var(--acc-soft); }
+.ref-table tr.rolled td.col-roll { background: var(--acc); color: var(--acc-ink); }
+.ref-table ul.opts { margin: 0; padding-left: 16px; }
+.ref-table ul.opts li { margin: 2px 0; }
+
+.ref-foot { margin-top: 40px; text-align: center; color: var(--dim); }
+.ref-foot .btn { margin-top: 8px; }
+
+@media print {
+    body { background: #fff; color: #000; }
+    .grain, .tray, .roll-btn, .ref-toc, .ref-foot .btn { display: none; }
+    .rule-card, .table-scroll { box-shadow: none; border-color: #000; background: #fff; }
+    .ref-table th { background: #eee; color: #000; }
+    .ref-section > h2 { background: #000; color: #fff; }
+}

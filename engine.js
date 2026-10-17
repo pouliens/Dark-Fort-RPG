@@ -400,7 +400,7 @@ const Engine = (() => {
                     else spendO2(S, -n, 'lost air');
                     break;
                 }
-                case 'heal': heal(S, a, roll(S, b) + (S.healBonus || 0)); break;
+                case 'heal': heal(S, a, roll(S, b)); break;
                 case 'dmg': hurt(S, a, roll(S, b), { armorApplies: false, source: S.scene?.title || '' }); break;
                 case 'maxPool': changeMax(S, a, b); break;
                 case 'item': gainItem(S, pickItemId(S, a)); break;
@@ -521,7 +521,7 @@ const Engine = (() => {
     }
 
     function rollThreatTier(S) {
-        const toughChance = [S.roomsAtDepth >= 2 ? 0.12 : 0, 0.5, 0.75][S.depth - 1];
+        const toughChance = [S.roomsAtDepth >= 2 ? 1 / 6 : 0, 3 / 6, 4 / 6][S.depth - 1];
         return rand(S) < toughChance ? 'tough' : 'weak';
     }
 
@@ -1461,7 +1461,8 @@ const Engine = (() => {
 
     function act(S, action) {
         S.beats = [];
-        if (S.over && action.type !== 'noop') return S;
+        if (S.over) return S;
+        if (!S.hero && action.type !== 'choose') return S;
         const kind = S.scene?.kind;
         switch (action.type) {
             case 'choose':

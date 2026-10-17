@@ -187,8 +187,22 @@ const UI = (() => {
         }).observe($('hud'));
     }
 
+    // Starting over while a run is saved buries the old salvager properly.
+    function abandonSaved() {
+        const saved = loadRun();
+        if (!saved) return true;
+        if (!confirm(`Abandon ${saved.hero.name}? They go in the graveyard.`)) return false;
+        S = saved;
+        S.dead = true;
+        S.over = true;
+        S.scene = { kind: 'end', won: false, extracted: false, payout: 0, score: 0, cause: 'Left behind in the dark when the next salvager went down.' };
+        onRunEnd();
+        return true;
+    }
+
     function startRun(daily = false) {
         Sfx.unlock();
+        if (!abandonSaved()) return;
         const seed = daily ? hashSeed(`darkfort-${dateKey()}`) : undefined;
         S = Engine.newRun({ seed, daily: daily ? dateKey() : null });
         meta.stats.runs += 1;
