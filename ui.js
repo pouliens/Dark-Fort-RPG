@@ -339,13 +339,48 @@ const UI = (() => {
                 case 'use': sfx('tap'); break;
                 case 'equip': sfx('item'); break;
                 case 'levelup': sfx('levelup'); break;
-                case 'descend': sfx('descend'); break;
-                case 'target': sfx('relic'); break;
-                case 'death': sfx('death'); vibrate(200); break;
-                case 'end': sfx(b.won ? 'win' : 'success'); break;
+                case 'descend':
+                    sfx('descend');
+                    document.body.dataset.depth = String(b.depth);
+                    Sfx.setDepth(b.depth);
+                    await moment('descend', `<div class="m-kicker">Depth</div><div class="m-big">${ROMAN[b.depth]}</div><div class="m-name">${esc(DEPTHS[b.depth - 1].name)}</div>`, 1400);
+                    break;
+                case 'target':
+                    sfx('relic');
+                    await moment('target', `${icon('locked-door', 'm-icon')}<div class="m-name">Target secured</div><div class="m-kicker">Now get out</div>`, 1100);
+                    break;
+                case 'death':
+                    sfx('death');
+                    vibrate(200);
+                    await moment('death', `<div class="m-big">☠</div><div class="m-name">Dead</div>`, 1200);
+                    break;
+                case 'end':
+                    sfx(b.won ? 'win' : 'success');
+                    await moment('surface', `${icon('moon', 'm-icon')}<div class="m-name">${b.won ? 'Extracted' : 'Surfaced'}</div><div class="m-kicker">${b.won ? 'Mission complete' : 'Alive, unpaid'}</div>`, 1200);
+                    break;
                 default: break;
             }
         }
+    }
+
+    // Full-screen beat for the moments that should land. Tap to skip.
+    function moment(kind, html, ms) {
+        const el = $('moment');
+        el.className = `moment m-${kind}`;
+        el.innerHTML = `<div class="m-inner">${html}</div>`;
+        el.hidden = false;
+        return new Promise(resolve => {
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                skipRoll = null;
+                el.classList.add('out');
+                setTimeout(() => { el.hidden = true; resolve(); }, 220);
+            };
+            skipRoll = finish;
+            setTimeout(finish, reduceMotion() ? 600 : settings.fast ? ms * 0.55 : ms);
+        });
     }
 
     function showRoll(b) {
@@ -368,7 +403,7 @@ const UI = (() => {
         const dieEl = $('rollDie').querySelector('span');
         const sides = b.sides || 6;
         let spins = 0;
-        const spinMs = reduceMotion() ? 0 : settings.fast ? 160 : 380;
+        const spinMs = reduceMotion() ? 0 : settings.fast ? 140 : 300;
         return new Promise(resolve => {
             let done = false;
             const finish = () => {
@@ -382,7 +417,7 @@ const UI = (() => {
                     tray.classList.remove('show');
                     skipRoll = null;
                     resolve();
-                }, settings.fast ? 380 : 750);
+                }, settings.fast ? 320 : 540);
             };
             skipRoll = finish;
             const timer = setInterval(() => {
@@ -554,7 +589,11 @@ const UI = (() => {
             if (b.t === 'credits') credits += b.amount;
             if (b.t === 'spend') credits -= b.amount;
             if (b.t === 'xp') xp += b.amount;
-            if (b.t === 'item') items.push(['item', b.name]);
+            if (b.t === 'item') {
+                const def = Engine.ITEM[b.id];
+                const inPack = S.hero?.pack.some(p => p.id === b.id);
+                items.push([(def.kind === 'weapon' || def.kind === 'armor') && inPack && S.scene.kind !== 'combat' ? 'equip' : 'item', b.name, b.id]);
+            }
             if (b.t === 'relic') items.push(['relic', b.name]);
             if (b.t === 'lose') items.push(['lose', b.name]);
             if (b.t === 'status') items.push([b.on && b.name !== 'blessed' ? 'lose' : 'item', `${b.on ? '' : 'no longer '}${statusLabel(b.name)}`]);
@@ -566,7 +605,9 @@ const UI = (() => {
         Object.entries(heal).forEach(([p, n]) => chips.push(`<span class="chip chip-good">+${n} ${POOL_SHORT[p]}</span>`));
         if (credits) chips.push(`<span class="chip ${credits > 0 ? 'chip-gold' : 'chip-bad'}">${credits > 0 ? '+' : '−'}${Math.abs(credits)} ${icon('two-coins')}</span>`);
         if (xp) chips.push(`<span class="chip chip-xp">+${xp} XP</span>`);
-        items.forEach(([k, name]) => chips.push(`<span class="chip chip-${k}">${k === 'relic' ? icon('gem-pendant') : ''}${esc(name)}</span>`));
+        items.forEach(([k, name, id]) => chips.push(k === 'equip'
+            ? `<button class="chip chip-item chip-equip" data-action="equipId" data-arg="${esc(id)}">${esc(name)} <b>Equip</b></button>`
+            : `<span class="chip chip-${k}">${k === 'relic' ? icon('gem-pendant') : ''}${esc(name)}</span>`));
         return (notes ? `<div class="notes">${notes}</div>` : '') + (chips.length ? `<div class="chips">${chips.join('')}</div>` : '');
     }
 
@@ -1300,6 +1341,11 @@ const UI = (() => {
                 await act({ type: action, index: idx });
                 break;
             case 'unequip': await act({ type: 'unequip', slot: arg }); break;
+            case 'equipId': {
+                const index = S.hero.pack.findIndex(p => p.id === arg);
+                if (index >= 0) await act({ type: 'equip', index });
+                break;
+            }
             case 'choose': sfx('door'); await act({ type: 'choose', index: idx }); break;
             case 'option': await act({ type: 'option', index: idx }); break;
             case 'test': await act({ type: 'test', choice: arg }); break;

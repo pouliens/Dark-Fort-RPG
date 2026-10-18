@@ -347,6 +347,33 @@ small { font-size: 0.78em; }
 .chip-xp { color: var(--acc); border-color: var(--acc-soft); }
 .chip-item { color: var(--bone); border-color: var(--bone-2); }
 .chip-relic { color: var(--violet); border-color: var(--violet); }
+.chip-equip { cursor: pointer; font: inherit; font-family: var(--f-ui); font-size: 0.8rem; }
+.chip-equip b { margin-left: 4px; padding: 0 6px; background: var(--acc); color: var(--acc-ink); }
+
+/* ---- Moments (full-screen beats) ------------------------------------------- */
+.moment {
+    position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; text-align: center;
+    background: rgba(5, 5, 5, 0.92); animation: moment-in 0.25s ease-out; cursor: pointer;
+}
+.moment.out { opacity: 0; transition: opacity 0.22s; }
+.m-inner { display: grid; justify-items: center; gap: 4px; }
+.m-kicker { font-family: var(--f-ui); font-weight: 700; letter-spacing: 0.4em; text-transform: uppercase; color: var(--bone-2); }
+.m-big { font-family: var(--f-display); font-size: clamp(7rem, 40vw, 12rem); line-height: 0.9; color: var(--acc); text-shadow: 6px 6px 0 #000; }
+.m-name { font-family: var(--f-display); font-size: clamp(2.4rem, 11vw, 4rem); line-height: 1; transform: rotate(-2deg); }
+.m-icon { font-size: 6rem; color: var(--acc); }
+.m-descend .m-inner { animation: m-drop 1.4s cubic-bezier(.2,.8,.2,1) both; }
+.m-descend::before {
+    content: ''; position: absolute; inset: 0; opacity: 0.25; pointer-events: none;
+    background: repeating-linear-gradient(0deg, var(--acc) 0 2px, transparent 2px 38px);
+    animation: m-shaft 1.4s linear both;
+}
+.m-target .m-inner, .m-surface .m-inner { animation: stamp-in 0.45s cubic-bezier(.2,1.4,.4,1) both; }
+.m-death { background: radial-gradient(circle, rgba(143,20,32,0.9), rgba(5,5,5,0.97) 70%); }
+.m-death .m-big { color: var(--bone); font-family: var(--f-ui); }
+.m-death .m-inner { animation: stamp-in 0.5s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes moment-in { from { opacity: 0; } }
+@keyframes m-drop { from { transform: translateY(-40px); opacity: 0; } 30% { opacity: 1; } }
+@keyframes m-shaft { from { background-position: 0 0; } to { background-position: 0 -380px; } }
 
 .depth-progress { display: flex; align-items: center; gap: 10px; margin: 14px 2px 0; color: var(--bone-2); font-style: italic; }
 .pips { display: inline-flex; gap: 4px; flex: none; }
