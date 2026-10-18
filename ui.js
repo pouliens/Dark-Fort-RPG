@@ -167,8 +167,10 @@ const UI = (() => {
         const best = meta.daily[today];
         $('dailyBtn').innerHTML = `${icon('sun')} Daily descent <small>${today}${best != null ? ` · best ${best}` : ''}</small>`;
         const dead = meta.graveyard.length;
-        $('titleFoot').textContent = dead
-            ? `${dead} ${dead === 1 ? 'name' : 'names'} in the graveyard · best score ${meta.best}`
+        const last = meta.graveyard[0];
+        $('titleFoot').innerHTML = last
+            ? `<span class="last-grave">${icon(last.won ? 'trophy' : last.extracted ? 'exit-door' : 'tombstone')} <b>${esc(last.name)}</b> — ${esc(last.cause)}</span>
+               <span>${dead} ${dead === 1 ? 'name' : 'names'} in the graveyard · best score ${meta.best}</span>`
             : 'The base is waiting.';
     }
 
@@ -204,11 +206,15 @@ const UI = (() => {
         Sfx.unlock();
         if (!abandonSaved()) return;
         const seed = daily ? hashSeed(`darkfort-${dateKey()}`) : undefined;
-        S = Engine.newRun({ seed, daily: daily ? dateKey() : null });
+        S = Engine.newRun({ seed, daily: daily ? dateKey() : null, locked: lockedBackgrounds() });
         meta.stats.runs += 1;
         store(GAME_RULES.metaKey, meta);
         lastBeats = [];
         showGame();
+    }
+
+    function lockedBackgrounds() {
+        return RECORDS.filter(r => r.unlocks && recordProgress(r) < r.target).map(r => r.unlocks);
     }
 
     function continueRun() {
@@ -912,9 +918,10 @@ const UI = (() => {
                     <span>Depth <b>${ROMAN[S.stats.maxDepth]}</b></span>
                     <span>Rooms <b>${S.stats.rooms}</b></span>
                     <span>Kills <b>${S.stats.kills}</b></span>
-                    <span>Credits <b>${sc.extracted ? h.credits : 0}</b></span>
+                    <span>Carried out <b>${sc.extracted ? h.credits : 0}</b></span>
                 </div>
                 <div class="end-path">${pathEmoji()}</div>
+                ${sc.extracted ? '' : `<details class="last-words"><summary>Last moments</summary><ol>${S.log.slice(-6).map(l => `<li>${esc(l)}</li>`).join('')}</ol></details>`}
             </article>`;
     }
 
@@ -1185,7 +1192,8 @@ const UI = (() => {
         const rows = RECORDS.map(r => {
             const p = Math.min(r.target, recordProgress(r));
             const done = p >= r.target;
-            return `<div class="record ${done ? 'done' : ''}">${icon(done ? 'laurels-trophy' : 'hourglass', 'rec-icon')}<span>${esc(r.text)}</span><b>${done ? 'Done' : `${p}/${r.target}`}</b></div>`;
+            const unlock = r.unlocks ? `<small class="rec-unlock">${done ? 'Unlocked' : 'Unlocks'}: ${esc(Engine.BG[r.unlocks].name)}</small>` : '';
+            return `<div class="record ${done ? 'done' : ''}">${icon(done ? 'laurels-trophy' : 'hourglass', 'rec-icon')}<span>${esc(r.text)}${unlock}</span><b>${done ? 'Done' : `${p}/${r.target}`}</b></div>`;
         }).join('');
         const s = meta.stats;
         return [`${icon('laurels-trophy')} Records`, `${rows}
@@ -1255,7 +1263,10 @@ const UI = (() => {
         store(GAME_RULES.metaKey, meta);
         store(GAME_RULES.saveKey, null);
         RECORDS.filter(r => !before.has(r.id) && recordProgress(r) >= r.target)
-            .forEach((r, i) => setTimeout(() => toast(`${icon('laurels-trophy')} Record: <b>${esc(r.text)}</b>`, 'relic', 3500), 600 + i * 500));
+            .forEach((r, i) => setTimeout(() => {
+                const unlock = r.unlocks ? ` Unlocked: <b>${esc(Engine.BG[r.unlocks].name)}</b>.` : '';
+                toast(`${icon('laurels-trophy')} Record: <b>${esc(r.text)}</b>.${unlock}`, 'relic', 4200);
+            }, 1400 + i * 600));
     }
 
     async function share() {
@@ -1293,6 +1304,8 @@ const UI = (() => {
         if (!el || el.disabled) return;
         const action = el.dataset.action;
         const arg = el.dataset.arg;
+        // While a tap resolves, only harmless viewing actions get through.
+        if (busy && !['closeSheet', 'dismissTip', 'map', 'log', 'status', 'howto'].includes(action)) return;
         const idx = arg != null && /^\d+$/.test(arg) ? Number(arg) : arg;
         Sfx.unlock();
         switch (action) {

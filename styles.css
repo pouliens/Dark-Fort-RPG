@@ -215,7 +215,13 @@ small { font-size: 0.78em; }
 .title-row .btn { flex-direction: column; gap: 2px; font-size: 0.72rem; padding: 8px 4px; min-height: 58px; }
 .title-row .btn .ico { font-size: 1.4rem; }
 .title-link { margin-top: 6px; font-family: var(--f-ui); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.title-foot { margin-top: 26px; color: var(--dim); font-style: italic; }
+.title-foot { margin-top: 26px; color: var(--dim); font-style: italic; display: grid; gap: 6px; max-width: 360px; }
+.last-grave { color: var(--bone-2); }
+.last-grave .ico { color: var(--dim); }
+.last-words { margin-top: 12px; text-align: left; }
+.last-words summary { cursor: pointer; font-family: var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.8rem; color: var(--bone-2); text-align: center; }
+.last-words ol { margin: 8px 0 0; padding-left: 20px; color: var(--bone-2); font-size: 0.95rem; }
+.rec-unlock { display: block; color: var(--violet); font-family: var(--f-ui); letter-spacing: 0.04em; }
 
 /* =============================================================================
    GAME LAYOUT

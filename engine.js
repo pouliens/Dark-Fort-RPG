@@ -440,7 +440,9 @@ const Engine = (() => {
         };
     }
 
-    function newRun({ seed = Math.floor(Math.random() * 2 ** 32), daily = null } = {}) {
+    // `locked` backgrounds (not yet earned through Records) are never offered,
+    // except on the Daily descent, where everyone must get the same seed.
+    function newRun({ seed = Math.floor(Math.random() * 2 ** 32), daily = null, locked = [] } = {}) {
         const S = {
             v: GAME_RULES.version,
             seed: seed >>> 0,
@@ -470,7 +472,8 @@ const Engine = (() => {
         };
         S.mission = pick(S, MISSIONS).id;
         S.omen = pick(S, OMENS).id;
-        const bgs = shuffle(S, BACKGROUNDS).slice(0, 3);
+        const open = daily ? BACKGROUNDS : BACKGROUNDS.filter(b => !locked.includes(b.id));
+        const bgs = shuffle(S, open.length >= 3 ? open : BACKGROUNDS).slice(0, 3);
         S.scene = { kind: 'choose', candidates: bgs.map(bg => rollCandidate(S, bg)) };
         return S;
     }

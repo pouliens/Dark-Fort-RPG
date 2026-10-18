@@ -565,9 +565,9 @@ const ADVANCEMENTS = [
 
 const RECORDS = [
     { id: 'firstBlood', text: 'Kill your first threat', stat: 'kills', target: 1 },
-    { id: 'depth2', text: 'Reach the Works (Depth 2)', stat: 'maxDepth', target: 2 },
+    { id: 'depth2', text: 'Reach the Works (Depth 2)', stat: 'maxDepth', target: 2, unlocks: 'hauler' },
     { id: 'depth3', text: 'Reach the Deep Core (Depth 3)', stat: 'maxDepth', target: 3 },
-    { id: 'boss', text: 'Defeat a Vault guardian', stat: 'bossKills', target: 1 },
+    { id: 'boss', text: 'Defeat a Vault guardian', stat: 'bossKills', target: 1, unlocks: 'marshal' },
     { id: 'extract', text: 'Extract with the target', stat: 'wins', target: 1 },
     { id: 'greedy', text: 'Extract carrying 100+ credits', stat: 'bestCredits', target: 100 },
     { id: 'elite', text: 'Kill 5 Marked threats', stat: 'eliteKills', target: 5 },

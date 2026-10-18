@@ -94,9 +94,27 @@ Pick background (1 of 3) ─► Depth 1 ─► Depth 2 ─► Depth 3 ─► Vau
 - **Advancement:** XP from rooms, kills and events. When the bar fills you
   draft 1 of 3 advancements.
 
+## Variety layers
+
+- **Omens:** one run-wide modifier rolled with the mission, such as Blood Moon,
+  Thin Air or The Swarm. It changes how the whole run feels without adding any
+  UI.
+- **Mission twists:** what goes wrong while you carry the target.
+
 ## Meta
 
 - **Graveyard:** every dead or retired character, with cause, depth and score.
-- **Records:** small achievements that persist between runs.
+  The latest one is shown on the title screen.
+- **Records:** small achievements that persist between runs. Two of them unlock
+  backgrounds (Void Hauler and Council Marshal), so new players start with 4
+  of the 6.
 - **Daily Descent:** a seeded run that's the same for everyone that day, with a
-  shareable result line.
+  shareable result line. It ignores unlocks so everyone gets the same seed.
+
+## Balance method
+
+`tests/sim.js` plays thousands of runs with a reasonable bot. The bot wins
+about a third of the time, dies about half the time and aborts the rest. A
+thoughtful human should do noticeably better. Per-background and per-omen win
+rates were tuned to stay inside a band of roughly 25–45%. `npm run sim` prints
+the report.
