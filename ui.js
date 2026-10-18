@@ -189,11 +189,37 @@ const UI = (() => {
         }).observe($('hud'));
     }
 
+    // In-game confirmation (native confirm() is blocked in some embeds).
+    let confirmState = null;
+
+    function askConfirm(title, text, yes) {
+        return new Promise(resolve => {
+            confirmState = { title, text, yes, resolve };
+            openSheet('confirm');
+        });
+    }
+
+    function settleConfirm(answer) {
+        const c = confirmState;
+        confirmState = null;
+        if (c) c.resolve(answer);
+    }
+
+    function sheetConfirm() {
+        const c = confirmState || { title: '', text: '', yes: 'OK' };
+        return [`${icon('tombstone')} ${esc(c.title)}`, `
+            <p class="flavor">${esc(c.text)}</p>
+            <div class="menu-buttons">
+                <button class="btn btn-danger" data-action="confirmYes">${esc(c.yes)}</button>
+                <button class="btn btn-ghost" data-action="closeSheet">Cancel</button>
+            </div>`];
+    }
+
     // Starting over while a run is saved buries the old salvager properly.
-    function abandonSaved() {
+    async function abandonSaved() {
         const saved = loadRun();
         if (!saved) return true;
-        if (!confirm(`Abandon ${saved.hero.name}? They go in the graveyard.`)) return false;
+        if (!await askConfirm('Abandon run?', `${saved.hero.name} is still down there. Start over and they go in the graveyard.`, 'Abandon them')) return false;
         S = saved;
         S.dead = true;
         S.over = true;
@@ -202,9 +228,9 @@ const UI = (() => {
         return true;
     }
 
-    function startRun(daily = false) {
+    async function startRun(daily = false) {
         Sfx.unlock();
-        if (!abandonSaved()) return;
+        if (!await abandonSaved()) return;
         const seed = daily ? hashSeed(`darkfort-${dateKey()}`) : undefined;
         S = Engine.newRun({ seed, daily: daily ? dateKey() : null, locked: lockedBackgrounds() });
         meta.stats.runs += 1;
@@ -1056,6 +1082,7 @@ const UI = (() => {
     }
 
     function closeSheet() {
+        settleConfirm(false);
         sheetKind = null;
         $('sheet').classList.remove('open');
         $('sheetBackdrop').classList.remove('open');
@@ -1068,7 +1095,7 @@ const UI = (() => {
     }
 
     function renderSheet(kind) {
-        const sheets = { pack: sheetPack, map: sheetMap, log: sheetLog, menu: sheetMenu, graveyard: sheetGraveyard, records: sheetRecords, howto: sheetHowto, status: sheetStatus };
+        const sheets = { confirm: sheetConfirm, pack: sheetPack, map: sheetMap, log: sheetLog, menu: sheetMenu, graveyard: sheetGraveyard, records: sheetRecords, howto: sheetHowto, status: sheetStatus };
         const [title, body] = sheets[kind]();
         $('sheetTitle').innerHTML = title;
         $('sheetBody').innerHTML = body;
@@ -1329,9 +1356,15 @@ const UI = (() => {
                 Sfx.setAmbience(settings.ambience);
                 renderSheet('menu');
                 break;
-            case 'giveup':
-                if (!confirm('Give up this run? It goes in the graveyard.')) return;
+            case 'confirmYes': {
+                const c = confirmState;
+                confirmState = null;
                 closeSheet();
+                if (c) c.resolve(true);
+                break;
+            }
+            case 'giveup':
+                if (!await askConfirm('Give up?', 'This run ends here and the salvager goes in the graveyard.', 'Give up')) return;
                 S.dead = true;
                 S.over = true;
                 S.scene = { kind: 'end', won: false, extracted: false, payout: 0, score: 0, cause: 'Gave up and lay down in the dark.' };
